@@ -39,6 +39,7 @@ const SHORT = { srtm15: "SRTM15+", worldcover: "ESA WorldCover", worldclim: "Wor
 export function srcLabel(s) {
   if (!s) return "";
   if (!SHORT[s.id]) return stripParen(s.title);
+  if (/\b(19|20)\d\d\b/.test(SHORT[s.id])) return SHORT[s.id]; // the short label already carries its years
   const y = /\b(19|20)\d\d\b/.exec(s.title) || /\b(19|20)\d\d\b/.exec(s.vintage || "");
   return SHORT[s.id] + (y ? ` ${y[0]}` : "");
 }
