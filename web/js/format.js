@@ -7,10 +7,12 @@ const LOCALE = "en-US";
 export const CURRENCY = "$";
 export const hasCJK = (s) => /[㐀-鿿豈-﫿]/.test(String(s ?? ""));
 
-/** |n| in the unit at UNITS[i]: 1 decimal under 100, none above; ".0" is dropped. */
+/** |n| in the unit at UNITS[i]: thousands read whole from 10 up ("48 mil", not "48.3 mil"); other units keep one
+ *  decimal under 100 ("7.4 M"); ".0" is dropped. */
 function inUnit(a, i) {
   const q = a / UNITS[i][0];
-  return q.toFixed(q >= 100 ? 0 : 1).replace(/\.0+$/, "");
+  const whole = q >= 100 || (UNITS[i][1] === " mil" && q >= 10);
+  return q.toFixed(whole ? 0 : 1).replace(/\.0+$/, "");
 }
 
 export function compact(n) {
