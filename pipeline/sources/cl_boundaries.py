@@ -50,15 +50,22 @@ def rings(geom: dict) -> list[list[tuple[float, float]]]:
 class ClBoundaries(Source):
     info = SourceInfo(
         id="cl_boundaries",
-        title="Límites comunales de Chile (geoBoundaries ADM3)",
-        publisher="geoBoundaries (William & Mary geoLab), a partir de la Biblioteca del Congreso Nacional (BCN) y OCHA",
-        homepage="https://www.geoboundaries.org/countryDownloads.html",
-        license="CC BY 3.0 IGO",
-        description="Contornos de las 52 comunas de la Región Metropolitana. geoBoundaries no trae los códigos del "
-        "INE, así que cada contorno se une a su comuna del Censo 2024 por nombre (sin tildes ni mayúsculas): las 52 "
-        "calzan una a una. La provincia de cada comuna sale del código del INE, y su contorno es la unión de sus "
-        "comunas. Deciden a qué comuna y provincia pertenece cada hexágono.",
-        used_for=["Comuna y provincia de cada hexágono", "Bordes de provincia"],
+        title="Límites comunales de Chile (BCN)" if CFG["regions"] is None else "Límites comunales de Chile (geoBoundaries ADM3)",
+        publisher=("Biblioteca del Congreso Nacional (BCN), en la versión de fcortes/Chile-GeoJSON" if CFG["regions"] is None
+                   else "geoBoundaries (William & Mary geoLab), a partir de la Biblioteca del Congreso Nacional (BCN) y OCHA"),
+        homepage=("https://github.com/fcortes/Chile-GeoJSON" if CFG["regions"] is None
+                  else "https://www.geoboundaries.org/countryDownloads.html"),
+        license="Datos públicos de la BCN" if CFG["regions"] is None else "CC BY 3.0 IGO",
+        description=("Contornos de las comunas de Chile continental con su código del INE (cod_comuna). Rapa Nui, Juan "
+                     "Fernández y la Antártica quedan fuera del mapa. La región de cada comuna sale del código del INE y su "
+                     "contorno es la unión de sus comunas. Deciden a qué comuna y región pertenece cada hexágono."
+                     if CFG["regions"] is None else
+                     "Contornos de las 52 comunas de la Región Metropolitana. geoBoundaries no trae los códigos del "
+                     "INE, así que cada contorno se une a su comuna del Censo 2024 por nombre (sin tildes ni mayúsculas): las 52 "
+                     "calzan una a una. La provincia de cada comuna sale del código del INE, y su contorno es la unión de sus "
+                     "comunas. Deciden a qué comuna y provincia pertenece cada hexágono."),
+        used_for=["Comuna y región de cada hexágono", "Bordes de región"] if CFG["regions"] is None
+        else ["Comuna y provincia de cada hexágono", "Bordes de provincia"],
     )
 
     def fetch(self, force=False):

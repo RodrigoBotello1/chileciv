@@ -33,7 +33,11 @@ export const money = (n) => (n == null || Number.isNaN(n) ? "–" : (n < 0 ? "-"
 export const dollars = (n) =>
   n == null || Number.isNaN(n) ? "–" : (n < 0 ? "-" : "") + CURRENCY + Math.round(Math.abs(n)).toLocaleString(LOCALE);
 export const int = (n) => (n == null ? "–" : Math.round(n).toLocaleString(LOCALE));
-export const pct = (x, d = 1) => (x == null ? "–" : (x * 100).toFixed(d) + "%");
+export const pct = (x, d = 1) => {
+  if (x == null || Number.isNaN(x)) return "–";
+  const s = (x * 100).toFixed(d);
+  return (Number(s) === 0 ? "0" : s) + "%"; // never "0.0%" or "-0.0%"
+};
 
 export function yieldValue(y, v) {
   return y.unit === "usd" ? money(v) : compact(v);

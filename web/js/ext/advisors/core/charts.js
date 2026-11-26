@@ -285,7 +285,7 @@ export function sizeLegend(values, r, fmt = String, label = "") {
   let x = 4;
   const circles = values.map((v, i) => {
     const cx = x + rs[i];
-    x += rs[i] * 2 + 26;
+    x += rs[i] * 2 + 3 + String(fmt(v)).length * 5.6 + 12; // room for the label, whatever its length
     return `<circle cx="${cx.toFixed(1)}" cy="${(H - rs[i] - 2).toFixed(1)}" r="${rs[i].toFixed(1)}"/><text x="${(cx + rs[i] + 3).toFixed(1)}" y="${H - 3}">${esc(fmt(v))}</text>`;
   }).join("");
   return `<div class="adv-legend size">${label ? `<span class="t">${esc(label)}</span>` : ""}<svg width="${x + 20}" height="${H}" aria-hidden="true">${circles}</svg></div>`;

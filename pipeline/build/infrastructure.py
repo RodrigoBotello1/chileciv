@@ -31,7 +31,7 @@ from ..core.store import load_interim, load_interim_payload, write_web
 from ..core.mapcfg import MAP
 
 TRANSPORT = "osm_rm_transport" if MAP == "rm" else "ne_roads_cl"  # OSM for the RM; Natural Earth for Chile
-REQUIRES = ["_world", "cl_boundaries", TRANSPORT]
+REQUIRES = ["_world", "cl_boundaries", TRANSPORT, "wikidata_rm"]
 PRODUCES = ["infrastructure.json"]
 
 SAMPLE_KM = 0.25  # real km between samples along a line (a hex is about 1.7 km across)
@@ -340,6 +340,17 @@ def build() -> None:
     grid, proj, owner = HexGrid(**world["grid"]), MapProjection(**world["projection"]), world["owner"]
     osm_payload = load_interim_payload(TRANSPORT)
     osm = osm_payload["data"]
+    wd = load_interim("wikidata_rm")
+    if MAP == "rm" and not any(r["usage"] == "metro" for r in osm["rail"]):
+        # Metro lines from Wikidata: each station joined to its adjacent stations (P197).
+        st = {s["qid"]: s for s in wd.get("metro") or []}
+        pairs = {tuple(sorted((a, b))) for a, s in st.items() for b in s.get("adjs") or [] if b in st}
+        lines = [[(st[a]["lon"], st[a]["lat"]), (st[b]["lon"], st[b]["lat"])] for a, b in pairs]
+        osm["rail"].append({"usage": "metro", "highspeed": False, "lines": lines})
+        print(f"    Metro from Wikidata: {len(st)} stations, {len(pairs)} station-to-station links")
+    if not osm.get("airports"):
+        osm["airports"] = [{"iata": (a.get("iatas") or [None])[0], "name": a["name"], "name_en": a.get("name_en"),
+                            "lon": a["lon"], "lat": a["lat"]} for a in wd.get("airports") or [] if a.get("iatas")]
     roads = build_roads(grid, proj, owner, osm)
     rail = build_rail(grid, proj, owner, osm)
 
@@ -351,7 +362,7 @@ def build() -> None:
         "version": 1,
         "vintage": {"roads": osm_payload["vintage"], "rail": osm_payload["vintage"], "ports": None,
                     "airports": osm_payload["vintage"]},
-        "sources": [TRANSPORT],
+        "sources": [TRANSPORT, "wikidata_rm"],
         "rules": RULES,
         "units": UNITS,
         "road_classes": ROAD_CLASSES,

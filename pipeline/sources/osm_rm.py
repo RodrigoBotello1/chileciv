@@ -170,6 +170,9 @@ class OsmRmTransport(Source):
         # light rail) and the railway. Chilean OSM rarely tags usage=main/branch, so all running railway is one tier.
         rgroups: dict[str, list] = defaultdict(list)
         for rel, kind in (("rail.json", "rail"), ("metro.json", "metro")):
+            if not (self.raw_dir / rel).exists():
+                print(f"    {rel} missing (Overpass did not answer): the infrastructure builder takes the Metro from Wikidata")
+                continue
             els, stamp = _load(self, rel)
             stamps.append(stamp)
             for el in els:
@@ -181,7 +184,7 @@ class OsmRmTransport(Source):
         usage_seen = Counter({k: len(v) for k, v in rgroups.items()})
         rail = [{"usage": kind, "highspeed": False, "lines": _lines(ways)} for kind, ways in sorted(rgroups.items())]
 
-        els, stamp = _load(self, "sites.json")
+        els, stamp = _load(self, "sites.json") if (self.raw_dir / "sites.json").exists() else ([], None)
         stamps.append(stamp)
         airports, harbours = [], []
         for el in els:

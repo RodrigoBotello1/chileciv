@@ -6,6 +6,8 @@ from ..core.source import Source, SourceInfo
 from ..core.mapcfg import CFG, keep_region
 from ._xlsx import sheet_rows
 
+NAME_FIX = {"San Pedro de La paz": "San Pedro de La Paz"}  # a typo in the published table
+
 URL = "https://censo2024.ine.gob.cl/wp-content/uploads/2025/03/D1_Poblacion-censada-por-sexo-y-edad-en-grupos-quinquenales.xlsx"
 FILE = "D1_Poblacion-censada-por-sexo-y-edad-en-grupos-quinquenales.xlsx"
 
@@ -25,8 +27,8 @@ class IneCenso2024(Source):
         homepage="https://censo2024.ine.gob.cl/resultados/",
         license="Datos públicos del INE; citar la fuente",
         description="Primeros resultados del Censo 2024 (27 de marzo de 2025): población censada por comuna, con "
-        "hombres, mujeres y grupos de edad quinquenales. Da los códigos y nombres oficiales de las 52 comunas y 6 "
-        "provincias de la Región Metropolitana, y la población de cada una.",
+        "hombres, mujeres y grupos de edad quinquenales. Da los códigos y nombres oficiales de las comunas, provincias y "
+        "regiones, y la población de cada una.",
         used_for=["Población de comunas y provincias", "Pirámide de edades", "Códigos oficiales de comuna"],
     )
 
@@ -39,7 +41,7 @@ class IneCenso2024(Source):
         for r in sheet_rows(path, "2"):
             if len(r) >= 9 and r[4].isdigit() and len(r[4]) >= 4 and r[4] != "0" and keep_region(r[0]):
                 comunas[r[4].zfill(5)] = {
-                    "code": r[4].zfill(5), "name": r[5], "prov_code": r[2].zfill(3), "prov_name": r[3],
+                    "code": r[4].zfill(5), "name": NAME_FIX.get(r[5], r[5]), "prov_code": r[2].zfill(3), "prov_name": r[3],
                     "reg_code": r[0].zfill(2), "reg_name": r[1],
                     "population": _int(r[6]), "men": _int(r[7]), "women": _int(r[8]), "ages": {},
                 }

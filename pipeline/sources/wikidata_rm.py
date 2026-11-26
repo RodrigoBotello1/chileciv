@@ -54,6 +54,16 @@ QUERIES = {
         "?item wdt:P31/wdt:P279? wd:Q130003 ; wdt:P17 wd:Q298 ; wdt:P625 ?coord . "
         f"{_COMMON}}}"
     ),
+    "metro.json": (
+        f"SELECT DISTINCT ?item ?es ?en ?coord ?links ?adj WHERE {{ {BOX}"
+        "?item wdt:P31/wdt:P279* wd:Q928830 . OPTIONAL { ?item wdt:P197 ?adj . } "
+        f"{_COMMON}}}"
+    ),
+    "airports.json": (
+        f"SELECT DISTINCT ?item ?es ?en ?coord ?links ?iata WHERE {{ {BOX}"
+        "?item wdt:P238 ?iata . "
+        f"{_COMMON}}}"
+    ),
     "towers.json": (
         f"SELECT DISTINCT ?item ?es ?en ?coord ?links ?height WHERE {{ {BOX}"
         "?item wdt:P31/wdt:P279? ?cls . VALUES ?cls { wd:Q41176 wd:Q11303 wd:Q18142 } "
@@ -74,7 +84,7 @@ def _point(wkt: str) -> tuple[float, float] | None:
 class WikidataRm(Source):
     info = SourceInfo(
         id="wikidata_rm",
-        title="Monumentos, áreas protegidas, universidades y edificios de la Región Metropolitana (Wikidata)",
+        title="Monumentos, áreas protegidas, universidades, edificios, centrales, minas y centros de ski (Wikidata)",
         publisher="Wikidata (Wikimedia Foundation), con la declaratoria del Consejo de Monumentos Nacionales",
         homepage="https://www.wikidata.org/",
         license="CC0 1.0 (dominio público)",
@@ -103,6 +113,12 @@ class WikidataRm(Source):
                     continue
                 rec = items.setdefault(qid, {"qid": qid, "name": name, "name_en": (b.get("en") or {}).get("value"),
                                              "lon": pt[0], "lat": pt[1], "links": int(b["links"]["value"])})
+                for k in ("adj", "iata"):
+                    if k in b:
+                        v = b[k]["value"].rsplit("/", 1)[-1]
+                        rec.setdefault(k + "s", [])
+                        if v not in rec[k + "s"]:
+                            rec[k + "s"].append(v)
                 for k in ("clsEs", "productEs"):
                     if k in b:
                         rec.setdefault(k.removesuffix("Es") + "s", [])

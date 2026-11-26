@@ -37,6 +37,9 @@ export function initSearch(opts) {
     const long = c.full && norm(c.full) !== norm(c.name) ? c.full : "";
     entries.push({ kind: "city", city: c, n: norm(c.name), alt: alts(c.full, c.name_en), pop: c.population || 0,
       sub: long ? `Comuna · ${long}` : "Comuna", label: c.name });
+    // "Comuna de San Pedro, Biobío" repeats the name the row already shows (and gets cut before the region): keep what it adds.
+    const e = entries[entries.length - 1];
+    if (long) { const rest = long.replace(`Comuna de ${c.name}`, "").replace(/^[\s,]+/, ""); e.sub = rest ? `Comuna · ${rest}` : "Comuna"; }
   }
   (opts.states || []).forEach((s, index) => {
     if (!s) return;

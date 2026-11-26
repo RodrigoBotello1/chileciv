@@ -43,6 +43,8 @@ export function formatLensTick(lens, t, k = -1) {
   const short = (lens.format === "int" || lens.format === "float") && lens.unit && unitWidth(lens.unit) > 4
     ? { ...lens, unit: null } : lens;
   let s = formatLensValue(short, v);
+  // A narrow scale (daylight in June: 9.8 to 10) would print the same "9.9" on three ticks: one more decimal.
+  if (lens.format === "float" && Number.isFinite(v) && Math.abs(v) < 10 && Math.abs(lens.domain[1] - lens.domain[0]) < 2) s = v.toFixed(2) + (short.unit ? " " + short.unit : "");
   const zero = Number.isFinite(v) && Math.abs(v) < 1e-9;
   if (zero) s = s.replace(/^(\$?)0\.0+(?!\d)/, (_, d) => d + "0");
   if (k === 0 && !zero) s = "≤ " + s;

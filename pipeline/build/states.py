@@ -113,7 +113,8 @@ def label_anchor(grid: HexGrid, owner: list[int], s: int, name: str) -> dict | N
 
 
 PCT_KEYS = ["forest", "crop", "pasture", "grass", "shrub", "wetland", "developed"]
-ENERGY_NOTE = "Solo cuenta las centrales marcadas en la capa de recursos (cada tipo tiene un umbral, ver la capa), no la capacidad instalada total de la provincia."
+ENERGY_NOTE = ("Solo cuenta las centrales marcadas en la capa de recursos (cada tipo tiene un umbral, ver la capa), no la "
+               "capacidad instalada total de la zona.")
 
 
 def land_shares(world: dict, s: int) -> dict | None:

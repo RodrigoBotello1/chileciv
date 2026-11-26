@@ -39,11 +39,11 @@ export function openStatePanel(idx, ctx) {
     kind: "state",
     stripe: css(w.stateColor[idx] || [190, 190, 190]),
     title: name,
-    sub: [st.name_en || geo.name_en, abbr, geo.fips ? `Código de ${T.state} ${geo.fips}` : ""].filter(Boolean).map(esc).join(" · "),
+    sub: [st.name_en || geo.name_en, abbr, geo.fips ? `Código de ${T.state} ${geo.fips}` : ""].filter((x) => x && x !== name).map(esc).join(" · "),
     headExtra: hasEcon ? popLine(st, growthSpan(st, n)) : "",
     sections: [
       st.yields && { title: `Rendimientos · ranking entre ${T.states}`, html: `<div class="yield-grid">${yieldGrid(nation, st.yields, st.ranks, count)}</div>` },
-      living && { title: "Calidad de vida y vivienda", html: living },
+      living && { title: amenities(st, n, nation).trim() ? "Calidad de vida y vivienda" : "Economía", html: living },
       st.jobs && { title: "Principales rubros · dónde trabaja la gente", html: industries(st, nation, 8) },
       { title: cities.length > 1 ? "Comunas más grandes" : "Comuna", html: cityRows },
       !hasEcon && { title: "Datos", html: `<p class="muted">Esta versión de los datos no trae estadísticas por ${T.state} (falta states.json).</p>` },

@@ -439,10 +439,10 @@ export async function mount(ctx) {
 
 function metricText(w) {
   const m = w.metrics || {};
-  if (w.kind === "university") return fin(m.rd_usd) ? `${money(m.rd_usd)} en fondos de proyectos` : "–";
+  if (w.kind === "university") return fin(m.rd_usd) ? `${money(m.rd_usd)} en fondos de proyectos` : kindOf(w.kind).label;
   if (fin(m.visits)) return `${count3(m.visits)} visitas`;
   if (w.kind === "landmark") return fin(m.designated) ? `designado en ${m.designated}` : kindOf(w.kind).label;
-  return "–";
+  return kindOf(w.kind).label; // no figure to show: the kind, rather than a column of dashes
 }
 
 // Latin event titles arrive in capitals; Chinese ones are shown as they are.

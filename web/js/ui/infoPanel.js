@@ -32,7 +32,7 @@ export function yieldGrid(nation, yields, ranks = null, rankOf = 0) {
       const label = y.key === "gold" ? gdpLabel(nation) : y.label;
       return `<div class="yield-tile" title="${esc(y.key === "gold" ? goldName(nation, y) : y.label)}: ${esc(y.description || "")}">
         <div class="ico" style="color:${esc(y.color)}">${glyph(y, 20)}</div>
-        <div class="val" style="color:${esc(y.color)}">${yieldValue(y, v)}</div>
+        <div class="val${yieldValue(y, v).length > 13 ? " xlong" : yieldValue(y, v).length > 8 ? " long" : ""}" style="color:${esc(y.color)}">${yieldValue(y, v)}</div>
         <div class="lbl">${esc(label)}</div>
         ${r ? `<div class="rank" title="Lugar ${r} entre las ${rankOf} ${T.states} del mapa (1 = la mayor)">${r}.º de ${rankOf}</div>` : ""}</div>`;
     })

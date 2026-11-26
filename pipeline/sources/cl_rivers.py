@@ -36,7 +36,7 @@ def length_km(line: list[tuple[float, float]]) -> float:
 class ClRivers(Source):
     info = SourceInfo(
         id="cl_rivers",
-        title="Ríos de la Región Metropolitana (relaciones waterway=river de OpenStreetMap)",
+        title="Ríos (relaciones waterway=river de OpenStreetMap)",
         publisher="OpenStreetMap contributors, via the Overpass API",
         homepage="https://www.openstreetmap.org/",
         license="Open Database License (ODbL) 1.0. © OpenStreetMap contributors",

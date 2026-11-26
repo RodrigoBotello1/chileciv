@@ -364,8 +364,15 @@ def build() -> None:
                 lon, lat = proj.inverse(*grid.center(*grid.col_row(i)))
                 values.append(sum(1 for q in strong if _km(lon, lat, q["lon"], q["lat"]) < 100))
             top = sorted(strong, key=lambda q: -q["mag"])[:5]
+            bounds = load_interim("cl_boundaries")
+            centres = []
+            for cty in bounds["counties"]:
+                pts = [p for r in cty["rings"] for p in r]
+                centres.append((cty["name"], sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)))
+            def near(q):  # the comuna whose centre is closest to the epicentre (USGS names places in English)
+                return min(centres, key=lambda c: _km(q["lon"], q["lat"], c[1], c[2]))[0]
             m["description"] += " Los más fuertes en la ventana del mapa: " + "; ".join(
-                f"magnitud {q['mag']:.1f} en {_year(q['time'])} ({q['place']})" for q in top) + "."
+                f"magnitud {q['mag']:.1f} en {_year(q['time'])}, cerca de {near(q)}" for q in top) + "."
         elif lid in ("forest", "farmland", "developed"):
             key = {"forest": "forest", "farmland": "crop", "developed": "developed"}[lid]
             values = [round(world["pct"][key][i] / 100, 4) if owner[i] >= 0 and world["cover"][i] else None

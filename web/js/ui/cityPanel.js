@@ -43,7 +43,7 @@ export function openCityPanel(city, ctx) {
     headExtra: popLine(city, growth),
     sections: [
       { title: "Rendimientos", html: `<div class="yield-grid">${yieldGrid(nation, city.yields)}</div>` },
-      living && { title: "Calidad de vida y vivienda", html: living },
+      living && { title: amenities(city, n, nation).trim() ? "Calidad de vida y vivienda" : "Economía", html: living },
       { title: "Rubros · dónde trabaja la gente", html: industries(city, nation) },
     ],
     foot: `Fuente: ${esc(nation.vintage || "")}${nation.gdp_vintage ? `; ${esc(gdpLabel(nation))}: ${esc(nation.gdp_vintage)}` : ""}.

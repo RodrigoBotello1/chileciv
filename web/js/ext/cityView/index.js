@@ -220,7 +220,7 @@ export async function install(app) {
     const hasRes = m.tiles.some((t) => t.residents != null); // needs the population-density lens
     cv.legend.setAttribute("aria-label", `Extensión de ${m.city.name} en el mapa`);
     cv.legend.innerHTML = `
-      <div class="cv-ml-t"><i class="cv-ml-sw" style="--sc:${col}"></i><b title="${esc(m.city.full || m.city.name)}">${esc(m.city.name)}</b><span class="cv-ml-k">· ${n} hexágonos</span><button type="button" class="cv-ml-i" aria-controls="cv-ml-body" title="Leyenda del mapa">i</button></div>
+      <div class="cv-ml-t"><i class="cv-ml-sw" style="--sc:${col}"></i><b title="${esc(m.city.full || m.city.name)}">${esc(m.city.name)}</b><span class="cv-ml-k">· ${n} ${n === 1 ? "hexágono" : "hexágonos"}</span><button type="button" class="cv-ml-i" aria-controls="cv-ml-body" title="Leyenda del mapa">i</button></div>
       ${hasDistricts ? `<div class="cv-ml-sch">${icon("layers", "▦", { size: 11 })}posición esquemática de los distritos</div>` : ""}
       <div class="cv-ml-body" id="cv-ml-body">
         ${hasRes ? `<div class="cv-ml-r"><span class="cv-ml-pill">${icon("pop", "👥", { size: 11 })}≈</span>Habitantes por hexágono <small>(densidad × área)</small></div>` : ""}

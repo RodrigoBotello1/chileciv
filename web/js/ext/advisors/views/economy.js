@@ -102,7 +102,7 @@ export function mount(ctx) {
   const nameCol = { key: "name", label: "Comuna", align: "l", value: (r) => r.name, html: (r) => esc(r.name) };
   const cols = [
     nameCol,
-    { key: "gdp", label: "Ventas", value: (r) => r.v.gdp, text: (r) => money(r.v.gdp), bar: { max: gMax, color: "rgba(224,181,76,.35)" } },
+    { key: "gdp", label: "Ventas", width: "minmax(96px,1.2fr)", value: (r) => r.v.gdp, text: (r) => money(r.v.gdp), bar: { max: gMax, color: "rgba(224,181,76,.35)" } },
     { key: "gdp_pc", label: "Por habitante", value: (r) => r.v.gdp_pc, text: (r) => money(r.v.gdp_pc) },
     { key: "growth", label: "Crecimiento", value: (r) => r.v.growth, text: (r) => signedPct(r.v.growth) },
   ];
