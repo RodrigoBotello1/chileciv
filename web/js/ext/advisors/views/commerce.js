@@ -1,4 +1,4 @@
-// Commerce advisor (貿易大臣): freight routes between zones (trade.json), the busiest ports and airports and the road
+// Commerce advisor ("Master of Trade"): freight routes between zones (trade.json), the busiest ports and airports and the road
 // and rail network (infrastructure.json). Both files are optional: each section shows only what its file has. Units,
 // rules and vintages are quoted from the files; nothing here names a source of its own.
 import { esc, fin, el as mk, withAlpha } from "../core/util.js";
@@ -12,7 +12,7 @@ import { frameBox, focusPoint } from "../core/frame.js";
 // dark copper pipeline drawn dashed).
 const MODE_COLOR = { truck: "#d9a457", rail: "#a3acb8", water: "#4f9ad6", air: "#c9a0e0", multiple: "#8fcbb8", pipeline: "#b0703e", other: "#9a9aa8" };
 const PORT_COLOR = "#4f9ad6", AIR_COLOR = "#e6cf86";
-const MUSD = 1e6; // trade.json money is in millions (`_musd` keys; New Taiwan dollars in this build)
+const MUSD = 1e6; // trade.json money is in millions (`_musd` keys; Chilean pesos in this build)
 const KTON = 1e3; // trade.json weight is in thousands (`_tons_k` keys)
 const TOP_N = 15;
 
@@ -27,14 +27,14 @@ export async function mount(ctx) {
   const { app, el, link, data } = ctx;
   const [trade, infra] = await Promise.all([app.loadData("trade").catch(() => null), app.loadData("infrastructure").catch(() => null)]);
   if (!trade && !infra) {
-    el.innerHTML = `<p class="adv-empty pad">這個版本沒有貿易路線與交通設施的資料（trade.json、infrastructure.json 尚未建置），貿易大臣目前沒有可以報告的內容。</p>`;
+    el.innerHTML = `<p class="adv-empty pad">No hay datos de rutas comerciales ni de infraestructura en esta versión (trade.json e infrastructure.json aún no existen), así que el Maestro del comercio no tiene nada que informar por ahora.</p>`;
     return {};
   }
   const grid = app.w.grid;
   const metros = data.levels.metros;
   const api = { hotRoute: null };
   let zoneOfCity = null;
-  // A state code (or fips, or name) as the 縣市 name; unknown values are shown as they are.
+  // A state code (or fips, or name) as the provincia name; unknown values are shown as they are.
   const stName = (ref) => {
     if (ref == null || ref === "") return "";
     const i = app.w.raw.states.findIndex((s) => s.abbr === ref || s.fips === ref || s.name === ref);
@@ -42,33 +42,33 @@ export async function mount(ctx) {
   };
   const units = trade?.units || {};
   // What freight is measured in: money (value_musd) when the file has it, otherwise weight (tons_k). A file such as
-  // Taiwan's truck survey has tonnes only, so every sort, bar, line width and label below goes through `amt`.
+  // The Chile build has tonnes only, so every sort, bar, line width and label below goes through `amt`.
   const byValue = (trade?.routes || []).some((r) => fin(r.value_musd));
   const amt = (r) => (byValue ? r.value_musd : r.tons_k) || 0;
-  // The weight unit without its 千 / thousand prefix (千公噸 → 公噸): amounts are shown in 萬 / 億 of the base unit.
-  const tonUnit = String(units.tons_k || "").replace(/^(千|thousand\s+)/i, "") || "公噸";
+  // The weight unit without its "miles de" / thousand prefix (miles de toneladas → toneladas): amounts are shown in mil / M of the base unit.
+  const tonUnit = String(units.tons_k || "").replace(/^(miles de\s+|mil\s+|thousand\s+)/i, "") || "toneladas";
   const tonsK = (v) => `${count3(v * KTON)} ${tonUnit}`;
   const amtText = (v) => (byValue ? money(v * MUSD) : tonsK(v));
-  const AMT = byValue ? "金額" : "貨運量";
+  const AMT = byValue ? "valor" : "volumen";
 
   // --- headline -------------------------------------------------------------------------------------------------
   const nm = trade?.national_musd || {};
   const nt = trade?.national_tons_k || {};
-  const when = fin(trade?.year) ? `${trade.year} 年` : trade?.vintage;
+  const when = fin(trade?.year) ? `${trade.year}` : trade?.vintage;
   const ports0 = infra?.ports || [], airports0 = infra?.airports || [];
   const topPort = ports0.filter((p) => fin(p.tons)).sort((a, b) => b.tons - a.tons)[0];
   const topAir = airports0.filter((a) => fin(a.enplanements)).sort((a, b) => b.enplanements - a.enplanements)[0];
   const headline = [
-    byValue && fin(nm.domestic) && { label: "境內貨運", value: money(nm.domestic * MUSD), sub: [trade?.vintage, "依金額"].filter(Boolean).join(" · ") },
-    !byValue && fin(nt.total) && { label: "境內貨運", value: tonsK(nt.total), sub: [when, "依貨運量"].filter(Boolean).join(" · ") },
-    topPort && { label: "最繁忙港口", value: `${count3(topPort.tons)} ${infra?.units?.tons || "噸"}`, sub: topPort.name },
-    topAir && { label: "最繁忙機場", value: count3(topAir.enplanements), sub: `${topAir.name || topAir.id}${topAir.year ? ` · ${topAir.year} 年` : ""}旅客人次` },
+    byValue && fin(nm.domestic) && { label: "Carga interna", value: money(nm.domestic * MUSD), sub: [trade?.vintage, "por valor"].filter(Boolean).join(" · ") },
+    !byValue && fin(nt.total) && { label: "Carga interna", value: tonsK(nt.total), sub: [when, "por volumen"].filter(Boolean).join(" · ") },
+    topPort && { label: "Puerto más activo", value: `${count3(topPort.tons)} ${infra?.units?.tons || "toneladas"}`, sub: topPort.name },
+    topAir && { label: "Aeropuerto más activo", value: count3(topAir.enplanements), sub: `${topAir.name || topAir.id}${topAir.year ? ` · ${topAir.year}` : ""} · pasajeros` },
   ].filter(Boolean);
-  const foreign = [fin(nm.import) ? `進口 ${money(nm.import * MUSD)}` : "", fin(nm.export) ? `出口 ${money(nm.export * MUSD)}` : ""].filter(Boolean);
+  const foreign = [fin(nm.import) ? `Importaciones ${money(nm.import * MUSD)}` : "", fin(nm.export) ? `Exportaciones ${money(nm.export * MUSD)}` : ""].filter(Boolean);
   const split = !byValue && fin(nt.within_county) && fin(nt.between_counties)
-    ? `全年 ${tonsK(nt.total ?? nt.within_county + nt.between_counties)}之中，${tonsK(nt.within_county)}的起訖都在同一個縣市，${tonsK(nt.between_counties)}跨越縣市。` : "";
+    ? `De ${tonsK(nt.total ?? nt.within_county + nt.between_counties)} en el año, ${tonsK(nt.within_county)} comienzan y terminan en la misma comuna y ${tonsK(nt.between_counties)} cruzan límites comunales.` : "";
   el.insertAdjacentHTML("beforeend", (headline.length ? tiles(headline) : "")
-    + (trade ? `<p class="adv-callout">${byValue ? `貨運金額${units.value_musd ? `（${esc(units.value_musd)}）` : ""}` : "貨運量"}說的是各地之間流動的貨物，不是各地自己的產出。${byValue ? "" : "這份資料只有重量，沒有貨物的金額。"}${split}${foreign.length ? `${foreign.join("、")}另外計算。` : ""}</p>` : ""));
+    + (trade ? `<p class="adv-callout">${byValue ? `El valor de la carga${units.value_musd ? ` (${esc(units.value_musd)})` : ""}` : "El volumen de la carga"} describe las mercancías que circulan entre lugares, no lo que produce cada lugar. ${byValue ? "" : "Estos datos solo traen el peso, no el valor de las mercancías. "}${split ? `${split} ` : ""}${foreign.length ? `${foreign.join(" y ")} se calculan aparte.` : ""}</p>` : ""));
 
   // --- trade routes ---------------------------------------------------------------------------------------------
   let routes = [], zoneById = new Map(), routeCells = new Map(), overlayOff = null;
@@ -89,12 +89,12 @@ export async function mount(ctx) {
     const vMax = Math.max(1, ...routes.map(amt));
     const hasPipeline = routes.some((r) => r.top_mode === "pipeline");
 
-    const rBody = section(el, { title: "貿易路線", kicker: typeof trade.vintage === "string" ? trade.vintage : "", note: `${esc(trade.rule || "")}` });
+    const rBody = section(el, { title: "Rutas comerciales", kicker: typeof trade.vintage === "string" ? trade.vintage : "", note: `${esc(trade.rule || "")}` });
     // Mode mix of the routes, weighted by the amount (money, or weight when the file has no money).
     const modeTot = {};
     for (const r of routes) for (const [m, s] of Object.entries(r.modes || {})) modeTot[m] = (modeTot[m] || 0) + (s || 0) * amt(r);
     const modeParts = (trade.modes || []).map((m) => ({ key: m.id, label: m.name, value: modeTot[m.id] || 0, color: MODE_COLOR[m.id] || "#999", text: amtText(modeTot[m.id] || 0) })).filter((p) => p.value > 0);
-    rBody.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">這 ${routes.length} 條路線的貨物怎麼運送（依${AMT}）</h4>`);
+    rBody.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">Cómo se transporta la carga de estas ${routes.length} rutas (por ${AMT})</h4>`);
     const modeBar = shareBar(rBody, {
       parts: modeParts,
       onHover: (p) => { api.modeHot = p ? p.key : null; redraw(); },
@@ -109,7 +109,7 @@ export async function mount(ctx) {
     const rHost = mk("div");
     rBody.appendChild(rHost);
     rBody.appendChild(rDetail);
-    rBody.insertAdjacentHTML("beforeend", `<p class="adv-note">${esc(trade.path_note || "")} 線的粗細代表${AMT}，顏色代表主要運具${hasPipeline ? "（管線以虛線表示）" : ""}。</p>${swatchLegend((trade.modes || []).filter((m) => modeTot[m.id] > 0).map((m) => ({ label: m.name, color: MODE_COLOR[m.id] })))}`);
+    rBody.insertAdjacentHTML("beforeend", `<p class="adv-note">${esc(trade.path_note || "")} El grosor de la línea representa el ${AMT}; el color, el modo de transporte principal${hasPipeline ? " (los oleoductos van con línea punteada)" : ""}.</p>${swatchLegend((trade.modes || []).filter((m) => modeTot[m.id] > 0).map((m) => ({ label: m.name, color: MODE_COLOR[m.id] })))}`);
 
     const routeHighlight = (r) => {
       const za = zoneById.get(r.a), zb = zoneById.get(r.b);
@@ -126,10 +126,10 @@ export async function mount(ctx) {
       const vis = visibleRoutes();
       rHost.innerHTML = "";
       routeBars = barList(rHost, {
-        rank: !st.mode && !st.zone, ariaLabel: `${AMT}最大的貨運路線`, max: vMax,
+        rank: !st.mode && !st.zone, ariaLabel: `Rutas de carga con mayor ${AMT}`, max: vMax,
         rows: vis.map((r) => ({
           key: r.key, label: r.label, value: amt(r), text: amtText(amt(r)), color: MODE_COLOR[r.top_mode],
-          sub: [modeName.get(r.top_mode) || r.top_mode, comm[r.top_commodity]].filter(Boolean).join(" · "), full: `第 ${r.rank} 名 ${zoneById.get(r.a)?.name || r.a} ⇄ ${zoneById.get(r.b)?.name || r.b}`,
+          sub: [modeName.get(r.top_mode) || r.top_mode, comm[r.top_commodity]].filter(Boolean).join(" · "), full: `n.° ${r.rank} ${zoneById.get(r.a)?.name || r.a} ⇄ ${zoneById.get(r.b)?.name || r.b}`,
         })),
         selected: st.route?.key,
         onHover: (row) => {
@@ -139,9 +139,9 @@ export async function mount(ctx) {
         },
         onClick: (row) => selectRoute(routes.find((x) => x.key === row.key)),
       });
-      fRow.innerHTML = (st.mode ? `<span class="adv-fchip">運具：<b>${esc(modeName.get(st.mode) || st.mode)}</b><button type="button" data-clear-mode aria-label="清除運具篩選">✕</button></span>` : "")
-        + (st.zone ? `<span class="adv-fchip">分區：<b>${esc(zName(st.zone))}</b> · ${vis.length} 條路線<button type="button" data-clear-zone aria-label="清除分區篩選">✕</button></span>` : "");
-      if (!vis.length) rHost.innerHTML = `<p class="adv-empty">最大的 ${routes.length} 條路線中，沒有${[st.zone ? "經過這個分區" : "", st.mode ? "以這種運具為主" : ""].filter(Boolean).join("且")}的路線。</p>`;
+      fRow.innerHTML = (st.mode ? `<span class="adv-fchip">Modo: <b>${esc(modeName.get(st.mode) || st.mode)}</b><button type="button" data-clear-mode aria-label="Quitar el filtro de modo">✕</button></span>` : "")
+        + (st.zone ? `<span class="adv-fchip">Zona: <b>${esc(zName(st.zone))}</b> · ${vis.length} rutas<button type="button" data-clear-zone aria-label="Quitar el filtro de zona">✕</button></span>` : "");
+      if (!vis.length) rHost.innerHTML = `<p class="adv-empty">Entre las ${routes.length} rutas más grandes no hay ninguna que ${[st.zone ? "pase por esta zona" : "", st.mode ? "tenga este modo como principal" : ""].filter(Boolean).join(" y ")}.</p>`;
       modeBar.setSelected(st.mode);
       redraw();
     };
@@ -177,22 +177,22 @@ export async function mount(ctx) {
       const parts = Object.entries(r.modes || {}).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
       // Units are the file's own (trade.units); a figure the route does not have gets no tile.
       const facts = [
-        fin(r.value_musd) && { label: "金額", value: money(r.value_musd * MUSD), sub: "雙向合計" },
-        fin(r.tons_k) && { label: byValue ? "重量" : "貨運量", value: tonsK(r.tons_k), sub: "雙向合計" },
-        fin(r.dist_km) && { label: "距離", value: `${int(r.dist_km)} 公里`, sub: fin(r.tmiles_m) ? `${count3(r.tmiles_m * 1e6)}${units.tmiles_m ? `（${units.tmiles_m}）` : ""}` : /[（(]([^（）()]+)[）)]/.exec(units.dist_km || "")?.[1] || "" },
+        fin(r.value_musd) && { label: "Valor", value: money(r.value_musd * MUSD), sub: "ambos sentidos" },
+        fin(r.tons_k) && { label: byValue ? "Peso" : "Volumen", value: tonsK(r.tons_k), sub: "ambos sentidos" },
+        fin(r.dist_km) && { label: "Distancia", value: `${int(r.dist_km)} km`, sub: fin(r.tmiles_m) ? `${count3(r.tmiles_m * 1e6)}${units.tmiles_m ? ` (${units.tmiles_m})` : ""}` : /\(([^()]+)\)/.exec(units.dist_km || "")?.[1] || "" },
       ].filter(Boolean);
       rDetail.innerHTML = `<div class="adv-card-detail">
-        <h4 class="adv-h4">第 ${r.rank} 名 ${esc(zoneById.get(r.a)?.name || r.a)} ⇄ ${esc(zoneById.get(r.b)?.name || r.b)}</h4>
+        <h4 class="adv-h4">n.° ${r.rank} ${esc(zoneById.get(r.a)?.name || r.a)} ⇄ ${esc(zoneById.get(r.b)?.name || r.b)}</h4>
         ${facts.length ? tiles(facts) : ""}
-        <p class="adv-note">${parts.length ? `<b>運具：</b>${parts.map(([m, s]) => `${esc(modeName.get(m) || m)} ${pct(s)}`).join(" · ")}。` : ""}${comm[r.top_commodity] ? `<b>最大宗貨品：</b>${esc(comm[r.top_commodity])}。` : ""}</p>
-        <button type="button" class="adv-mini" data-unpin>關閉</button></div>`;
+        <p class="adv-note">${parts.length ? `<b>Modos:</b> ${parts.map(([m, s]) => `${esc(modeName.get(m) || m)} ${pct(s)}`).join(" · ")}. ` : ""}${comm[r.top_commodity] ? `<b>Principal mercancía:</b> ${esc(comm[r.top_commodity])}.` : ""}</p>
+        <button type="button" class="adv-mini" data-unpin>Cerrar</button></div>`;
       rDetail.querySelector("[data-unpin]").addEventListener("click", () => selectRoute(st.route));
     }
 
     // Zones table.
     const zBody = section(el, {
-      title: "貨運分區",
-      note: `${byValue ? "各分區的貨運金額：起訖都在區內的、與其他分區往來的，以及對外貿易。" : `各分區的貨運量（單位：${esc(tonUnit)}）：起訖都在區內的，以及運往、運自其他分區的。`}將游標移到某一列上，地圖會標出該分區的城市；點擊可查看它的路線與往來對象。`,
+      title: "Zonas de carga",
+      note: `${byValue ? "Valor de la carga de cada zona: la que comienza y termina dentro de la zona, la que intercambia con otras zonas y el comercio exterior." : `Volumen de carga de cada zona (unidad: ${esc(tonUnit)}): la que comienza y termina dentro de la zona, y la que sale hacia o llega desde otras zonas.`} Pasa el cursor sobre una fila para ver las comunas de la zona en el mapa; haz clic para ver sus rutas y contrapartes.`,
     });
     const zoneHighlight = (z) => {
       const cells = new Set();
@@ -200,8 +200,8 @@ export async function mount(ctx) {
       if (!cells.size && z.anchor?.cell != null) cells.add(z.anchor.cell);
       return { cells, cities: z.anchor?.city ? new Set([z.anchor.city]) : undefined, label: z.name };
     };
-    // The 縣市 a zone lies in, by name; left out when it only repeats the zone's own name.
-    const zStates = (z) => (z.states || []).map(stName).filter((nm) => nm && nm !== z.name && nm !== z.short).join("、");
+    // The provincia a zone lies in, by name; left out when it only repeats the zone's own name.
+    const zStates = (z) => (z.states || []).map(stName).filter((nm) => nm && nm !== z.name && nm !== z.short).join(", ");
     const zones = (trade.zones || []).map((z) => ({ ...z, key: z.id }));
     // A zone's totals in the measure in use: money has within / other_zones / import / export, weight has
     // within / out / in (so "with other zones" is out + in).
@@ -211,15 +211,15 @@ export async function mount(ctx) {
     const zText = (v) => (!fin(v) ? "–" : byValue ? money(v * MUSD) : count3(v * KTON));
     const has = (k) => zones.some((z) => fin(tot(z)?.[k]));
     zTable = createTable(zBody, {
-      caption: "貨運分區", rank: true, maxHeight: 260, search: "搜尋分區",
+      caption: "Zonas de carga", rank: true, maxHeight: 260, search: "Buscar zona",
       searchText: (z) => `${z.name} ${z.short || ""} ${zStates(z)}`,
       columns: [
-        { key: "name", label: "分區", align: "l", width: "minmax(0,1.9fr)", value: (z) => z.short || z.name, html: (z) => `${esc(z.short || z.name)}${zStates(z) ? ` <span class="sub">${esc(zStates(z))}</span>` : ""}`, tip: (z) => z.name },
-        has("within") && { key: "within", label: "區內", value: (z) => tot(z)?.within, text: (z) => zText(tot(z)?.within), title: "起訖都在分區內的貨運" },
-        { key: "other", label: "與其他分區", short: "與其他分區往來", value: otherOf, text: (z) => zText(otherOf(z)), title: has("out") || has("in") ? "運出加運入" : "", bar: { max: Math.max(...zones.map((z) => otherOf(z) || 0), 1), color: "rgba(47,164,184,.3)" } },
-        has("out") && { key: "out", label: "運出", value: (z) => tot(z)?.out, text: (z) => zText(tot(z)?.out), title: "從這個分區運往其他分區", hideBelow: 380 },
-        has("in") && { key: "in", label: "運入", value: (z) => tot(z)?.in, text: (z) => zText(tot(z)?.in), title: "從其他分區運到這個分區", hideBelow: 380 },
-        (has("import") || has("export")) && { key: "foreign", label: "進口＋出口", short: "對外貿易", value: (z) => (tot(z) ? (tot(z).import || 0) + (tot(z).export || 0) : null), text: (z) => (tot(z) ? zText((tot(z).import || 0) + (tot(z).export || 0)) : "–"), hideBelow: 380 },
+        { key: "name", label: "Zona", align: "l", width: "minmax(0,1.9fr)", value: (z) => z.short || z.name, html: (z) => `${esc(z.short || z.name)}${zStates(z) ? ` <span class="sub">${esc(zStates(z))}</span>` : ""}`, tip: (z) => z.name },
+        has("within") && { key: "within", label: "Interna", value: (z) => tot(z)?.within, text: (z) => zText(tot(z)?.within), title: "Carga que comienza y termina dentro de la zona" },
+        { key: "other", label: "Con otras zonas", short: "Intercambio con otras zonas", value: otherOf, text: (z) => zText(otherOf(z)), title: has("out") || has("in") ? "Salida más entrada" : "", bar: { max: Math.max(...zones.map((z) => otherOf(z) || 0), 1), color: "rgba(47,164,184,.3)" } },
+        has("out") && { key: "out", label: "Salida", value: (z) => tot(z)?.out, text: (z) => zText(tot(z)?.out), title: "Desde esta zona hacia otras zonas", hideBelow: 380 },
+        has("in") && { key: "in", label: "Entrada", value: (z) => tot(z)?.in, text: (z) => zText(tot(z)?.in), title: "Desde otras zonas hacia esta zona", hideBelow: 380 },
+        (has("import") || has("export")) && { key: "foreign", label: "Importación + exportación", short: "Comercio exterior", value: (z) => (tot(z) ? (tot(z).import || 0) + (tot(z).export || 0) : null), text: (z) => (tot(z) ? zText((tot(z).import || 0) + (tot(z).export || 0)) : "–"), hideBelow: 380 },
       ].filter(Boolean),
       rows: zones, sort: { key: "other", dir: "desc" },
       onHover: (z) => link.hover(z ? zoneHighlight(z) : null),
@@ -230,13 +230,13 @@ export async function mount(ctx) {
     function drawZoneDetail() {
       const z = st.zone ? zoneById.get(st.zone) : null;
       if (!z) { zDetail.innerHTML = ""; return; }
-      const cityNames = (z.cities || []).slice(0, 6).map((id) => esc(metros.byKey.get(id)?.name || id)).join("、");
+      const cityNames = (z.cities || []).slice(0, 6).map((id) => esc(metros.byKey.get(id)?.name || id)).join(", ");
       zDetail.innerHTML = `<div class="adv-card-detail"><h4 class="adv-h4">${esc(z.name)}</h4>
-        <p class="adv-note">${z.kind === "rest_of_state" ? "縣市內都會分區以外的其餘地區。" : ""}${fin(z.counties) ? `地圖上有 ${int(z.counties)} 個鄉鎮市區 · ` : ""}城市：${cityNames || "不在地圖上"}${(z.cities || []).length > 6 ? "…" : ""}</p>
-        <h4 class="adv-h4">主要往來對象</h4><div class="adv-zp"></div></div>`;
+        <p class="adv-note">${z.kind === "rest_of_state" ? "El resto de la provincia fuera de las zonas urbanas. " : ""}${fin(z.counties) ? `${int(z.counties)} comunas en el mapa · ` : ""}Comunas: ${cityNames || "no está en el mapa"}${(z.cities || []).length > 6 ? "…" : ""}</p>
+        <h4 class="adv-h4">Principales contrapartes</h4><div class="adv-zp"></div></div>`;
       barList(zDetail.querySelector(".adv-zp"), {
-        compact: true, ariaLabel: "主要往來分區",
-        rows: ((byValue ? z.partners : z.partners_tons_k) || []).map(([id, v, m]) => ({ key: id, label: zoneById.get(id)?.name || `分區 ${id}（不在地圖上）`, value: v, text: amtText(v), sub: modeName.get(m) || m, color: MODE_COLOR[m] })),
+        compact: true, ariaLabel: "Principales zonas con las que intercambia",
+        rows: ((byValue ? z.partners : z.partners_tons_k) || []).map(([id, v, m]) => ({ key: id, label: zoneById.get(id)?.name || `Zona ${id} (no está en el mapa)`, value: v, text: amtText(v), sub: modeName.get(m) || m, color: MODE_COLOR[m] })),
         onHover: (row) => { const pz = row ? zoneById.get(row.key) : null; link.hover(pz ? zoneHighlight(pz) : null); },
         onClick: (row) => { if (zoneById.has(row.key)) setZone(row.key); },
       });
@@ -313,51 +313,51 @@ export async function mount(ctx) {
     const ports = ports0.map((p) => ({ ...p, key: `p${p.id}` }));
     const airports = airports0.map((a) => ({ ...a, key: `a${a.id}` }));
     // Only the breakdown the file really has: a part no port reports is left out of the bars and the legend.
-    const PK = [{ key: "domestic", label: "國內", color: "#8fcbb8" }, { key: "imports", label: "進口", color: "#4f9ad6" }, { key: "exports", label: "出口", color: "#d9a457" }]
+    const PK = [{ key: "domestic", label: "Nacional", color: "#8fcbb8" }, { key: "imports", label: "Importaciones", color: "#4f9ad6" }, { key: "exports", label: "Exportaciones", color: "#d9a457" }]
       .filter((k) => ports.some((p) => fin(p[k.key])));
-    const tons = (x) => `${count3(x)} ${infra.units?.tons || "噸"}`; // the file names its own unit of weight
+    const tons = (x) => `${count3(x)} ${infra.units?.tons || "toneladas"}`; // the file names its own unit of weight
     const flyToKey = (list, key) => flyTo(list.find((x) => x.key === key));
 
     if (ports.length) {
-      const pBody = section(el, { title: "港口", kicker: v.ports || "", note: `${esc(infra.rules?.ports || "")}${PK.length ? ` 長條把各港的貨物量分成${PK.map((k) => k.label).join("、")}。` : ""}` });
+      const pBody = section(el, { title: "Puertos", kicker: v.ports || "", note: `${esc(infra.rules?.ports || "")}${PK.length ? ` Las barras dividen la carga de cada puerto en ${PK.map((k) => k.label).join(", ")}.` : ""}` });
       const portHover = (p) => {
         link.hover(p ? { cells: new Set(p.cell != null ? [p.cell] : []), label: p.name } : null);
         portBubbles?.setHot(p ? p.key : null);
       };
       const top = ports.filter((p) => fin(p.tons)).sort((a, b) => b.tons - a.tons).slice(0, TOP_N);
-      // The 縣市 after the name, unless the port is named after it.
-      const portSub = (p) => { const nm = stName(p.state); return nm && !String(p.name).includes(nm.replace(/[縣市]$/, "")) ? nm : ""; };
+      // The provincia after the name, unless the port is named after it.
+      const portSub = (p) => { const nm = stName(p.state); return nm && !String(p.name).includes(nm) ? nm : ""; };
       if (PK.length) {
         portBars = stackedBars(pBody, {
           rows: top.map((p) => ({ key: p.key, label: p.name, sub: portSub(p), parts: Object.fromEntries(PK.map((k) => [k.key, p[k.key]])), total: p.tons, text: tons(p.tons) })),
-          keys: PK, fmt: tons, ariaLabel: "貨物量最大的港口",
+          keys: PK, fmt: tons, ariaLabel: "Puertos con más carga",
           onHover: (x) => portHover(x ? ports.find((p) => p.key === x.row.key) : null),
           onClick: (x) => flyToKey(ports, x.row.key),
         });
       } else {
         portBars = barList(pBody, {
-          rank: true, ariaLabel: "貨物量最大的港口",
+          rank: true, ariaLabel: "Puertos con más carga",
           rows: top.map((p) => ({ key: p.key, label: p.name, sub: portSub(p), value: p.tons, text: tons(p.tons), color: PORT_COLOR })),
           onHover: (r) => portHover(r ? ports.find((p) => p.key === r.key) : null),
           onClick: (r) => flyToKey(ports, r.key),
         });
       }
-      pBody.insertAdjacentHTML("beforeend", (PK.length ? swatchLegend(PK) : "") + (ports.length > top.length ? `<p class="adv-note">${int(ports.length)} 個港口中貨物量最大的 ${top.length} 個。</p>` : ""));
+      pBody.insertAdjacentHTML("beforeend", (PK.length ? swatchLegend(PK) : "") + (ports.length > top.length ? `<p class="adv-note">${int(ports.length)} puertos: se muestran los ${top.length} con más carga.</p>` : ""));
     }
 
     let drawAir = () => {};
     // Cargo: pounds landed (`cargo_lbs`, the original contract) or tonnes (`cargo_tons`), whichever the file has.
     const cargoKey = airports.some((a) => fin(a.cargo_tons)) ? "cargo_tons" : "cargo_lbs";
     // The unit of air cargo is the file's own (infrastructure.json units): the key's name alone does not tell.
-    const cargoUnit = infra.units?.[cargoKey] || (cargoKey === "cargo_tons" ? "噸" : "磅");
+    const cargoUnit = infra.units?.[cargoKey] || (cargoKey === "cargo_tons" ? "toneladas" : "libras");
     // A Chinese airport name reads better than its code; a long Latin one is listed by code and city as before.
-    const airLabel = (a) => (a.name && /[㐀-鿿]/.test(a.name) ? a.name : [a.id, a.city || a.name].filter(Boolean).join(" "));
+    const airLabel = (a) => [a.id, a.city || a.name].filter(Boolean).join(" ");
     const hasPax = airports.some((a) => fin(a.enplanements)), hasCargo = airports.some((a) => fin(a[cargoKey]));
     if (airports.length && (hasPax || hasCargo)) {
-      const aBody = section(el, { title: "機場", kicker: v.airports || "", note: esc(infra.rules?.airports || "") });
+      const aBody = section(el, { title: "Aeropuertos", kicker: v.airports || "", note: esc(infra.rules?.airports || "") });
       let aMode = hasPax ? "pax" : "cargo";
       const aHost = mk("div");
-      if (hasPax && hasCargo) segmented(aBody, { label: "排序依據", value: aMode, options: [{ value: "pax", label: "旅客" }, { value: "cargo", label: "貨運" }], onChange: (x) => { aMode = x; drawAir(); } });
+      if (hasPax && hasCargo) segmented(aBody, { label: "Ordenar por", value: aMode, options: [{ value: "pax", label: "Pasajeros" }, { value: "cargo", label: "Carga" }], onChange: (x) => { aMode = x; drawAir(); } });
       aBody.appendChild(aHost);
       const airHover = (a) => {
         link.hover(a ? { cells: new Set(a.cell != null ? [a.cell] : []), label: [a.id, a.name].filter(Boolean).join(" · ") } : null);
@@ -369,21 +369,21 @@ export async function mount(ctx) {
         const list = airports.filter((a) => fin(a[k])).sort((a, b) => b[k] - a[k]).slice(0, TOP_N);
         let anyChange = false;
         airBars = barList(aHost, {
-          rank: true, ariaLabel: aMode === "pax" ? "旅客人次最多的機場" : "貨運量最大的機場",
+          rank: true, ariaLabel: aMode === "pax" ? "Aeropuertos con más pasajeros" : "Aeropuertos con más carga",
           rows: list.map((a) => {
             const ch = aMode === "pax" && fin(a.enplanements_prev) && a.enplanements_prev > 0 ? a.enplanements / a.enplanements_prev - 1 : null;
             if (fin(ch)) anyChange = true;
             return {
               key: a.key, label: airLabel(a), full: [a.id, a.name].filter(Boolean).join(" · "), value: a[k],
               text: aMode === "pax" ? count3(a[k]) : `${count3(a[k])} ${cargoUnit}`,
-              sub: aMode === "pax" ? (fin(ch) ? `${signedPct(ch)}${fin(a.year) ? `（比 ${a.year - 1} 年）` : ""}` : "") : stName(a.state),
+              sub: aMode === "pax" ? (fin(ch) ? `${signedPct(ch)}${fin(a.year) ? ` (frente a ${a.year - 1})` : ""}` : "") : stName(a.state),
               tone: fin(ch) ? (ch >= 0 ? "good" : "bad") : undefined, color: AIR_COLOR,
             };
           }),
           onHover: (r) => airHover(r ? airports.find((a) => a.key === r.key) : null),
           onClick: (r) => flyToKey(airports, r.key),
         });
-        aHost.insertAdjacentHTML("beforeend", `<p class="adv-note">${aMode === "pax" ? `全年旅客人次${anyChange ? "；變動幅度是與前一年相比" : ""}。` : `貨運量，單位為${cargoUnit}，依資料來源公布的口徑。`}</p>`);
+        aHost.insertAdjacentHTML("beforeend", `<p class="adv-note">${aMode === "pax" ? `Pasajeros embarcados en el año${anyChange ? "; la variación es frente al año anterior" : ""}.` : `Carga, en ${cargoUnit}, según el criterio que publica la fuente.`}</p>`);
       };
       drawAir();
     }
@@ -394,15 +394,15 @@ export async function mount(ctx) {
     const hubbed = airports.some((a) => a.hub);
     const mapAirs = airports.filter((a) => fin(a.enplanements) && fin(a.x) && fin(a.y) && (!hubbed || (a.hub && a.hub !== "N")));
     if (mapPorts.length || mapAirs.length) {
-      const mBody = section(el, { title: "地圖上的港口與機場" });
+      const mBody = section(el, { title: "Puertos y aeropuertos en el mapa" });
       let show = mapPorts.length && mapAirs.length ? "both" : mapPorts.length ? "ports" : "air";
       const opts = [
-        mapPorts.length && mapAirs.length && { value: "both", label: "港口與機場" },
-        mapPorts.length && { value: "ports", label: "港口" },
-        mapAirs.length && { value: "air", label: "機場" },
-        { value: "none", label: routes.length ? "只看路線" : "都不顯示" },
+        mapPorts.length && mapAirs.length && { value: "both", label: "Puertos y aeropuertos" },
+        mapPorts.length && { value: "ports", label: "Puertos" },
+        mapAirs.length && { value: "air", label: "Aeropuertos" },
+        { value: "none", label: routes.length ? "Solo rutas" : "Ninguno" },
       ].filter(Boolean);
-      segmented(mBody, { label: "顯示", value: show, options: opts, onChange: (x) => { show = x; drawSites(); } });
+      segmented(mBody, { label: "Mostrar", value: show, options: opts, onChange: (x) => { show = x; drawSites(); } });
       const sizeBox = mk("div");
       mBody.appendChild(sizeBox);
       portBubbles = ctx.bubbles("ports", {
@@ -410,14 +410,14 @@ export async function mount(ctx) {
         tip: (b) => {
           const p = b.it;
           const split = PK.filter((k) => fin(p[k.key])).map((k) => `${k.label} ${count3(p[k.key])}`).join(" · ");
-          return `<b>${esc(p.name)}</b><br>港口 · <b>${tons(p.tons)}</b>${p.year ? `（${esc(p.year)} 年）` : ""}${fin(p.rank) ? ` · 第 ${p.rank} 名` : ""}${split ? `<br><span class="sub">${esc(split)}</span>` : ""}`;
+          return `<b>${esc(p.name)}</b><br>Puerto · <b>${tons(p.tons)}</b>${p.year ? ` (${esc(p.year)})` : ""}${fin(p.rank) ? ` · n.° ${p.rank}` : ""}${split ? `<br><span class="sub">${esc(split)}</span>` : ""}`;
         },
         onHover: (b) => portBars?.setHot(b ? b.key : null),
         onClick: (b) => { portBars?.setHot(b.key); flyTo(b.it); },
       });
       airBubbles = ctx.bubbles("airports", {
         rMax: 16, alpha: 0.5,
-        tip: (b) => `<b>${esc([b.it.id, b.it.name].filter(Boolean).join(" · "))}</b><br>${esc(infra.hubs?.[b.it.hub] || "機場")} · 旅客 <b>${count3(b.it.enplanements)}</b> 人次${fin(b.it[cargoKey]) ? `<br><span class="sub">貨運 ${count3(b.it[cargoKey])} ${cargoUnit}</span>` : ""}`,
+        tip: (b) => `<b>${esc([b.it.id, b.it.name].filter(Boolean).join(" · "))}</b><br>${esc(infra.hubs?.[b.it.hub] || "Aeropuerto")} · <b>${count3(b.it.enplanements)}</b> pasajeros${fin(b.it[cargoKey]) ? `<br><span class="sub">carga ${count3(b.it[cargoKey])} ${cargoUnit}</span>` : ""}`,
         onHover: (b) => airBars?.setHot(b ? b.key : null),
         onClick: (b) => { airBars?.setHot(b.key); flyTo(b.it); },
       });
@@ -428,8 +428,8 @@ export async function mount(ctx) {
         airBubbles.set(showA ? mapAirs.map((a) => ({ key: a.key, x: a.x, y: a.y, value: a.enplanements, color: AIR_COLOR, it: a })) : [], { vMax: aMax });
         // Legend circles at round values just under the largest site, whatever the data's scale.
         const steps = (max) => { const hi = niceBelow(max); return hi >= 10 ? [hi / 10, hi] : [hi]; };
-        sizeBox.innerHTML = (showP && mapPorts.length ? sizeLegend(steps(pMax), (x) => 20 * Math.sqrt(x / pMax), tons, "港口（藍）：貨物量") : "")
-          + (showA && mapAirs.length ? sizeLegend(steps(aMax), (x) => 16 * Math.sqrt(x / aMax), (x) => count3(x), `機場（金）：旅客人次${hubbed ? "，只畫樞紐機場" : ""}`) : "");
+        sizeBox.innerHTML = (showP && mapPorts.length ? sizeLegend(steps(pMax), (x) => 20 * Math.sqrt(x / pMax), tons, "Puertos (azul): volumen de carga") : "")
+          + (showA && mapAirs.length ? sizeLegend(steps(aMax), (x) => 16 * Math.sqrt(x / aMax), (x) => count3(x), `Aeropuertos (dorado): pasajeros${hubbed ? ", solo aeropuertos principales" : ""}`) : "");
       };
       drawSites();
     }
@@ -439,12 +439,12 @@ export async function mount(ctx) {
     for (const r of infra.roads || []) nRoad[r[2]] = (nRoad[r[2]] || 0) + 1;
     for (const r of infra.rail || []) nRail[r[2]] = (nRail[r[2]] || 0) + 1;
     if ((infra.roads || []).length || (infra.rail || []).length) {
-      const nBody = section(el, { title: "公路與鐵路", open: false });
+      const nBody = section(el, { title: "Carreteras y ferrocarril", open: false });
       const toggles = (() => { try { return app.ui.mapToggles?.() || []; } catch { return []; } })();
-      const counts = (classes, n) => (classes || []).map((c, i) => `<b>${esc(c.name)}</b>：${int(n[i] || 0)} 段六角格連線`).join(" · ");
+      const counts = (classes, n) => (classes || []).map((c, i) => `<b>${esc(c.name)}</b>: ${int(n[i] || 0)} tramos de hexágonos`).join(" · ");
       nBody.innerHTML = `<p class="adv-note">${[counts(infra.road_classes, nRoad), counts(infra.rail_tiers, nRail)].filter(Boolean).join("<br>")}</p>
         ${infra.rules?.roads ? `<p class="adv-note">${esc(infra.rules.roads)}</p>` : ""}${infra.rules?.rail ? `<p class="adv-note">${esc(infra.rules.rail)}</p>` : ""}
-        ${toggles.length ? `<p class="adv-note">公路、鐵路與設施的圖示，可以從地圖圖層選單開啟或關閉。</p>` : ""}`;
+        ${toggles.length ? `<p class="adv-note">Los íconos de carreteras, ferrocarril e instalaciones se activan o desactivan desde el menú de capas del mapa.</p>` : ""}`;
     }
   }
   function flyTo(p) {
@@ -455,10 +455,10 @@ export async function mount(ctx) {
   const iv = infra?.vintage || {};
   el.insertAdjacentHTML("beforeend", sourcesHtml(data, [...(trade?.sources || []), ...(infra?.sources || [])], [
     ...(trade ? [
-      "路線畫在地圖的公路上只是為了好讀，並不是貨物實際走的路；一條連接兩個城市的路線，代表的是兩個分區之間所有的貨物往來。",
+      "Las rutas se dibujan sobre las carreteras del mapa solo para que se lean bien: no son el camino real de la carga. Una ruta entre dos comunas representa todo el intercambio de carga entre las dos zonas.",
     ] : []),
-    ...(iv.ports || iv.airports ? [`${[iv.ports ? `港口：${esc(iv.ports)}` : "", iv.airports ? `機場：${esc(iv.airports)}` : ""].filter(Boolean).join("；")}。兩者的統計年度可能不同。`] : []),
-    ...((infra?.roads || []).length || (infra?.rail || []).length ? [`地圖上的公路與鐵路${iv.roads ? `（${esc(iv.roads)}）` : ""}是簡化過的示意路線，不是統計資料。`] : []),
+    ...(iv.ports || iv.airports ? [`${[iv.ports ? `Puertos: ${esc(iv.ports)}` : "", iv.airports ? `Aeropuertos: ${esc(iv.airports)}` : ""].filter(Boolean).join("; ")}. Los años de ambas estadísticas pueden ser distintos.`] : []),
+    ...((infra?.roads || []).length || (infra?.rail || []).length ? [`Las carreteras y vías férreas del mapa${iv.roads ? ` (${esc(iv.roads)})` : ""} son trazados simplificados de referencia, no datos estadísticos.`] : []),
   ]));
 
   return {

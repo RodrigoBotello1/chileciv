@@ -2,7 +2,7 @@
 // Citizens (figure rows from citizens.json), Districts (districts.json), Economy, Workforce, Resources and Compare.
 // Plain HTML strings + inline SVG charts; render(el, model, handlers) fills `el`. The citizens and districts files
 // load on demand (h.loadData) and fill their sections when they arrive; a build without districts.json drops that
-// section and its tab. On the Taiwan map a city is a 縣市 and its members are 鄉鎮市區 (docs/PORTING.md).
+// section and its tab. On the Santiago map a city is a comuna and its member list is just itself.
 import { dollars, esc, int, pct } from "../../format.js";
 import { compact, money, popShort, yieldValue } from "./fmt.js";
 import { icon, glyph } from "../../ui/icon.js";
@@ -14,12 +14,12 @@ import { citizensHtml, mountCitizens } from "./citizens.js";
 import { badgeHtml, cityDistricts, districtsHtml } from "./districts.js";
 
 const TABS = [
-  ["citizens", "市民", "pop"],
-  ["districts", "特色區域", "l-developed"],
-  ["economy", "經濟", "y-gold"],
-  ["workforce", "就業", "y-production"],
-  ["resources", "資源", "resources"],
-  ["compare", "比較", "layers"],
+  ["citizens", "Habitantes", "pop"],
+  ["districts", "Distritos", "l-developed"],
+  ["economy", "Economía", "y-gold"],
+  ["workforce", "Empleo", "y-production"],
+  ["resources", "Recursos", "resources"],
+  ["compare", "Comparar", "layers"],
 ];
 
 const signed = (g, d = 1) => (g == null ? "–" : `${g >= 0 ? "+" : "−"}${Math.abs(g * 100).toFixed(d)}%`);
@@ -32,17 +32,17 @@ function countOf(cities, key) {
 }
 
 // Medal colours scale with the number of ranked cities: about the top 1% gold and the top 5% silver on a map with
-// hundreds of cities, and never fewer than the top 3 / top 10 (the 22 縣市).
+// hundreds of cities, and never fewer than the top 3 / top 10 (the 52 comunas).
 function rankBadge(rank, of, label, tip) {
   if (rank == null) return "";
   const tier = rank <= Math.max(3, Math.round(of / 90)) ? "gold" : rank <= Math.max(10, Math.round(of / 18)) ? "silver" : "bronze";
-  return `<div class="cv-rank ${tier}" title="${esc(tip || `${label}：第 ${rank} 名（共 ${of} 個城市，第 1 名最高）`)}">
+  return `<div class="cv-rank ${tier}" title="${esc(tip || `${label}: lugar ${rank} de ${of} comunas (1 = más alto)`)}">
     <span class="cv-medal">${rank}</span><span class="cv-rank-l">${esc(label)}</span></div>`;
 }
 
 function lqBadge(lq) {
   if (lq == null) return "";
-  const tip = `區位商數：此占比為全國占比的 ${lq.toFixed(2)} 倍`;
+  const tip = `Cociente de localización: esta proporción es ${lq.toFixed(2)} veces la regional`;
   const cls = lq >= 1.25 ? "hi" : lq <= 0.75 ? "lo" : "mid";
   return `<span class="cv-lq ${cls}" title="${esc(tip)}">×${lq.toFixed(1)}</span>`;
 }
@@ -51,17 +51,17 @@ function medallion(id, fallback, bg, size = 18) {
   return `<span class="cv-med" style="--bg:${esc(bg)}">${icon(id, fallback, { size })}</span>`;
 }
 
-// The "gdp" field is the 生產毛額 (gross value added) the data's gdp_vintage names; Taiwan publishes no official
-// GDP by 縣市, so the screen never calls it GDP.
-const GDP = "生產毛額";
-const GDP_PC = "人均生產毛額";
+// The "gdp" field is the annual sales (SII) the data's gdp_vintage names; there is no official GDP by comuna, so the
+// screen never calls it GDP.
+const GDP = "Ventas anuales";
+const GDP_PC = "Ventas por habitante";
 /** True when sources.json (a list, or {sources: [...]}) has an entry with this id. */
 function hasSource(sources, id) {
   const list = Array.isArray(sources) ? sources : Array.isArray(sources?.sources) ? sources.sources : [];
   return list.some((x) => x?.id === id);
 }
 
-const sameText = (a, b) => String(a ?? "").trim().replace(/台/g, "臺") === String(b ?? "").trim().replace(/台/g, "臺");
+const sameText = (a, b) => String(a ?? "").trim() === String(b ?? "").trim();
 const fmtArea = (a) => (a == null ? "–" : a >= 100 ? compact(a) : a.toFixed(1));
 const gw = (mw) => (mw >= 1000 ? `${(mw / 1000).toFixed(1)} GW` : `${Math.round(mw)} MW`);
 
@@ -70,51 +70,51 @@ function header(m) {
   const c = m.city, n = m.nation.nation;
   const cities = m.cityList;
   const col = css(m.stateRGB);
-  // The chip opens the 縣市 panel. A city that is its own 縣市 gets a plain "縣市資料" chip (its name is already the
-  // title); another 縣市 is named in full (three-letter ISO codes mean little to readers).
+  // The chip opens the provincia panel. A comuna that is its own provincia gets a plain "Datos de la provincia" chip
+  // (its name is already the title); another provincia is named in full (codes mean little to readers).
   const chips = m.states.map((s) => {
-    const label = s.self ? "縣市資料" : s.name;
+    const label = s.self ? "Datos de la provincia" : s.name;
     return s.index >= 0
-      ? `<button class="chip" data-state="${s.index}" title="${esc(`開啟縣市面板：${s.name}`)}">${esc(label)}</button>`
+      ? `<button class="chip" data-state="${s.index}" title="${esc(`Abrir el panel de la provincia: ${s.name}`)}">${esc(label)}</button>`
       : s.self ? "" : `<span class="chip">${esc(label)}</span>`;
   }).join("");
   const g = Number.isFinite(c.growth) ? c.growth : null;
   const yrs = Array.isArray(c.growth_years) ? c.growth_years : null;
-  const growth = g == null ? "" : `<span class="cv-growth ${g >= 0 ? "good" : "bad"}" title="${yrs ? `${yrs[0]}–${yrs[1]} 年` : ""}人口變化（年底戶籍登記人口）${n.growth != null ? `；全國 ${signed(n.growth)}` : ""}">${g >= 0 ? "▲" : "▼"} ${Math.abs(g * 100).toFixed(1)}%${yrs ? ` <small>自 ${yrs[0]} 年</small>` : ""}</span>`;
+  const growth = g == null ? "" : `<span class="cv-growth ${g >= 0 ? "good" : "bad"}" title="Variación de la población${yrs ? ` ${yrs[0]}–${yrs[1]}` : ""}${n.growth != null ? `. Región: ${signed(n.growth)}` : ""}">${g >= 0 ? "▲" : "▼"} ${Math.abs(g * 100).toFixed(1)}%${yrs ? ` <small>desde ${yrs[0]}</small>` : ""}</span>`;
   const perCap = c.gdp != null && c.population ? c.gdp / c.population : null;
   const r = c.ranks || {};
   const N = (k) => countOf(cities, k);
-  // The line under the title: only what `full` adds to the name (臺北市 Taipei City → Taipei City), never the name twice.
+  // The line under the title: only what `full` adds to the name (Santiago, Región Metropolitana → Región Metropolitana), never the name twice.
   const fullRaw = c.full && !sameText(c.full, c.name) ? String(c.full) : "";
   const full = fullRaw.startsWith(String(c.name)) ? fullRaw.slice(String(c.name).length).trim() : fullRaw;
   return `
   <div class="sheet-grip cv-grip" aria-hidden="true"></div>
   <header class="cv-head" style="--sc:${col}">
     <div class="cv-ribbon" aria-hidden="true"></div>
-    <button class="icon-btn cv-close" data-close aria-label="關閉城市檢視 (Esc)" title="返回地圖 (Esc)">${icon("close", "✕", { size: 13 })}</button>
-    <div class="cv-kind">城市檢視</div>
+    <button class="icon-btn cv-close" data-close aria-label="Cerrar la vista de comuna (Esc)" title="Volver al mapa (Esc)">${icon("close", "✕", { size: 13 })}</button>
+    <div class="cv-kind">Vista de comuna</div>
     <div class="cv-title">
       <div class="cv-crest" aria-hidden="true"><span>${esc(popShort(c.population))}</span></div>
       <div class="cv-tt">
-        <h2 class="cv-name" tabindex="-1">${isCapital(c) ? `<span class="cv-cap" title="中央政府所在地">★</span> ` : ""}${esc(c.name)}</h2>
+        <h2 class="cv-name" tabindex="-1">${isCapital(c) ? `<span class="cv-cap" title="Capital de la región">★</span> ` : ""}${esc(c.name)}</h2>
         ${full ? `<div class="cv-full">${esc(full)}</div>` : ""}
         <div class="cv-typeslot" data-ctype></div>
         ${chips ? `<div class="chips">${chips}</div>` : ""}
       </div>
     </div>
     <div class="cv-headline">
-      <div class="cv-big"><span class="lbl">${icon("pop", "👥", { size: 13 })} 人口</span><b>${int(c.population)}</b>${growth}</div>
-      <div class="cv-big"><span class="lbl">${icon("y-gold", "💰", { size: 13 })} ${GDP}${c.gdp_year ? `（${c.gdp_year}）` : ""}</span><b>${money(c.gdp)}</b>${
-        perCap != null ? `<span class="cv-sub">人均 ${money(perCap)}</span>` : ""}</div>
+      <div class="cv-big"><span class="lbl">${icon("pop", "👥", { size: 13 })} Población</span><b>${int(c.population)}</b>${growth}</div>
+      <div class="cv-big"><span class="lbl">${icon("y-gold", "💰", { size: 13 })} ${GDP}${c.gdp_year ? ` (${c.gdp_year})` : ""}</span><b>${money(c.gdp)}</b>${
+        perCap != null ? `<span class="cv-sub">${money(perCap)} por habitante</span>` : ""}</div>
     </div>
-    <div class="cv-ranks" aria-label="在 ${cities.length} 個城市中的排名">
-      ${rankBadge(r.population, N("population"), "人口")}
+    <div class="cv-ranks" aria-label="Lugar entre las ${cities.length} comunas">
+      ${rankBadge(r.population, N("population"), "Población")}
       ${rankBadge(r.gdp, N("gdp"), GDP)}
       ${rankBadge(r.gdp_per_capita, N("gdp_per_capita"), GDP_PC)}
-      ${rankBadge(r.growth, N("growth"), "人口成長", r.growth != null ? `人口成長：第 ${r.growth} 名（共 ${N("growth")} 個城市，第 1 名成長最快）` : "")}
+      ${rankBadge(r.growth, N("growth"), "Crecimiento", r.growth != null ? `Crecimiento: lugar ${r.growth} de ${N("growth")} comunas (1 = más rápido)` : "")}
     </div>
   </header>
-  <nav class="cv-tabs" aria-label="城市檢視分頁">
+  <nav class="cv-tabs" aria-label="Secciones de la vista de comuna">
     ${TABS.map(([id, label, ic]) => `<button type="button" data-tab="${id}">${icon(ic, "•", { size: 14 })}<span>${label}</span></button>`).join("")}
   </nav>`;
 }
@@ -126,7 +126,7 @@ function citizens(m) {
   const ch = series.length >= 2 ? series.at(-1).value / series[0].value - 1 : null;
   // sub: the small line beside the value; by default the national value, left out when there is none. A measure
   // the city has no value for (the build does not carry it, or not for this city) gets no row at all.
-  const row = (ic, fb, label, v, us, fmt, better, max, sub = us != null ? `全國 ${fmt(us)}` : "", tick = us) => (v == null ? "" : `
+  const row = (ic, fb, label, v, us, fmt, better, max, sub = us != null ? `región ${fmt(us)}` : "", tick = us) => (v == null ? "" : `
     <div class="cv-stat">
       <div class="cv-stat-top"><span class="sl">${icon(ic, fb, { size: 14 })}${esc(label)}</span>
         <span class="sv"><b>${v == null ? "–" : fmt(v)}</b>${sub ? `<small>${sub}</small>` : ""}</span></div>
@@ -136,37 +136,37 @@ function citizens(m) {
   const empShare = c.employed != null && c.population > 0 ? c.employed / c.population : null;
   const usEmpShare = n.employed != null && n.population > 0 ? n.employed / n.population : null;
   const empSub = empShare == null ? ""
-    : `占居民 ${pct(empShare)}${usEmpShare != null ? ` · 全國 ${pct(usEmpShare)}` : ""}`;
+    : `${pct(empShare)} de los habitantes${usEmpShare != null ? ` · región ${pct(usEmpShare)}` : ""}`;
   const multi = m.tiles.length > 1;
   // Residents per hex need the population-density lens; without it the hexes show their land use only.
   const hasRes = m.tiles.some((t) => t.residents != null);
-  const tilesNote = !multi ? `本城市位於單一六角格內（約 ${fmtArea(m.hexArea)} km²），與城市圖示一併顯示。`
-    : hasRes ? `地圖上，本城市的每個六角格顯示<b>≈ 居民數</b>（鄉鎮市區人口密度 × 六角格面積，為估計值）與<b>主要土地利用</b>（占該格土地的比例）${
-      m.residentsSum > 0 ? `。依此估計，${m.tiles.length} 個六角格合計約 ${compact(m.residentsSum)} 人` : ""}。`
-      : `地圖上，本城市的每個六角格顯示其<b>主要土地利用</b>（占該格土地的比例）。`;
+  const tilesNote = !multi ? `Esta comuna cabe en un solo hexágono del mapa (cerca de ${fmtArea(m.hexArea)} km²), que se muestra junto al ícono de la comuna.`
+    : hasRes ? `En el mapa, cada hexágono de la comuna muestra <b>≈ habitantes</b> (densidad de población de la comuna × área del hexágono, una estimación) y el <b>uso de suelo principal</b> (proporción del suelo del hexágono)${
+      m.residentsSum > 0 ? `. Según esa estimación, los ${m.tiles.length} hexágonos suman unas ${compact(m.residentsSum)} personas` : ""}.`
+      : `En el mapa, cada hexágono de la comuna muestra su <b>uso de suelo principal</b> (proporción del suelo del hexágono).`;
   return `
   <section class="cv-sec" id="cv-citizens" data-sec="citizens" aria-labelledby="cv-h-citizens">
-    <h3 id="cv-h-citizens">${icon("pop", "👥", { size: 15 })}市民</h3>
+    <h3 id="cv-h-citizens">${icon("pop", "👥", { size: 15 })}Habitantes</h3>
     <div class="cv-citizens" data-citizens>${citizensHtml(m, undefined)}</div>
-    <h4 class="cv-h4">人口</h4>
+    <h4 class="cv-h4">Población</h4>
     <div class="cv-card">
-      <div class="cv-card-h"><span>人口 ${series.length ? `${series[0].year}–${series.at(-1).year}` : ""}</span>${
+      <div class="cv-card-h"><span>Población ${series.length ? `${series[0].year}–${series.at(-1).year}` : ""}</span>${
         ch != null ? `<span class="${ch >= 0 ? "good" : "bad"}">${signed(ch)}</span>` : ""}</div>
-      ${sparkline(series, { fmt: (v) => popShort(v), title: `${c.name}歷年人口` })}
-      ${series.length >= 2 ? `<p class="cv-note">各年為年底戶籍登記人口${
-        hasSource(m.sources, "ris_population") ? "（內政部戶政司）" : ""}，各年以相同的鄉鎮市區範圍統計。</p>` : ""}
+      ${sparkline(series, { fmt: (v) => popShort(v), title: `Población de ${c.name} por año` })}
+      ${series.length >= 2 ? `<p class="cv-note">Población al cierre de cada año${
+        hasSource(m.sources, "ine_censo2024") ? " (INE)" : ""}, con los mismos límites comunales en todos los años.</p>` : ""}
     </div>
     <div class="cv-stats">
-      ${row("pop", "👥", "就業人口", c.employed, null, int, null, c.population, empSub, usEmpShare != null ? usEmpShare * c.population : null)}
-      ${row("unemployment", "😐", "失業率", c.unemployment, n.unemployment, (x) => pct(x), "low")}
-      ${row("l-income", "💵", `申報戶所得中位數${m.nation.income_year ? `（${m.nation.income_year} 年度）` : ""}`, c.median_income, n.median_income, dollars, "high")}
-      ${row("l-homeownership", "🔑", "月租金中位數", c.median_rent, n.median_rent, dollars, null)}
-      ${row("l-home", "🏠", "房價中位數", c.home_value, n.home_value, dollars, null)}
-      ${row(null, "⚖️", "租金負擔（租金 ÷ 所得）", c.rent_burden, n.rent_burden, (x) => pct(x), "low")}
+      ${row("pop", "👥", "Trabajadores de empresas con casa matriz aquí", c.employed, null, int, null, c.population, empSub, usEmpShare != null ? usEmpShare * c.population : null)}
+      ${row("unemployment", "😐", "Desempleo", c.unemployment, n.unemployment, (x) => pct(x), "low")}
+      ${row("l-income", "💵", `Ingreso mediano${m.nation.income_year ? ` (${m.nation.income_year})` : ""}`, c.median_income, n.median_income, dollars, "high")}
+      ${row("l-homeownership", "🔑", "Arriendo mediano mensual", c.median_rent, n.median_rent, dollars, null)}
+      ${row("l-home", "🏠", "Valor mediano de la vivienda", c.home_value, n.home_value, dollars, null)}
+      ${row(null, "⚖️", "Carga del arriendo (arriendo ÷ ingreso)", c.rent_burden, n.rent_burden, (x) => pct(x), "low")}
     </div>
     <div class="cv-legend-tiles">${tileLegend(m)}<p>${tilesNote}</p></div>
-    <h4 class="cv-h4">轄下鄉鎮市區 <span class="muted">(${(c.counties || []).length})</span></h4>
-    <div class="cv-counties" data-counties><p class="muted cv-note">鄉鎮市區資料載入中…</p></div>
+    <h4 class="cv-h4">Comunas miembro <span class="muted">(${(c.counties || []).length})</span></h4>
+    <div class="cv-counties" data-counties><p class="muted cv-note">Cargando comunas…</p></div>
   </section>`;
 }
 
@@ -177,11 +177,11 @@ function tileLegend(m) {
     `<span class="cv-tl-i"><i style="background:${esc(m.landColor(g.key))}"></i>${esc(g.label)} <small>${counts.get(g.key)}</small></span>`).join("")}</div>`;
 }
 
-const COUNTY_ROWS = 12; // rows of the member table shown before "另有 N 個"
+const COUNTY_ROWS = 12; // rows of the member table shown before "y N más"
 
 /**
  * A value of a counties.json column, formatted by the column's own field metadata (`format`), compactly: the member
- * table's columns are narrow, so money drops its NT$ prefix (the header carries it) and large counts use 萬 / 億.
+ * table's columns are narrow, so money drops its $ prefix (the header carries it) and large counts use mil / M.
  */
 function fieldCell(f, v) {
   if (v == null || (typeof v === "number" && !Number.isFinite(v))) return "–";
@@ -197,34 +197,34 @@ function fieldCell(f, v) {
 
 export function countiesTable(m, data) {
   const c = m.city;
-  if (!data || !Array.isArray(data.rows)) return `<p class="muted cv-note">無鄉鎮市區資料。</p>`;
+  if (!data || !Array.isArray(data.rows)) return `<p class="muted cv-note">No hay datos de comunas.</p>`;
   const col = Object.fromEntries(data.columns.map((k, j) => [k, j]));
   const want = new Set(c.counties || []);
   const rows = data.rows.filter((r) => want.has(r[col.geoid])).sort((a, b) => (b[col.population] || 0) - (a[col.population] || 0));
-  if (!rows.length) return `<p class="muted cv-note">本城市沒有鄉鎮市區資料。</p>`;
+  if (!rows.length) return `<p class="muted cv-note">No hay filas de datos para esta comuna.</p>`;
   const maxPop = rows[0][col.population] || 1;
   const show = rows.slice(0, COUNTY_ROWS);
-  const vint = data.vintage ? `（${esc(data.vintage)}）` : "";
-  // A member's 縣市 is named only when it is not the city itself (never on the Taiwan map, where they are one unit).
+  const vint = data.vintage ? ` (${esc(data.vintage)})` : "";
+  // A member's provincia is named only when it is not the city itself.
   const other = (r) => (col.state == null ? "" : m.otherStates?.(c, [r[col.state]])[0] || "");
   // Labels, units and formats of the three value columns come from the file's own field metadata (data.fields), so
-  // a column says what the build put in it; the Chinese names here stand in only when a field has no label.
+  // a column says what the build put in it; the Spanish names here stand in only when a field has no label.
   const field = (k) => (data.fields || []).find((f) => f.key === k) || null;
-  const COLS = [["population", "人口"], ["density", "人口密度"], ["income", "所得"]].map(([k, fb]) => ({ k, f: field(k), fb }));
-  const head = ({ f, fb }) => `<span role="columnheader" title="${esc([f?.unit, f?.description].filter(Boolean).join("："))}">${
-    esc(f?.label || fb)}${f?.format === "usd" ? " NT$" : ""}</span>`;
+  const COLS = [["population", "Población"], ["density", "Densidad"], ["income", "Ingreso"]].map(([k, fb]) => ({ k, f: field(k), fb }));
+  const head = ({ f, fb }) => `<span role="columnheader" title="${esc([f?.unit, f?.description].filter(Boolean).join(": "))}">${
+    esc(f?.label || fb)}${f?.format === "usd" ? " ($)" : ""}</span>`;
   const cell = ({ k, f }, r) => {
     const v = col[k] == null ? null : r[col[k]];
     const full = v != null && f?.format === "usd" ? dollars(v) : "";
     return `<span role="cell"${full ? ` title="${esc(full)}"` : ""}>${fieldCell(f, v)}</span>`;
   };
-  return `<div class="cv-ctable" role="table" aria-label="轄下鄉鎮市區">
-    <div class="cv-cr cv-cr-h" role="row"><span role="columnheader">${esc(field("name")?.label || "鄉鎮市區")}</span>${COLS.map(head).join("")}</div>
+  return `<div class="cv-ctable" role="table" aria-label="Comunas miembro">
+    <div class="cv-cr cv-cr-h" role="row"><span role="columnheader">${esc(field("name")?.label || "Comuna")}</span>${COLS.map(head).join("")}</div>
     ${show.map((r) => `<div class="cv-cr" role="row">
       <span role="cell" class="cv-cn">${esc(r[col.name])}${other(r) ? ` <small>${esc(other(r))}</small>` : ""}${bar(r[col.population] / maxPop, "var(--sc, #c9a45c)")}</span>
       ${COLS.map((c2) => cell(c2, r)).join("")}</div>`).join("")}
-    ${rows.length > show.length ? `<p class="muted cv-note">另有 ${rows.length - show.length} 個鄉鎮市區。</p>` : ""}
-    <p class="cv-note">鄉鎮市區統計${vint}。</p>
+    ${rows.length > show.length ? `<p class="muted cv-note">Y ${rows.length - show.length} comunas más.</p>` : ""}
+    <p class="cv-note">Estadísticas por comuna${vint}.</p>
   </div>`;
 }
 
@@ -232,7 +232,7 @@ export function countiesTable(m, data) {
 function districts(m) {
   return `
   <section class="cv-sec" id="cv-districts" data-sec="districts" aria-labelledby="cv-h-districts">
-    <h3 id="cv-h-districts">${icon("l-developed", "🏙", { size: 15 })}特色區域</h3>
+    <h3 id="cv-h-districts">${icon("l-developed", "🏙", { size: 15 })}Distritos</h3>
     <div data-districts>${districtsHtml(m, undefined, null)}</div>
   </section>`;
 }
@@ -247,23 +247,23 @@ function economy(m) {
   const yields = nat.yields.map((y) => {
     const v = c.yields?.[y.key];
     const rk = r[y.key];
-    // The gold yield is labelled 生產毛額 when it is the city's gdp figure itself; otherwise it keeps the data's label.
+    // The gold yield is labelled "Ventas anuales" when it is the city's gdp figure itself; otherwise it keeps the data's label.
     const lbl = y.key === "gold" && c.gdp != null && v === c.gdp ? GDP : y.label;
-    return `<div class="cv-yield" style="--yc:${esc(y.color)}" title="${esc(y.label)}：${esc(y.description || "")}">
+    return `<div class="cv-yield" style="--yc:${esc(y.color)}" title="${esc(y.label)}: ${esc(y.description || "")}">
       <div class="ico">${glyph(y, 20)}</div><div class="val">${yieldValue(y, v)}</div>
       <div class="lbl">${esc(lbl)}</div>
-      ${rk != null ? `<div class="rk" title="第 ${rk} 名（共 ${countOf(cities, y.key)} 個城市）">第 ${rk} 名 <small>／${countOf(cities, y.key)}</small></div>` : ""}</div>`;
+      ${rk != null ? `<div class="rk" title="Lugar ${rk} de ${countOf(cities, y.key)} comunas">Lugar ${rk} <small>de ${countOf(cities, y.key)}</small></div>` : ""}</div>`;
   }).join("");
   const gi = m.gdpInds;
   const maxShare = gi.length ? Math.max(...gi.map((d) => Math.max(d.share, d.natShare))) : 1;
   const gdpRow = (d) => d.undisclosed
-    ? `<div class="cv-ind und" title="部分產業的數值未公開：${esc(d.missing.map((k) => nat.industries?.[k] || k).join("、") || "數個產業")}。此列為本城市${GDP}減去所有已公開產業後的餘額。">
+    ? `<div class="cv-ind und" title="Algunas industrias no publican su valor: ${esc(d.missing.map((k) => nat.industries?.[k] || k).join(", ") || "varias industrias")}. Esta fila es lo que queda de las ${GDP.toLowerCase()} de la comuna al restar todas las industrias publicadas.">
       <span class="cv-ind-ic" style="--bg:${esc(d.color)}">${icon(d.icon, "?", { size: 13 })}</span>
       <span class="cv-ind-n">${esc(d.short)}</span>
       <span class="cv-ind-v">${money(d.value)} <small>${pct(d.share, 0)}</small></span>
       ${bar(d.share / maxShare, "#7c8494", 0)}
     </div>`
-    : `<div class="cv-ind" title="${esc(d.label)}：${money(d.value)}（占本城市${GDP} ${pct(d.share)}；全國 ${pct(d.natShare)}）${d.estimated ? "。含未公開數值的估計。" : ""}">
+    : `<div class="cv-ind" title="${esc(d.label)}: ${money(d.value)} (${pct(d.share)} de las ${GDP.toLowerCase()} de la comuna; región ${pct(d.natShare)})${d.estimated ? ". Incluye una estimación de valores no publicados." : ""}">
       <span class="cv-ind-ic" style="--bg:${esc(d.color)}">${icon(d.icon, "•", { size: 13 })}</span>
       <span class="cv-ind-n">${esc(d.short)}${lqBadge(d.lq)}</span>
       <span class="cv-ind-v">${d.estimated ? "≈" : ""}${money(d.value)} <small>${pct(d.share, 0)}</small></span>
@@ -271,23 +271,23 @@ function economy(m) {
     </div>`;
   return `
   <section class="cv-sec" id="cv-economy" data-sec="economy" aria-labelledby="cv-h-economy">
-    <h3 id="cv-h-economy">${icon("y-gold", "💰", { size: 15 })}經濟</h3>
+    <h3 id="cv-h-economy">${icon("y-gold", "💰", { size: 15 })}Economía</h3>
     <div class="cv-gdp">
-      <div><span class="lbl">${GDP}${c.gdp_year ? `（${c.gdp_year}）` : ""}</span><b>${money(c.gdp)}</b>${r.gdp != null ? `<small>第 ${r.gdp} 名／${countOf(cities, "gdp")}</small>` : ""}</div>
+      <div><span class="lbl">${GDP}${c.gdp_year ? ` (${c.gdp_year})` : ""}</span><b>${money(c.gdp)}</b>${r.gdp != null ? `<small>Lugar ${r.gdp} de ${countOf(cities, "gdp")}</small>` : ""}</div>
       <div><span class="lbl">${GDP_PC}</span><b>${money(perCap)}</b>${
-        usPerCap && perCap != null ? `<small class="${perCap >= usPerCap ? "good" : "bad"}">全國 ${money(usPerCap)}</small>` : ""}</div>
-      <div><span class="lbl">占全國${GDP}</span><b>${c.gdp != null && n.gdp ? pct(c.gdp / n.gdp, 2) : "–"}</b>${
-        c.population && n.population ? `<small>人口占 ${pct(c.population / n.population, 2)}</small>` : ""}</div>
+        usPerCap && perCap != null ? `<small class="${perCap >= usPerCap ? "good" : "bad"}">región ${money(usPerCap)}</small>` : ""}</div>
+      <div><span class="lbl">Parte de las ${GDP.toLowerCase()} de la región</span><b>${c.gdp != null && n.gdp ? pct(c.gdp / n.gdp, 2) : "–"}</b>${
+        c.population && n.population ? `<small>${pct(c.population / n.population, 2)} de la población</small>` : ""}</div>
     </div>
-    <h4 class="cv-h4">產出 <span class="muted">城市間排名</span></h4>
+    <h4 class="cv-h4">Rendimientos <span class="muted">lugar entre las comunas</span></h4>
     <div class="cv-yields">${yields}</div>
-    ${gi.length ? `<h4 class="cv-h4">各產業${GDP} <span class="muted">刻度 = 全國占比</span></h4>
+    ${gi.length ? `<h4 class="cv-h4">${GDP} por industria <span class="muted">marca = proporción regional</span></h4>
       <div class="cv-inds">${gi.slice(0, 8).map(gdpRow).join("")}</div>
-      ${gi.length > 8 ? `<details class="cv-more"><summary>全部 ${gi.length} 個產業</summary><div class="cv-inds">${gi.slice(8).map(gdpRow).join("")}</div></details>` : ""}`
+      ${gi.length > 8 ? `<details class="cv-more"><summary>Las ${gi.length} industrias</summary><div class="cv-inds">${gi.slice(8).map(gdpRow).join("")}</div></details>` : ""}`
       : ""}
-    <p class="cv-note">${GDP}：${nat.gdp_vintage ? `${esc(nat.gdp_vintage)}，` : ""}以當年價格計（新臺幣）${gi.length ? `；占比以本城市${GDP}總額為分母。×N = 該產業占本城市${GDP}的比例相對於全國占比的倍數` : ""}。${
-      gi.some((d) => d.estimated) ? "≈ 表示含未公開數值的估計。" : ""}${
-      gi.some((d) => d.undisclosed) ? `「未公開」= 因保密而未公開的${GDP}。` : ""}</p>
+    <p class="cv-note">${GDP}: ${nat.gdp_vintage ? `${esc(nat.gdp_vintage)}, ` : ""}en pesos corrientes${gi.length ? `; las proporciones usan el total de las ${GDP.toLowerCase()} de la comuna. ×N = proporción de la industria en las ${GDP.toLowerCase()} de la comuna frente a su proporción regional` : ""}.${
+      gi.some((d) => d.estimated) ? " ≈ indica una estimación que incluye valores no publicados." : ""}${
+      gi.some((d) => d.undisclosed) ? ` "No publicado" = ${GDP.toLowerCase()} que no se publican por reserva estadística.` : ""}</p>
   </section>`;
 }
 
@@ -295,7 +295,7 @@ function economy(m) {
 function workforce(m) {
   const cards = m.inds.map((d) => {
     const spec = d.lq != null && d.lq >= 1.25;
-    return `<div class="cv-bld${spec ? " spec" : ""}" title="${esc(d.label)}：${int(d.jobs)} 人（占 ${pct(d.share)}；全國 ${pct(d.natShare)}）">
+    return `<div class="cv-bld${spec ? " spec" : ""}" title="${esc(d.label)}: ${int(d.jobs)} personas (${pct(d.share)}; región ${pct(d.natShare)})">
       ${medallion(d.icon, "•", d.color, 17)}
       <div class="cv-bld-t"><span class="cv-bld-n">${esc(d.short)}</span>
         <span class="cv-bld-v">${compact(d.jobs)} <small>${pct(d.share, 1)}</small></span></div>
@@ -304,10 +304,10 @@ function workforce(m) {
   }).join("");
   return `
   <section class="cv-sec" id="cv-workforce" data-sec="workforce" aria-labelledby="cv-h-workforce">
-    <h3 id="cv-h-workforce">${icon("y-production", "⚙️", { size: 15 })}就業</h3>
-    ${cards ? `<p class="cv-lead">本城市${m.city.employed != null ? ` ${int(m.city.employed)} 位` : ""}就業人口的產業分布。<span class="cv-lq hi">×N</span> 為該產業就業占比相對於全國占比的倍數。</p>
-    <div class="cv-blds">${cards}</div>` : `<p class="muted cv-note">本城市無產業別就業資料。</p>`}
-    <p class="cv-note">資料來源：${esc(m.nation.vintage || "見資料年鑑")}。<span data-dnote>地圖上的特色區域另以各產業的區位商數判定，見「特色區域」。</span></p>
+    <h3 id="cv-h-workforce">${icon("y-production", "⚙️", { size: 15 })}Empleo</h3>
+    ${cards ? `<p class="cv-lead">Industrias en que trabajan ${m.city.employed != null ? `los ${int(m.city.employed)} ocupados` : "los ocupados"} de la comuna. <span class="cv-lq hi">×N</span> compara la proporción del empleo de una industria con la regional.</p>
+    <div class="cv-blds">${cards}</div>` : `<p class="muted cv-note">No hay datos de empleo por industria para esta comuna.</p>`}
+    <p class="cv-note">Fuente: ${esc(m.nation.vintage || "ver el Almanaque")}. <span data-dnote>Los distritos del mapa se definen aparte, con el cociente de localización de cada industria: ver "Distritos".</span></p>
   </section>`;
 }
 
@@ -316,9 +316,9 @@ function resources(m) {
   const list = m.sites.map((s, k) => {
     const t = s.type;
     const val = resourceValue(s.item, t, compact);
-    // The site's 縣市, only when it is not the city itself (a site filed under a neighbour).
+    // The site's provincia, only when it is not the city itself (a site filed under a neighbour).
     const where = s.item.state ? m.otherStates?.(m.city, [s.item.state])[0] || "" : "";
-    return `<button type="button" class="cv-site" data-site="${k}" title="飛到 ${esc(s.item.name)}">
+    return `<button type="button" class="cv-site" data-site="${k}" title="Volar a ${esc(s.item.name)}">
       <span class="cv-med" style="--bg:${esc(t?.color || "#3a4a5e")}">${glyph(t, 16)}</span>
       <span class="cv-site-t"><b>${esc(s.item.name)}</b><small>${esc(t?.name || s.item.type)}${where ? ` · ${esc(where)}` : ""}</small>
         ${s.item.detail ? `<small class="cv-site-d">${esc(s.item.detail)}</small>` : ""}</span>
@@ -327,30 +327,30 @@ function resources(m) {
   }).join("");
   const mw = m.sites.filter((s) => s.type?.unit === "MW").reduce((a, s) => a + (s.item.value || 0), 0);
   const summary = m.sites.length
-    ? `<p class="cv-lead">${m.sites.length} 處已標示的資源點${mw ? ` · 已標示的發電裝置容量 ${gw(mw)}` : ""}。點擊即可飛到該處。</p>`
-    : `<p class="muted cv-note">本城市內沒有已標示的資源點。地圖只標示規模較大者（各類型有其門檻）。</p>`;
+    ? `<p class="cv-lead">${m.sites.length} ${m.sites.length === 1 ? "sitio marcado" : "sitios marcados"}${mw ? ` · capacidad de generación marcada de ${gw(mw)}` : ""}. Haz clic en uno para volar allí.</p>`
+    : `<p class="muted cv-note">No hay sitios de recursos marcados en esta comuna. El mapa solo marca los grandes (cada tipo tiene un umbral de tamaño).</p>`;
   return `
   <section class="cv-sec" id="cv-resources" data-sec="resources" aria-labelledby="cv-h-resources">
-    <h3 id="cv-h-resources">${icon("resources", "⛏️", { size: 15 })}資源</h3>
+    <h3 id="cv-h-resources">${icon("resources", "⛏️", { size: 15 })}Recursos</h3>
     ${summary}
     <div class="cv-sites">${list}</div>
-    ${m.sites.length ? `<p class="cv-note">所在六角格中心落在本城市轄下鄉鎮市區內的資源點。僅含已標示者，並非本城市的全部容量。</p>` : ""}
+    ${m.sites.length ? `<p class="cv-note">Sitios cuyo hexágono tiene su centro dentro de la comuna. Solo sitios marcados, no toda la capacidad de la comuna.</p>` : ""}
   </section>`;
 }
 
 // --- compare -------------------------------------------------------------------------------------------------------
 const COMPARE = {
-  size: { label: "規模與財富", cols: [
-    ["人口", (c) => c.population, (v) => popShort(v)],
+  size: { label: "Tamaño y riqueza", cols: [
+    ["Población", (c) => c.population, (v) => popShort(v)],
     [GDP_PC, (c) => (c.gdp != null && c.population ? c.gdp / c.population : null), money],
-    ["申報戶所得", (c) => c.median_income, money],
-    ["人口成長", (c) => (Number.isFinite(c.growth) ? c.growth : null), (v) => signed(v)],
+    ["Ingreso", (c) => c.median_income, money],
+    ["Crecimiento", (c) => (Number.isFinite(c.growth) ? c.growth : null), (v) => signed(v)],
   ] },
-  housing: { label: "住房與就業", cols: [
-    ["房價", (c) => c.home_value, money],
-    ["月租金", (c) => c.median_rent, (v) => dollars(v)],
-    ["租金負擔", (c) => c.rent_burden, (v) => pct(v, 0)],
-    ["失業率", (c) => c.unemployment, (v) => pct(v)],
+  housing: { label: "Vivienda y empleo", cols: [
+    ["Valor vivienda", (c) => c.home_value, money],
+    ["Arriendo/mes", (c) => c.median_rent, (v) => dollars(v)],
+    ["Carga arriendo", (c) => c.rent_burden, (v) => pct(v, 0)],
+    ["Desempleo", (c) => c.unemployment, (v) => pct(v)],
   ] },
 };
 
@@ -372,15 +372,15 @@ export function compareTable(m, set = "size") {
   const rows = [m.city, ...m.peers];
   const sets = compareSets(m);
   const cols = (sets.find((s) => s.id === set) || sets[0])?.cols || [];
-  if (!cols.length) return `<p class="muted cv-note">無資料。</p>`;
+  if (!cols.length) return `<p class="muted cv-note">Sin datos.</p>`;
   const grid = `grid-template-columns:minmax(0,1.25fr) repeat(${cols.length},minmax(0,1fr))`;
   const max = cols.map(([, f]) => Math.max(...rows.map((c) => Math.abs(f(c) ?? 0))) || 1);
-  // Under a name: its 縣市, when that is another unit than the city itself (never for a city that is a 縣市).
-  const where = (c) => (m.otherStates?.(c, c.states) || []).join("、");
-  return `<div class="cv-cmp" role="table" aria-label="${esc(m.city.name)}與規模相近的城市">
-    <div class="cv-cmp-r cv-cmp-h" role="row" style="${grid}"><span role="columnheader">城市</span>${cols.map(([l]) => `<span role="columnheader">${esc(l)}</span>`).join("")}</div>
+  // Under a name: its provincia, when that is another unit than the city itself (never for a comuna that is its own provincia).
+  const where = (c) => (m.otherStates?.(c, c.states) || []).join(", ");
+  return `<div class="cv-cmp" role="table" aria-label="${esc(m.city.name)} y comunas de tamaño similar">
+    <div class="cv-cmp-r cv-cmp-h" role="row" style="${grid}"><span role="columnheader">Comuna</span>${cols.map(([l]) => `<span role="columnheader">${esc(l)}</span>`).join("")}</div>
     ${rows.map((c, k) => `<div class="cv-cmp-r${k === 0 ? " me" : ""}" role="row" style="${grid}">
-      <span role="cell">${k === 0 ? `<b class="cv-cmp-n">${esc(c.name)}</b>` : `<button type="button" class="cv-cmp-n" data-peer="${esc(c.id)}" title="在城市檢視中開啟${esc(c.name)}">${esc(c.name)}</button>`}${where(c) ? `<small>${esc(where(c))}</small>` : ""}</span>
+      <span role="cell">${k === 0 ? `<b class="cv-cmp-n">${esc(c.name)}</b>` : `<button type="button" class="cv-cmp-n" data-peer="${esc(c.id)}" title="Abrir ${esc(c.name)} en la vista de comuna">${esc(c.name)}</button>`}${where(c) ? `<small>${esc(where(c))}</small>` : ""}</span>
       ${cols.map(([, f, fmt], j) => {
         const v = f(c);
         const col = v != null && v < 0 ? "#f08a6a" : k === 0 ? "#ecd08e" : "#8fa6bd";
@@ -395,9 +395,9 @@ function compare(m) {
   const first = sets[0]?.id || "size";
   return `
   <section class="cv-sec" id="cv-compare" data-sec="compare" aria-labelledby="cv-h-compare">
-    <h3 id="cv-h-compare">${icon("layers", "⚖️", { size: 15 })}比較</h3>
-    <p class="cv-lead">${m.peers.length ? `人口規模最接近的 ${m.peers.length} 個城市。點擊即可開啟。` : "沒有可比較的城市。"}</p>
-    ${sets.length > 1 ? `<div class="cv-seg" role="group" aria-label="指標">
+    <h3 id="cv-h-compare">${icon("layers", "⚖️", { size: 15 })}Comparar</h3>
+    <p class="cv-lead">${m.peers.length ? `Las ${m.peers.length} comunas más cercanas en población. Haz clic en una para abrirla.` : "No hay comunas para comparar."}</p>
+    ${sets.length > 1 ? `<div class="cv-seg" role="group" aria-label="Métricas">
       ${sets.map((s) => `<button type="button" data-set="${s.id}" aria-pressed="${s.id === first}">${esc(s.label)}</button>`).join("")}
     </div>` : ""}
     <div data-compare>${compareTable(m, first)}</div>
@@ -406,8 +406,8 @@ function compare(m) {
 
 function footer(m) {
   const nat = m.nation;
-  return `<div class="cv-foot">資料來源：${esc(nat.vintage || "")}${nat.gdp_vintage ? `；${GDP}：${esc(nat.gdp_vintage)}` : ""}。各項資料的來源與年度見資料年鑑；排名範圍為地圖上全部 ${m.cityList.length} 個城市。
-    <a href="#" data-pedia>資料年鑑 ›</a></div>`;
+  return `<div class="cv-foot">Fuentes: ${esc(nat.vintage || "")}${nat.gdp_vintage ? `; ${GDP}: ${esc(nat.gdp_vintage)}` : ""}. La fuente y el año de cada dato están en el Almanaque; el lugar se mide entre las ${m.cityList.length} comunas del mapa.
+    <a href="#" data-pedia>Almanaque ›</a></div>`;
 }
 
 /**
@@ -533,9 +533,9 @@ export function render(el, m, h) {
     h.onDistricts?.(cityDistricts(dd, mil ?? null, m.city.id));
   }, dropDistricts);
 
-  // Member 鄉鎮市區 arrive with counties.json (loaded once, on demand).
+  // Member comunas arrive with counties.json (loaded once, on demand).
   const host = el.querySelector("[data-counties]");
   Promise.resolve(h.loadCounties()).then((data) => {
     if (host.isConnected) host.innerHTML = countiesTable(m, data);
-  }, () => { if (host.isConnected) host.innerHTML = `<p class="muted cv-note">無鄉鎮市區資料。</p>`; });
+  }, () => { if (host.isConnected) host.innerHTML = `<p class="muted cv-note">No hay datos de comunas.</p>`; });
 }

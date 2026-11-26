@@ -1,5 +1,5 @@
 // City View "Districts": the city's real industry specialisation (districts.json) as strategy-game districts, plus
-// the Encampment tier from military.json where a build has that file (the Taiwan map omits it: `mil` is then null
+// the Encampment tier from military.json where a build has that file (the Santiago map omits it: `mil` is then null
 // and no Encampment text, rule or vintage is shown).
 //
 //   cityDistricts(ddata, mil, id) → [district]   the metro's districts, strongest first, each with what the dock and
@@ -20,13 +20,13 @@ const FALLBACK = {
   aerodrome: ["i-transportation", "✈️"], government_plaza: ["i-public_admin", "🏛"], encampment: [null, "⛺"],
   aqueduct: ["i-utilities", "💧"],
 };
-// Names for the map plaques, used only when the file's catalog has no name for the id (it normally does, in Chinese).
+// Names for the map plaques, used only when the file's catalog has no name for the id (it normally does, in Spanish).
 const SHORT = {
-  campus: "學院", commercial_hub: "商業中心", industrial_zone: "工業區", harbor: "港口", theater_square: "劇院廣場",
-  entertainment_complex: "娛樂中心", aerodrome: "航空港", government_plaza: "市政廣場", encampment: "軍營",
-  aqueduct: "水渠與水壩",
+  campus: "Campus", commercial_hub: "Comercio", industrial_zone: "Industria", harbor: "Puerto", theater_square: "Teatro",
+  entertainment_complex: "Ocio", aerodrome: "Aeródromo", government_plaza: "Plaza de gobierno", encampment: "Campamento",
+  aqueduct: "Acueducto",
 };
-const TIER = { garrison: "駐防地", fortress: "要塞" };
+const TIER = { garrison: "Guarnición", fortress: "Fortaleza" };
 const shortOf = (id, c) => c?.short || c?.name || SHORT[id] || id;
 
 const catCache = new WeakMap();
@@ -88,7 +88,7 @@ export function badgeOf(ddata, id) {
   if (!ddata) return ddata; // undefined (loading) or null (missing)
   const row = ddata.cities?.[id];
   if (!row) return null;
-  if (!row.badge) return { label: "無特定類型", text: "沒有產業達到特色區域的門檻。", color: "#6a7484", icon: null, district: null };
+  if (!row.badge) return { label: "Sin tipo específico", text: "Ningún sector alcanza el umbral de un distrito.", color: "#6a7484", icon: null, district: null };
   const c = catalog(ddata).get(row.badge.district) || {};
   return { ...row.badge, color: c.color || "#6a7484", icon: iconFor(row.badge.district, c), emoji: FALLBACK[row.badge.district]?.[1] };
 }
@@ -96,7 +96,7 @@ export function badgeOf(ddata, id) {
 export function badgeHtml(m, ddata) {
   const b = badgeOf(ddata, m.city.id);
   if (!b) return "";
-  return `<span class="cv-type${b.district ? "" : " plain"}" style="--tc:${esc(b.color)}" title="城市類型：${esc(b.text || b.label)}${ddata.vintage ? `（${esc(ddata.vintage)}）` : ""}">
+  return `<span class="cv-type${b.district ? "" : " plain"}" style="--tc:${esc(b.color)}" title="Tipo de comuna: ${esc(b.text || b.label)}${ddata.vintage ? ` (${esc(ddata.vintage)})` : ""}">
     <span class="cv-type-ic">${icon(b.icon, b.emoji || "◆", { size: 13 })}</span>${esc(b.label)}</span>`;
 }
 
@@ -106,33 +106,33 @@ const signed = (x) => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x 
 function lqTag(lq, lb, tip) {
   if (lq == null) return "";
   const cls = lq >= 1.25 ? "hi" : lq <= 0.75 ? "lo" : "mid";
-  return `<span class="cv-lq ${cls}" title="${esc(tip || `區位商數：為全國就業占比的 ${lq.toFixed(2)} 倍`)}">×${ge(lb)}${lq.toFixed(1)}</span>`;
+  return `<span class="cv-lq ${cls}" title="${esc(tip || `Cociente de localización: ${lq.toFixed(2)} veces la proporción regional del empleo`)}">×${ge(lb)}${lq.toFixed(1)}</span>`;
 }
-// "有 N 個轄下鄉鎮市區…未公開": the note for a value some members withheld.
-const withheld = (n) => `有 ${n} 個轄下鄉鎮市區的數值未公開`;
+// "El valor no se publicó en N comunas": the note for a value some members withheld.
+const withheld = (n) => `El valor no se publicó en ${n} ${n === 1 ? "comuna" : "comunas"}`;
 
 function districtCard(d, row, ddata, mil) {
   const nat = ddata?.national || {};
   const c = d.cat || {};
   const lb = !!d.lower_bound;
-  const supTip = lb ? `${withheld(d.suppressed)}，因此這是下限。` : "";
+  const supTip = lb ? `${withheld(d.suppressed)}, por eso es un límite inferior.` : "";
   const facts = [];
   if (d.emp != null) {
-    facts.push(`<div><span>就業人口</span><b>${ge(lb)}${compact(d.emp)}</b><small>${d.share != null ? `占本城市 ${pct(d.share, 1)}` : ""}</small></div>`);
+    facts.push(`<div><span>Empleo</span><b>${ge(lb)}${compact(d.emp)}</b><small>${d.share != null ? `${pct(d.share, 1)} de la comuna` : ""}</small></div>`);
   }
   if (d.avg_pay != null) {
-    facts.push(`<div><span>平均薪資</span><b>${money(d.avg_pay)}</b><small>${row?.avg_pay != null ? `本城市 ${money(row.avg_pay)}` : ""}</small></div>`);
+    facts.push(`<div><span>Sueldo medio</span><b>${money(d.avg_pay)}</b><small>${row?.avg_pay != null ? `comuna ${money(row.avg_pay)}` : ""}</small></div>`);
   }
   if (d.strength != null) {
-    facts.push(`<div title="高於全國水準的就業人口：就業人口 − 就業人口 ÷ 區位商數（特色區域依此排序）"><span>高於全國水準</span><b>${ge(lb)}${compact(Math.max(0, d.strength))}</b><small>人</small></div>`);
+    facts.push(`<div title="Empleos sobre la norma regional: empleo − empleo ÷ cociente de localización (así se ordenan los distritos)"><span>Sobre la norma</span><b>${ge(lb)}${compact(Math.max(0, d.strength))}</b><small>empleos</small></div>`);
   }
   let spec = "";
   if (d.sub && d.subName) {
     // the speciality's own withheld flag (districts.json sub_lower_bound; older files: the top-industries row)
     const slb = d.sub_lower_bound ?? !!(row?.top || []).find((t) => t.naics === d.sub)?.lower_bound;
-    spec = `<p class="cv-dc-sub">${d.via === "specialty" ? "入選依據" : "最強的專業項目"}：<b>${esc(d.subName)}</b> ${lqTag(d.sub_lq, slb, slb && d.sub_lq != null ? `區位商數：至少為全國占比的 ${d.sub_lq.toFixed(2)} 倍（部分數值未公開，因此這是下限）` : undefined)}${
-      d.sub_emp != null ? ` <small>${ge(slb)}${compact(d.sub_emp)} 人</small>` : ""}${
-      d.via === "specialty" && d.lq != null ? `<br><small>此特色區域的產業整體為全國占比的 ${d.lq.toFixed(2)} 倍；只有這個專業項目達到門檻。</small>` : ""}</p>`;
+    spec = `<p class="cv-dc-sub">${d.via === "specialty" ? "Califica por" : "Mayor especialidad"}: <b>${esc(d.subName)}</b> ${lqTag(d.sub_lq, slb, slb && d.sub_lq != null ? `Cociente de localización: al menos ${d.sub_lq.toFixed(2)} veces la proporción regional (parte de los valores no se publicó, por eso es un límite inferior)` : undefined)}${
+      d.sub_emp != null ? ` <small>${ge(slb)}${compact(d.sub_emp)} empleos</small>` : ""}${
+      d.via === "specialty" && d.lq != null ? `<br><small>Las industrias del distrito en conjunto son ${d.lq.toFixed(2)} veces la proporción regional; solo esta especialidad supera el umbral.</small>` : ""}</p>`;
   }
   let milHtml = "";
   if (d.military) {
@@ -140,9 +140,9 @@ function districtCard(d, row, ddata, mil) {
     const inst = installationsById(mil);
     const names = (mc.installations || []).map((i) => inst.get(i)?.name).filter(Boolean);
     milHtml = `<div class="cv-dc-mil">
-      <p><b>${esc(d.tierLabel)}</b>${mc.naval ? "（海軍）" : ""}：${int(mc.armed_forces)} 位居民服役於軍中，占 16 歲以上人口的 ${pct(mc.share, mc.share < 0.01 ? 2 : 1)}。</p>
+      <p><b>${esc(d.tierLabel)}</b>${mc.naval ? " (naval)" : ""}: ${int(mc.armed_forces)} residentes en las fuerzas armadas, ${pct(mc.share, mc.share < 0.01 ? 2 : 1)} de las personas de 16 años o más.</p>
       ${names.length ? `<p class="cv-dc-inst">${names.slice(0, 5).map((n) => `<span>${esc(n)}</span>`).join("")}${
-        mc.installation_count > Math.min(5, names.length) ? `<small>另有 ${mc.installation_count - Math.min(5, names.length)} 處</small>` : ""}</p>` : ""}
+        mc.installation_count > Math.min(5, names.length) ? `<small>+${mc.installation_count - Math.min(5, names.length)} más</small>` : ""}</p>` : ""}
     </div>`;
   }
   const caveat = c.caveat ? `<p class="cv-dc-cav">${esc(c.caveat)}</p>` : "";
@@ -150,7 +150,7 @@ function districtCard(d, row, ddata, mil) {
   return `<div class="cv-dc" style="--dc:${esc(d.color)}" title="${esc(c.description || "")}${c.description && supTip ? " " : ""}${esc(supTip)}">
     <div class="cv-dc-h"><span class="cv-dc-hex">${icon(d.icon, d.emoji, { size: 18 })}</span>
       <div class="cv-dc-t"><b>${title}</b><small>${esc(c.description || "")}</small></div>
-      ${d.lq != null ? lqTag(d.lq, lb, `區位商數：本城市在這些產業的就業占比為全國占比的 ${d.lq.toFixed(2)} 倍。${supTip}`) : ""}</div>
+      ${d.lq != null ? lqTag(d.lq, lb, `Cociente de localización: la proporción de empleo de la comuna en estas industrias es ${d.lq.toFixed(2)} veces la regional.${supTip}`) : ""}</div>
     ${facts.length ? `<div class="cv-dc-f">${facts.join("")}</div>` : ""}
     ${spec}${milHtml}${caveat}
   </div>`;
@@ -165,17 +165,17 @@ function topTable(row, ddata) {
   const hasPay = top.some((t) => t.avg_pay != null), hasOty = top.some((t) => t.oty_pct != null);
   const grid = hasPay && hasOty ? "" : ` style="grid-template-columns:minmax(0,1fr) 46px 40px${hasPay || hasOty ? " 46px" : ""}"`;
   // The industry's code is quoted only when it is a classification code (has a digit), not a key of the data file.
-  const code = (t) => (/\d/.test(String(t.naics)) ? `（行業代碼 ${esc(t.naics)}）` : "");
-  // The pay column drops the NT$ prefix (the header carries it) so the values fit the narrow column.
-  return `<h4 class="cv-h4">最專精的產業 <span class="muted">依區位商數</span></h4>
-  <div class="cv-top" role="table" aria-label="最專精的產業">
-    <div class="cv-top-r cv-top-hd" role="row"${grid}><span role="columnheader">產業</span><span role="columnheader">就業</span><span role="columnheader">×全國</span>${
-      hasPay ? `<span role="columnheader">薪資 NT$</span>` : ""}${hasOty ? `<span role="columnheader">年增</span>` : ""}</div>
+  const code = (t) => (/\d/.test(String(t.naics)) ? ` (código de actividad ${esc(t.naics)})` : "");
+  // The pay column drops the $ prefix (the header carries it) so the values fit the narrow column.
+  return `<h4 class="cv-h4">Industrias más especializadas <span class="muted">por cociente de localización</span></h4>
+  <div class="cv-top" role="table" aria-label="Industrias más especializadas">
+    <div class="cv-top-r cv-top-hd" role="row"${grid}><span role="columnheader">Industria</span><span role="columnheader">Empleo</span><span role="columnheader">×región</span>${
+      hasPay ? `<span role="columnheader">Sueldo ($)</span>` : ""}${hasOty ? `<span role="columnheader">1 año</span>` : ""}</div>
     ${top.map((t) => {
       const named = ddata.industries?.[t.naics]?.title;
-      const title = named || `行業代碼 ${t.naics}`;
+      const title = named || `Código de actividad ${t.naics}`;
       const lb = !!t.lower_bound;
-      return `<div class="cv-top-r" role="row"${grid} title="${esc(title)}${named ? code(t) : ""}${t.avg_pay != null ? `，平均薪資 ${esc(money(t.avg_pay))}` : ""}${lb ? `。下限：${withheld(t.suppressed)}。` : ""}">
+      return `<div class="cv-top-r" role="row"${grid} title="${esc(title)}${named ? code(t) : ""}${t.avg_pay != null ? `, sueldo medio ${esc(money(t.avg_pay))}` : ""}${lb ? `. Límite inferior: ${withheld(t.suppressed)}.` : ""}">
         <span role="cell" class="cv-top-n">${esc(title)}<i style="width:${((Math.log(1 + (t.lq || 0)) / Math.log(1 + max)) * 100).toFixed(1)}%"></i></span>
         <span role="cell">${ge(lb)}${compact(t.emp)}</span>
         <span role="cell"><b>${t.lq != null ? `${ge(lb)}${t.lq.toFixed(1)}` : "–"}</b></span>
@@ -187,8 +187,8 @@ function topTable(row, ddata) {
 
 /** The Districts section body. ddata: districts.json (undefined while loading, null when missing). */
 export function districtsHtml(m, ddata, mil) {
-  if (ddata === undefined) return `<p class="muted cv-note">特色區域載入中…</p>`;
-  if (!ddata) return `<p class="muted cv-note">無特色區域資料。</p>`;
+  if (ddata === undefined) return `<p class="muted cv-note">Cargando distritos…</p>`;
+  if (!ddata) return `<p class="muted cv-note">No hay datos de distritos.</p>`;
   const id = m.city.id;
   const row = ddata.cities?.[id] || null;
   const list = cityDistricts(ddata, mil, id);
@@ -196,35 +196,35 @@ export function districtsHtml(m, ddata, mil) {
   let lead;
   if (!row) {
     // A null row: the source does not cover this city. The file's own note says which source and which places.
-    lead = `<p class="cv-lead">${esc(m.city.name)}不在資料來源的調查範圍內，沒有行業別就業人數，因此這裡沒有特色區域。</p>${
+    lead = `<p class="cv-lead">${esc(m.city.name)} no está en el universo de la fuente y no tiene empleo por actividad, por eso aquí no hay distritos.</p>${
       ddata.note ? `<p class="cv-note">${esc(ddata.note)}</p>` : ""}`;
   } else {
-    const cnt = row.counties ? `（取自 ${row.counties[1]} 個轄下鄉鎮市區中的 ${row.counties[0]} 個）` : "";
+    const cnt = row.counties ? ` (de ${row.counties[0]} de ${row.counties[1]} comunas)` : "";
     const pay = row.avg_pay != null
-      ? `，平均薪資 ${money(row.avg_pay)}${ddata.national?.avg_pay != null ? `（全國 ${money(ddata.national.avg_pay)}）` : ""}` : "";
-    const text = String(b?.text || "").replace(/[.。]\s*$/, "");
-    lead = `<p class="cv-lead">${b?.district ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${text ? ` · ${esc(text)}` : ""}。` : ""}${
-      row.emp != null ? `就業人口共 ${int(row.emp)} 人${cnt}${pay}。` : ""}</p>`;
+      ? `, sueldo medio ${money(row.avg_pay)}${ddata.national?.avg_pay != null ? ` (región ${money(ddata.national.avg_pay)})` : ""}` : "";
+    const text = String(b?.text || "").replace(/\.\s*$/, "");
+    lead = `<p class="cv-lead">${b?.district ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${text ? ` · ${esc(text)}` : ""}.` : ""}${
+      row.emp != null ? `${int(row.emp)} empleos contados${cnt}${pay}.` : ""}</p>`;
   }
   const cards = list.length
     ? `<div class="cv-dcs">${list.map((d) => districtCard(d, row, ddata, mil)).join("")}</div>`
-    : row ? `<p class="muted cv-note">本城市沒有產業達到特色區域的門檻${ddata.rule?.text ? "（見下方「特色區域如何選出」）" : ""}。</p>` : "";
+    : row ? `<p class="muted cv-note">Ningún sector de la comuna alcanza el umbral de un distrito${ddata.rule?.text ? " (ver abajo \"Cómo se eligen los distritos\")" : ""}.</p>` : "";
   // "≥" is explained only where this city shows one (a source that withholds nothing never does).
   const anyLower = list.some((d) => d.lower_bound || d.sub_lower_bound) || (row?.top || []).some((t) => t.lower_bound);
-  // Only with military.json (never on the Taiwan map): the Encampment rule and its vintage.
+  // Only with military.json: the Encampment rule and its vintage.
   const hasMil = !!mil && list.some((d) => d.military);
-  const milRule = hasMil && mil.rule ? `<p><b>軍營等級</b>：${esc(mil.rule)}</p>` : "";
-  const milVintage = hasMil ? (typeof mil.vintage === "object" ? [mil.vintage.installations, mil.vintage.acs].filter(Boolean).join("；") : mil.vintage || "") : "";
+  const milRule = hasMil && mil.rule ? `<p><b>Nivel de campamento</b>: ${esc(mil.rule)}</p>` : "";
+  const milVintage = hasMil ? (typeof mil.vintage === "object" ? [mil.vintage.installations, mil.vintage.acs].filter(Boolean).join("; ") : mil.vintage || "") : "";
   return `${lead}
     ${cards}
     ${topTable(row, ddata)}
     ${list.length ? `<div class="cv-schematic">
-      <p><b>◆ 在地圖上</b>，每個特色區域以一塊牌子立在城市附近的六角格上。位置僅為示意：它表示本城市專精什麼，而不是這些工作的所在地。</p>
+      <p><b>◆ En el mapa</b>, cada distrito aparece como una placa sobre un hexágono cercano a la comuna. Las posiciones son esquemáticas: muestran en qué se especializa la comuna, no dónde están los empleos.</p>
     </div>` : ""}
-    ${ddata.rule?.text || milRule || ddata.note ? `<details class="cv-more cv-rule"><summary>特色區域如何選出</summary>
+    ${ddata.rule?.text || milRule || ddata.note ? `<details class="cv-more cv-rule"><summary>Cómo se eligen los distritos</summary>
       ${ddata.rule?.text ? `<p>${esc(ddata.rule.text)}</p>` : ""}${milRule}
       ${ddata.note && row ? `<p>${esc(ddata.note)}</p>` : ""}
     </details>` : ""}
-    <p class="cv-note">${ddata.vintage ? `資料來源：${esc(ddata.vintage)}。` : ""}×N = 區位商數${anyLower ? "；≥ = 下限（部分數值未公開）" : ""}。${
-      milVintage ? `軍營等級：${esc(milVintage)}。` : ""}</p>`;
+    <p class="cv-note">${ddata.vintage ? `Fuente: ${esc(ddata.vintage)}. ` : ""}×N = cociente de localización${anyLower ? "; ≥ = límite inferior (parte de los valores no se publicó)" : ""}. ${
+      milVintage ? `Nivel de campamento: ${esc(milVintage)}.` : ""}</p>`;
 }

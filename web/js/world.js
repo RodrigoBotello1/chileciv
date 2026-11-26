@@ -290,9 +290,8 @@ function computeStateLabels(w) {
     };
     const depth = (dist[a] + 0.7) * 2 * grid.H; // how thick the state is at the anchor
     const name = states[s].name.toUpperCase();
-    // The short form for a unit too small for its name: the Chinese name without its 縣 / 市 suffix (嘉義市 → 嘉義),
-    // which reads better than the three-letter ISO code; a Latin name falls back to the code as before.
-    const shortName = isCJK(name) ? (name.length > 2 ? name.replace(/[縣市]$/, "") : name) : states[s].abbr;
+    // The short form for a unit too small for its name: the province code (STG, CRD, ...).
+    const shortName = states[s].abbr;
     // Try the PCA angle (slightly preferred), horizontal and halfway; keep the largest text that stays inside.
     const tries = [angle, 0, angle / 2].filter((t, k, arr) => arr.findIndex((u) => Math.abs(u - t) < 0.03) === k);
     const bestFit = (text) => {

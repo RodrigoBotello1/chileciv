@@ -15,7 +15,7 @@ export function openStatePanel(idx, ctx) {
   let st = ctx.states?.[idx];
   if (st && geo.fips && st.fips && st.fips !== geo.fips) st = ctx.states.find((s) => s.fips === geo.fips);
   st = st || { ...geo };
-  const name = st.name || geo.name || "縣市";
+  const name = st.name || geo.name || "Provincia";
   const abbr = st.abbr || geo.abbr || "";
   const count = ctx.states?.length || w.raw.states.length;
 
@@ -24,13 +24,13 @@ export function openStatePanel(idx, ctx) {
   const cityRows = cities.length
     ? `<div class="city-list">${cities
         .map((c) => {
-          const multi = (c.states || []).length > 1 ? `<span class="muted"> · ${esc(c.states.map(stateName).join("、"))}</span>` : "";
+          const multi = (c.states || []).length > 1 ? `<span class="muted"> · ${esc(c.states.map(stateName).join(", "))}</span>` : "";
           return `<button class="city-row" data-city="${esc(c.id)}" title="${esc(c.full || c.name)}">
             <span class="cr-name">${isCapital(c) ? "★ " : ""}${esc(c.name)}${multi}</span>
             <span class="cr-pop">${popShort(c.population)}</span><span class="cr-go" aria-hidden="true">›</span></button>`;
         })
         .join("")}</div>`
-    : `<p class="muted">這個縣市的資料裡沒有城市。</p>`;
+    : `<p class="muted">No hay comunas en los datos de esta provincia.</p>`;
 
   const hasEcon = st.population != null || st.yields;
   const living = hasEcon ? (amenities(st, n, nation) + gdpRow(st, nation)).trim() : "";
@@ -38,16 +38,16 @@ export function openStatePanel(idx, ctx) {
     kind: "state",
     stripe: css(w.stateColor[idx] || [190, 190, 190]),
     title: name,
-    sub: [st.name_en || geo.name_en, abbr, geo.fips ? `縣市代碼 ${geo.fips}` : ""].filter(Boolean).map(esc).join(" · "),
+    sub: [st.name_en || geo.name_en, abbr, geo.fips ? `Código de provincia ${geo.fips}` : ""].filter(Boolean).map(esc).join(" · "),
     headExtra: hasEcon ? popLine(st, growthSpan(st, n)) : "",
     sections: [
-      st.yields && { title: "產出 · 縣市排名", html: `<div class="yield-grid">${yieldGrid(nation, st.yields, st.ranks, count)}</div>` },
-      living && { title: "宜居度與住房", html: living },
-      st.jobs && { title: "主要產業 · 就業分布", html: industries(st, nation, 8) },
-      { title: cities.length > 1 ? "最大的城市" : "城市", html: cityRows },
-      !hasEcon && { title: "資料", html: `<p class="muted">這一版資料沒有縣市統計（缺少 states.json）。</p>` },
+      st.yields && { title: "Rendimientos · ranking entre provincias", html: `<div class="yield-grid">${yieldGrid(nation, st.yields, st.ranks, count)}</div>` },
+      living && { title: "Calidad de vida y vivienda", html: living },
+      st.jobs && { title: "Principales rubros · dónde trabaja la gente", html: industries(st, nation, 8) },
+      { title: cities.length > 1 ? "Comunas más grandes" : "Comuna", html: cityRows },
+      !hasEcon && { title: "Datos", html: `<p class="muted">Esta versión de los datos no trae estadísticas por provincia (falta states.json).</p>` },
     ],
-    foot: `資料來源：${esc(nation.vintage || "")}${nation.gdp_vintage ? `；${esc(gdpLabel(nation))}：${esc(nation.gdp_vintage)}` : ""}。排名是地圖上 ${count} 個縣市之間的比較（第 1 名最大）。`,
+    foot: `Fuente: ${esc(nation.vintage || "")}${nation.gdp_vintage ? `; ${esc(gdpLabel(nation))}: ${esc(nation.gdp_vintage)}` : ""}. El ranking compara las ${count} provincias del mapa (1 = la mayor).`,
     onClose: ctx.onClose,
     onPedia: ctx.onPedia,
     wire(panel) {

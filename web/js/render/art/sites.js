@@ -63,14 +63,14 @@ function flag(g, upx, x, y, h, col) {
 
 /** Component palettes: walls, roof / accent, flag. */
 export const FORT_KINDS = {
-  army: { name: "陸軍", wall: "#a8966a", accent: "#5f6b3a", flag: "#e0b44a", pad: "rgba(96,108,58,.72)" },
-  navy: { name: "海軍", wall: "#98a4b2", accent: "#22406a", flag: "#e8e2d0", pad: "rgba(34,64,106,.62)" },
-  air: { name: "空軍", wall: "#b2bac4", accent: "#3a6aa8", flag: "#9cc4ec", pad: "rgba(58,106,168,.55)" },
-  marines: { name: "海軍陸戰隊", wall: "#b0946e", accent: "#8a2a2a", flag: "#e2b84a", pad: "rgba(138,42,42,.6)" },
-  guard: { name: "後備部隊（陸）", wall: "#a8a28c", accent: "#6a6a52", flag: "#cfc3a0", pad: "rgba(110,110,84,.55)" },
-  air_guard: { name: "後備部隊（空）", wall: "#aeb0b2", accent: "#5a6a7a", flag: "#b9c8d8", pad: "rgba(90,106,122,.55)" },
-  reserve: { name: "後備", wall: "#a49e92", accent: "#6a6258", flag: "#d8cfba", pad: "rgba(106,98,88,.5)" },
-  other: { name: "國防機關", wall: "#a2a2a2", accent: "#4a4a5a", flag: "#d0d0d0", pad: "rgba(74,74,90,.5)" },
+  army: { name: "Ejército", wall: "#a8966a", accent: "#5f6b3a", flag: "#e0b44a", pad: "rgba(96,108,58,.72)" },
+  navy: { name: "Armada", wall: "#98a4b2", accent: "#22406a", flag: "#e8e2d0", pad: "rgba(34,64,106,.62)" },
+  air: { name: "Fuerza Aérea", wall: "#b2bac4", accent: "#3a6aa8", flag: "#9cc4ec", pad: "rgba(58,106,168,.55)" },
+  marines: { name: "Infantería de Marina", wall: "#b0946e", accent: "#8a2a2a", flag: "#e2b84a", pad: "rgba(138,42,42,.6)" },
+  guard: { name: "Reserva (tierra)", wall: "#a8a28c", accent: "#6a6a52", flag: "#cfc3a0", pad: "rgba(110,110,84,.55)" },
+  air_guard: { name: "Reserva (aire)", wall: "#aeb0b2", accent: "#5a6a7a", flag: "#b9c8d8", pad: "rgba(90,106,122,.55)" },
+  reserve: { name: "Reserva", wall: "#a49e92", accent: "#6a6258", flag: "#d8cfba", pad: "rgba(106,98,88,.5)" },
+  other: { name: "Defensa", wall: "#a2a2a2", accent: "#4a4a5a", flag: "#d0d0d0", pad: "rgba(74,74,90,.5)" },
 };
 
 /** military.json component id → a fort kind above. */
@@ -468,9 +468,9 @@ export function drawProtected(ctx, sets, vp, o) {
 // --- wonders --------------------------------------------------------------------------------------------------------
 
 export const WONDER_KINDS = {
-  natural: { name: "自然奇觀", ring: "#8fd07a", base: "#3f6a34", icon: "w-park" },
-  university: { name: "頂尖大學", ring: "#8fb8ec", base: "#2c4a78", icon: "w-university" },
-  landmark: { name: "地標", ring: "#ecc46a", base: "#6a4a1c", icon: "w-landmark" },
+  natural: { name: "Maravilla natural", ring: "#8fd07a", base: "#3f6a34", icon: "w-park" },
+  university: { name: "Universidad destacada", ring: "#8fb8ec", base: "#2c4a78", icon: "w-university" },
+  landmark: { name: "Monumento", ring: "#ecc46a", base: "#6a4a1c", icon: "w-landmark" },
 };
 
 /**
@@ -483,11 +483,11 @@ export const WONDER_MOTIFS = {
   landmark: ["temple", "statue", "mission", "gantry", "mound", "adobe", "ballpark", "brickhall", "rotunda", "carved", "quarter", "flight", "spike", "dam", "obelisk", "arch", "memorial"],
 };
 export const MOTIF_LABELS = {
-  peak: "雪峰", canyon: "峽谷", forest: "森林", desert: "荒漠", geyser: "溫泉與間歇泉", coast: "海岸與燈塔",
-  bridge: "橋梁", dam: "水壩", arch: "鋼拱", obelisk: "方尖碑", hall: "圓頂殿堂", redhall: "圓頂殿堂（紅）",
-  spire: "鐘樓", statue: "雕像", mission: "教堂", gantry: "發射塔", mound: "土丘", adobe: "土磚聚落",
-  ballpark: "球場", brickhall: "紅磚會堂", rotunda: "圓形大廳", carved: "山壁雕刻", quarter: "老街區",
-  flight: "首次飛行紀念", spike: "金道釘", memorial: "紀念拱門", temple: "廟宇",
+  peak: "Cumbre nevada", canyon: "Cañón", forest: "Bosque", desert: "Desierto", geyser: "Aguas termales y géiseres", coast: "Costa y faro",
+  bridge: "Puente", dam: "Represa", arch: "Arco de acero", obelisk: "Obelisco", hall: "Edificio con cúpula", redhall: "Edificio con cúpula (rojo)",
+  spire: "Torre de reloj", statue: "Estatua", mission: "Iglesia", gantry: "Torre de lanzamiento", mound: "Montículo", adobe: "Poblado de adobe",
+  ballpark: "Estadio", brickhall: "Sala de ladrillo rojo", rotunda: "Salón circular", carved: "Relieve tallado en la montaña", quarter: "Barrio antiguo",
+  flight: "Memorial del primer vuelo", spike: "Clavo de oro", memorial: "Arco conmemorativo", temple: "Templo",
 };
 const FALLBACK = { natural: ["peak", "forest", "canyon"], university: ["hall", "redhall", "spire"], landmark: ["obelisk", "memorial", "rotunda"] };
 
@@ -1225,8 +1225,8 @@ function paintFlight(g, upx) {
 }
 
 function paintTemple(g, upx) {
-  // a Taiwanese temple (廟): stone terrace, red hall with a dark main door, a two-tier orange tile roof with upturned
-  // eaves, the top ridge sweeping up into forked swallowtail ends (燕尾脊) and a gold pearl at its centre
+  // an East Asian temple: stone terrace, red hall with a dark main door, a two-tier orange tile roof with upturned
+  // eaves, the top ridge sweeping up into forked swallowtail ends and a gold pearl at its centre
   const red = "#b63a2a", tile = "#d2682f", dark = "#4a1e14";
   poly(g, [-0.88, 0.36, -0.8, 0.22, 0.8, 0.22, 0.88, 0.36]);
   fillInk(g, upx, "#cbbd9c", 1); // terrace

@@ -6,14 +6,14 @@
 //              width ("1.4fr", "72px"), bar?: {max, color}, title?, tip?(row) → cell tooltip,
 //              hideBelow?: px (drop the column while the table is narrower)}]
 //   short: header html (may hold &shy; so a long word breaks with a hyphen); the header wraps to two lines.
-//   Left-aligned cells get a tooltip with their full text (for a name column: "name（sub）" with row.full).
+//   Left-aligned cells get a tooltip with their full text (for a name column: "name (sub)" with row.full).
 //   rows, rowKey(row) = row.key, sort: {key, dir: "asc"|"desc"}, maxHeight = 340, rowH = 28,
 //   search: placeholder text (adds a name filter), searchText(row) = row.name, rank (show the position)
 //   onHover(row|null), onClick(row), caption (aria label), empty (text when no rows)
 import { esc, fin, rafThrottle, onWidth } from "./util.js";
 
-// The search ignores case and the 台 / 臺 spelling difference.
-const fold = (s) => String(s ?? "").toLowerCase().replace(/台/g, "臺");
+// The search ignores case and accents.
+const fold = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 export function createTable(host, opts) {
   const rowH = opts.rowH || 28;
@@ -34,7 +34,7 @@ export function createTable(host, opts) {
     <div class="adv-thead" role="row"></div>
     <div class="adv-tbody" role="rowgroup" tabindex="-1"><div class="adv-tspace"></div></div>`;
   root.setAttribute("role", "table");
-  root.setAttribute("aria-label", opts.caption || "資料表");
+  root.setAttribute("aria-label", opts.caption || "Tabla de datos");
   host.appendChild(root);
   width = Math.round(root.clientWidth) || 0;
   cols = visibleCols();
@@ -51,7 +51,7 @@ export function createTable(host, opts) {
     head.innerHTML = `${opts.rank ? `<span class="th r" role="columnheader">#</span>` : ""}${cols.map((c) => {
       const s = sort?.key === c.key ? sort.dir : null;
       return `<span class="th ${c.align === "l" ? "l" : "r"}" role="columnheader" aria-sort="${s === "asc" ? "ascending" : s === "desc" ? "descending" : "none"}">
-        <button type="button" data-sort="${esc(c.key)}" title="${esc(c.title || `依「${c.label}」排序`)}">${c.short ? c.short : esc(c.label)}${s ? `<span class="arr" aria-hidden="true">${s === "asc" ? "▲" : "▼"}</span>` : ""}</button></span>`;
+        <button type="button" data-sort="${esc(c.key)}" title="${esc(c.title || `Ordenar por "${c.label}"`)}">${c.short ? c.short : esc(c.label)}${s ? `<span class="arr" aria-hidden="true">${s === "asc" ? "▲" : "▼"}</span>` : ""}</button></span>`;
     }).join("")}`;
   }
 
@@ -71,7 +71,7 @@ export function createTable(host, opts) {
         return dir * (va - vb);
       });
     }
-    if (cnt) cnt.textContent = `${view.length.toLocaleString("zh-TW")} / ${all.length.toLocaleString("zh-TW")}`;
+    if (cnt) cnt.textContent = `${view.length.toLocaleString("en-US")} / ${all.length.toLocaleString("en-US")}`;
     const maxH = opts.maxHeight || 340;
     const h = Math.min(maxH, Math.max(rowH * 2, view.length * rowH + 2));
     body.style.height = `${h}px`;
@@ -98,11 +98,11 @@ export function createTable(host, opts) {
           const wpc = fin(v) && c.bar.max > 0 ? Math.max(0, Math.min(1, Math.abs(v) / c.bar.max)) * 100 : 0;
           inner = `<span class="tbar" style="width:${wpc.toFixed(1)}%;${c.bar.color ? `background:${esc(typeof c.bar.color === "function" ? c.bar.color(r) : c.bar.color)}` : ""}"></span><span class="tv">${inner}</span>`;
         }
-        const tip = c.tip ? c.tip(r) : c.align === "l" ? (c.key === "name" && r.name ? `${r.full || r.name}${r.sub ? `（${r.sub}）` : ""}` : c.text ? c.text(r) : null) : null;
+        const tip = c.tip ? c.tip(r) : c.align === "l" ? (c.key === "name" && r.name ? `${r.full || r.name}${r.sub ? ` (${r.sub})` : ""}` : c.text ? c.text(r) : null) : null;
         return `<span class="td ${c.align === "l" ? "l" : "r"}${c.bar ? " hasbar" : ""}" role="cell"${tip ? ` title="${esc(tip)}"` : ""}>${inner}</span>`;
       }).join("")}</div>`;
     }
-    space.innerHTML = html || `<div class="adv-empty pad">${esc(opts.empty || "沒有資料列。")}</div>`;
+    space.innerHTML = html || `<div class="adv-empty pad">${esc(opts.empty || "No hay filas.")}</div>`;
   }
 
   body.addEventListener("scroll", rafThrottle(() => renderRows()), { passive: true });
@@ -142,7 +142,7 @@ export function createTable(host, opts) {
   });
   // Keyboard: the body is focusable; arrows move the hot row, Enter opens it.
   body.tabIndex = 0;
-  body.setAttribute("aria-label", `${opts.caption || "資料表"}：用方向鍵在各列間移動，按 Enter 開啟`);
+  body.setAttribute("aria-label", `${opts.caption || "Tabla de datos"}: usa las flechas para moverte entre filas y Enter para abrir`);
   body.addEventListener("keydown", (e) => {
     if (!view.length) return;
     let i = view.findIndex((r) => String(keyOf(r)) === String(hot));

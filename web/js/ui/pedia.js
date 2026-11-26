@@ -1,4 +1,4 @@
-// The Almanac (資料年鑑): what every number means and exactly where it comes from.
+// The Almanac (Almanaque): what every number means and exactly where it comes from.
 // Page ids stay English (main.js and the City View open pages by id, e.g. pedia.open("Yields")); `title` is what the
 // reader sees. Everything about sources and vintages is read from the data files, never written here.
 import { resolveTables } from "../terrain.js";
@@ -12,12 +12,12 @@ const COVER_ICON = { forest_deciduous: "l-forest", forest_evergreen: "l-forest",
 const inkOn = (hex) => {
   try { return /^#[0-9a-f]{6}$/i.test(hex || "") && luminance(parseHex(hex)) > 0.4 ? "#1c1710" : "#f8f0d8"; } catch { return "#f8f0d8"; }
 };
-const CATEGORY = { energy: "能源", mineral: "礦產", agri: "農業", other: "其他" };
-const SCALE_NAME = { log: "對數", linear: "線性" };
-const SOURCE_URL = "https://github.com/i-am-alvin/taiwanciv";
-const UPSTREAM_URL = "https://karpathy.ai/usaciv/"; // the original's own address (its index.html canonical)
+const CATEGORY = { energy: "Energía", mineral: "Minerales", agri: "Agricultura", other: "Otros" };
+const SCALE_NAME = { log: "logarítmica", linear: "lineal" };
+const TAIWAN_URL = "https://github.com/i-am-alvin/taiwanciv"; // the port chileciv is built on
+const UPSTREAM_URL = "https://karpathy.ai/usaciv/"; // the original's own address
 const DEFAULT_PAGE = "About this map";
-const num = (v) => (Number.isFinite(v) ? v.toLocaleString("zh-TW") : "–");
+const num = (v) => (Number.isFinite(v) ? v.toLocaleString("en-US") : "–");
 
 export function initPedia(data) {
   const modal = document.getElementById("pedia");
@@ -35,72 +35,76 @@ export function initPedia(data) {
     return +((data.world.grid.radius * 2) / scale).toFixed(1);
   };
   const stateCount = () => (data.states?.length || data.world.states?.length || 0);
-  const vintageLine = () => [data.nation.vintage, data.nation.gdp_vintage ? `${gdpLabel(data.nation)}：${data.nation.gdp_vintage}` : ""].filter(Boolean).map(esc).join("；");
+  const vintageLine = () => [data.nation.vintage, data.nation.gdp_vintage ? `${gdpLabel(data.nation)}: ${data.nation.gdp_vintage}` : ""].filter(Boolean).map(esc).join("; ");
 
   const pages = [
-    { id: "About this map", title: "關於本地圖", html: () => `
-      ${h2("pedia", "📖", "關於本地圖")}
-      <p>這是用策略遊戲的畫法呈現的真實臺灣。地圖上沒有任何虛構的內容：每一個地塊、每一座城市、每一個數字都來自公開資料，
-      清單見「資料來源」。</p>
-      <h4>地圖怎麼做出來的</h4>
-      <p>臺灣本島、澎湖、金門與馬祖以臺灣為中心的 Albers 等積投影展開，切成 ${data.world.grid.cols}×${data.world.grid.rows}
-      個六角格，每格對角約 ${hexKm()} 公里。每個六角格歸屬於它所在的縣市與鄉鎮市區，地形則取自格內的高程取樣。
-      東沙群島與南沙群島在地圖範圍之外。</p>
-      <p><b>城市</b>就是各個縣市${stateCount() ? `（共 ${stateCount()} 個）` : ""}：每個縣市有一面城市橫幅，數字涵蓋整個縣市，而不只是市區。</p>
-      <h4>操作方式</h4>
-      <p>拖曳或按方向鍵／WASD 平移 · 滾輪、+/– 或點兩下縮放 · 點擊城市或縣市開啟面板 ·
-      / 或 ⌘K 搜尋 · L 切換濾鏡 · R 顯示或隱藏資源 · ? 查看所有快捷鍵 · Esc 關閉。</p>
-      <p>網址列隨時保存目前畫面的連結（濾鏡、選取對象與視角）；按「分享」可以複製連結或下載圖片。</p>
-      <h4>原始碼與致謝</h4>
-      <p>taiwanciv 改編自 Andrej Karpathy 的 <a href="${UPSTREAM_URL}" target="_blank" rel="noopener">usaciv</a>（MIT 授權），
-      把同一套地圖引擎搬到臺灣的公開資料上。原始碼：
-      <a href="${SOURCE_URL}" target="_blank" rel="noopener">${esc(SOURCE_URL.replace(/^https:\/\//, ""))}</a></p>` },
-    { id: "Yields", title: "產出", html: () => {
+    { id: "About this map", title: "Acerca de este mapa", html: () => `
+      ${h2("pedia", "📖", "Acerca de este mapa")}
+      <p>chileciv dibuja la Región Metropolitana de Santiago como un juego de estrategia. Nada es inventado: cada hexágono,
+      cada comuna y cada número viene de datos públicos, que se listan en <i>Fuentes</i>.</p>
+      <h4>Cómo se construye</h4>
+      <p>La región se proyecta (Albers de áreas iguales) y se corta en ${data.world.grid.cols}×${data.world.grid.rows}
+      hexágonos de 1 km de radio (${hexKm()} km de punta a punta). Cada hexágono pertenece a la comuna y a la provincia que están bajo su centro,
+      y el terreno sale de muestras de elevación dentro de cada uno.</p>
+      <p>Cada <b>comuna</b> es una ciudad del mapa${data.cities?.length ? ` (${data.cities.length} en total)` : ""}${stateCount() ? `, agrupadas en ${stateCount()} provincias` : ""}: lleva un estandarte y sus números cubren toda la comuna, no solo su zona urbana.</p>
+      <h4>Controles</h4>
+      <p>Arrastra o usa las flechas / WASD para desplazarte · rueda, +/– o doble clic para hacer zoom · clic en una comuna o una provincia para abrir su panel ·
+      / o ⌘K para buscar · L para recorrer los lentes · R para mostrar u ocultar recursos · ? para ver todos los atajos · Esc para cerrar.</p>
+      <p>La barra de direcciones siempre guarda un enlace a lo que estás viendo (lente, selección y vista); usa <i>Compartir</i> para copiarlo
+      o para descargar una imagen.</p>
+      <h4>Código y créditos</h4>
+      <p>chileciv está construido sobre <a href="${UPSTREAM_URL}" target="_blank" rel="noopener">usaciv</a> de Andrej Karpathy (MIT)
+      y sobre el port a Taiwán, <a href="${TAIWAN_URL}" target="_blank" rel="noopener">taiwanciv</a>. Muestra la Región Metropolitana de Santiago
+      con hexágonos de 1 km, y cada número viene de los datos públicos que se listan en este Almanaque.</p>` },
+    { id: "Yields", title: "Rendimientos", html: () => {
       const gold = gdpLabel(data.nation);
       return `
-      ${h2("y-production", "⚙️", "產出")}
-      <p>把策略遊戲的產出對應到真實的統計指標。以人數計的產出，數的是從事相關行業的就業人口；以金額計的產出，單位是新臺幣。
-      每一項的定義如下：</p>
+      ${h2("y-production", "⚙️", "Rendimientos")}
+      <p>Los rendimientos de un juego de civilización puestos sobre medidas reales. Los que se miden en personas cuentan trabajadores
+      de un rubro; los que se miden en dinero van en pesos chilenos. La definición de cada uno:</p>
       <table>${data.nation.yields.map((y) => `<tr><td class="ic" style="color:${esc(y.color)}">${glyph(y, 26)}</td><td><b style="color:${esc(y.color)}">${esc(y.label)}${
-        y.key === "gold" && !String(y.label).includes(gold) ? `（${esc(gold)}）` : ""}</b><br>${esc(y.description || "")}</td></tr>`).join("")}</table>
-      <h4>宜居度與住房</h4>
-      <p>失業率＝失業人口 ÷ 勞動力。${data.nation.nation?.rent_burden != null ? `租金 ÷ 所得＝每月租金中位數 × 12 ÷ 申報戶所得中位數：這只是粗略的負擔指標，
-      不是個別家戶實際的負擔率。` : ""}這一版資料沒有的項目（數值為空）不會出現在面板上。</p>`;
+        y.key === "gold" && !String(y.label).includes(gold) ? ` (${esc(gold.toLowerCase())})` : ""}</b><br>${esc(y.description || "")}</td></tr>`).join("")}</table>
+      <h4>Calidad de vida y vivienda</h4>
+      <p>Desempleo = personas desempleadas ÷ fuerza de trabajo.${data.nation.nation?.rent_burden != null ? ` Arriendo ÷ ingreso = arriendo mediano mensual × 12 ÷ ingreso mediano:
+      una señal gruesa de carga, no la carga real de un hogar.` : ""} Las medidas que esta versión de los datos no trae (valor vacío) no aparecen en el panel.</p>`;
     } },
-    { id: "States", title: "縣市", html: () => `
-      ${h2("terrain", "🗺️", "縣市")}
-      <p>點擊任何沒有城市橫幅的陸地六角格，就會開啟它所屬縣市的面板${vintageLine() ? `（${vintageLine()}）` : ""}。</p>
-      <p><b>排名</b>（例如「第 3/${stateCount() || "N"} 名」）是地圖上${stateCount() ? ` ${stateCount()} 個` : "所有"}縣市之間的比較，第 1 名最大。</p>
-      <p>在臺灣，城市與縣市是同一個統計單位：城市面板與縣市面板呈現的是同一個縣市。</p>
-      ${data.states ? "" : `<p class="muted">這一版資料沒有 states.json，所以縣市面板只顯示名稱與城市。</p>`}` },
-    { id: "Terrain", title: "地形", html: () => {
+    { id: "States", title: "Provincias", html: () => `
+      ${h2("terrain", "🗺️", "Provincias")}
+      <p>Haz clic en cualquier hexágono de tierra sin estandarte para abrir el panel de su provincia${vintageLine() ? ` (${vintageLine()})` : ""}.</p>
+      <p>El <b>ranking</b> (por ejemplo "3.º de ${stateCount() || "N"}") compara las ${stateCount() ? `${stateCount()} ` : ""}provincias del mapa; 1 es la mayor.</p>
+      <p>Cada comuna pertenece a una sola provincia. El panel de una comuna y el de su provincia son distintos, pero comparten las mismas tablas de datos.</p>
+      ${data.states ? "" : `<p class="muted">Esta versión de los datos no trae states.json, así que el panel de provincia solo muestra nombres y comunas.</p>`}` },
+    { id: "Terrain", title: "Terreno", html: () => {
       const t = data.w?.tables || resolveTables(data.world.tables);
       const hasCover = Array.isArray(data.world.cover);
       const row = (x) => `<tr><td class="nm">${x.color ? `<span class="swatch" style="background:${esc(x.color)}"></span>` : ""}${
         COVER_ICON[x.key] ? icon(COVER_ICON[x.key], "", { size: 15 }) + " " : ""}<b>${esc(x.name)}</b></td><td>${esc(x.rule || "")}</td></tr>`;
       return `
-      ${h2("terrain", "🗺️", "地形")}
-      <p>每個六角格取格內高程取樣的平均值。起伏的分級看這些取樣的平均高程與粗糙度（標準差）；
-      陰影來自與相鄰六角格的高程差，光從西北方打來。</p>
-      <h4>${icon("l-forest", "🌲", { size: 16 })} 地表覆蓋</h4>
+      ${h2("terrain", "🗺️", "Terreno")}
+      <p>Cada hexágono promedia las muestras de elevación que caen dentro. El relieve sale de la elevación media y de la rugosidad
+      (desviación estándar) de esas muestras; el sombreado sale de las diferencias de elevación con los hexágonos vecinos, con luz desde el
+      noroeste.</p>
+      <h4>${icon("l-forest", "🌲", { size: 16 })} Cobertura del suelo</h4>
       ${hasCover
-        ? `<p>每個六角格的底色是它最主要的地表覆蓋類別，也就是格內陸地取樣中占比最大的一類。
-           小圖示表現混合的情形：樹木的多寡隨森林占比增減，田畦、蘆葦、灌叢與草叢則分別標示農地、濕地、灌叢地與草地。</p>
+        ? `<p>El color base de cada hexágono es su grupo de cobertura dominante: el mayor entre las muestras de tierra que caen dentro.
+           Los símbolos pequeños muestran la mezcla: los árboles crecen con la proporción de bosque, y los surcos, las cañas, los arbustos y las matas de pasto
+           marcan cultivos, humedales, matorral y pastizal.</p>
            <table>${t.cover.filter((x) => x.id > 0).map(row).join("")}</table>`
-        : `<p class="muted">這一版資料還沒有地表覆蓋圖層，陸地依高程上色。</p>`}
-      <h4>地勢起伏</h4>
+        : `<p class="muted">Esta versión de los datos aún no trae cobertura del suelo; la tierra se colorea por elevación.</p>`}
+      <h4>Relieve</h4>
       <table>${t.relief.map(row).join("")}</table>
-      <h4>${icon("r-hydro", "💧", { size: 16 })} 水域</h4>
+      <h4>${icon("r-hydro", "💧", { size: 16 })} Agua</h4>
       <table>${t.water.filter((x) => x.id > 0).map(row).join("")}</table>
-      <h4>境外</h4>
-      <p class="muted">地圖範圍內的境外陸地（例如金門、馬祖鄰近的對岸沿海）罩著一層薄霧：只作為背景，沒有細部資料。</p>`;
+      <h4>Fuera de la región</h4>
+      <p class="muted">La tierra que queda fuera de la región (Valparaíso, O'Higgins y Argentina) se dibuja bajo una niebla ligera:
+      se muestra como contexto y no tiene datos detallados.</p>`;
     } },
-    { id: "Lenses", title: "濾鏡", html: () => `
-      ${h2("layers", "▤", "濾鏡")}
-      <p>濾鏡用單一指標替地圖重新上色，數值來自鄉鎮市區的資料${data.lenses.vintage ? `（${esc(data.lenses.vintage)}）` : ""}，
-      各濾鏡的算法寫在它的說明裡。</p>
-      <p>圖例會顯示每個數值區間有多少六角格。把游標移到圖例上或在上面拖曳，地圖就只顯示那個區間。</p>
-      ${data.lenses.lenses?.length ? "" : `<p class="muted">這一版資料沒有濾鏡。</p>`}
+    { id: "Lenses", title: "Lentes", html: () => `
+      ${h2("layers", "▤", "Lentes")}
+      <p>Los lentes recolorean el mapa con una sola medida, construida con datos por comuna${data.lenses.vintage ? ` (${esc(data.lenses.vintage)})` : ""}.
+      El cálculo de cada lente está en su descripción.</p>
+      <p>La leyenda muestra cuántos hexágonos caen en cada valor. Pasa el mouse o arrastra sobre ella para mostrar solo ese rango en el mapa.</p>
+      ${data.lenses.lenses?.length ? "" : `<p class="muted">Esta versión de los datos no trae lentes.</p>`}
       ${(data.lenses.groups?.length ? data.lenses.groups : [{ id: null, name: "" }]).map((g) => {
         const ls = (data.lenses.lenses || []).filter((l) => !g.id || l.group === g.id);
         if (!ls.length) return "";
@@ -108,41 +112,42 @@ export function initPedia(data) {
           <div class="lens-entry"><div class="le-ic">${glyph(l, 26)}</div><div>
           <h4>${esc(l.name)}</h4><p>${esc(l.description || "")}<br>
           <i class="le-ramp" style="background:linear-gradient(90deg, ${(l.ramp || []).map(esc).join(",")})"></i>
-          <span class="muted">${Array.isArray(l.domain) ? `色階：${esc(SCALE_NAME[l.scale] || l.scale || "")}，${num(l.domain[0])}–${num(l.domain[1])} ${esc(l.unit || "")}` : esc(l.unit || "")}${
-            l.higher_is === "good" ? " · 越高越好" : l.higher_is === "bad" ? " · 越高越差" : ""}${l.source ? " · " + esc(srcName(l.source)) : ""}</span></p></div></div>`).join("")}`;
+          <span class="muted">${Array.isArray(l.domain) ? `Escala ${esc(SCALE_NAME[l.scale] || l.scale || "")}, ${num(l.domain[0])}–${num(l.domain[1])} ${esc(l.unit || "")}` : esc(l.unit || "")}${
+            l.higher_is === "good" ? " · más alto es mejor" : l.higher_is === "bad" ? " · más alto es peor" : ""}${l.source ? " · " + esc(srcName(l.source)) : ""}</span></p></div></div>`).join("")}`;
       }).join("")}` },
-    { id: "Resources", title: "資源", html: () => {
+    { id: "Resources", title: "Recursos", html: () => {
       const r = data.resources;
-      if (!r?.types?.length) return `${h2("resources", "⛏️", "資源")}<p class="muted">這一版資料沒有資源圖層。</p>`;
+      if (!r?.types?.length) return `${h2("resources", "⛏️", "Recursos")}<p class="muted">Esta versión de los datos no trae capa de recursos.</p>`;
       const count = new Map();
       for (const it of r.items || []) count.set(it.type, (count.get(it.type) || 0) + 1);
       const cats = [...new Set(r.types.map((t) => t.category || "other"))];
       return `
-      ${h2("resources", "⛏️", "資源")}
-      <p>資源把全國主要的資源據點標在它們所在的地塊上，類型見下表。只收錄具代表性的據點，各類型的門檻寫在它的說明裡。
-      地圖縮小時，每個六角格只顯示排名最高的一項資源；放大可以看到更多。按 <b>R</b> 顯示或隱藏。</p>
+      ${h2("resources", "⛏️", "Recursos")}
+      <p>Los recursos marcan los principales puntos de interés de la región en los hexágonos donde están, con los tipos de la tabla.
+      Solo se muestran los sitios relevantes: el umbral de cada tipo está en su descripción. Con el mapa alejado, un hexágono muestra su
+      recurso de mayor rango; acércate para ver más. Pulsa <b>R</b> para mostrarlos u ocultarlos.</p>
       ${cats.map((c) => `<h4>${esc(CATEGORY[c] || c)}</h4><table class="res-table">
-        <tr><th></th><th>類型</th><th>收錄標準</th><th>據點數</th></tr>
+        <tr><th></th><th>Tipo</th><th>Qué se incluye</th><th>Sitios</th></tr>
         ${r.types.filter((t) => (t.category || "other") === c).map((t) => `<tr>
           <td class="ic"><span class="res-ic" style="background:${esc(t.color || "#24384f")};color:${inkOn(t.color)}">${glyph(t, 20)}</span></td>
-          <td class="nm"><b>${esc(t.name)}</b>${t.unit ? `<br><span class="muted">數值單位：${esc(t.unit)}</span>` : ""}</td>
-          <td>${esc(t.description || "")}${t.source ? `<br><span class="muted">資料來源：${esc(srcName(t.source))}</span>` : ""}</td>
+          <td class="nm"><b>${esc(t.name)}</b>${t.unit ? `<br><span class="muted">valor en ${esc(t.unit)}</span>` : ""}</td>
+          <td>${esc(t.description || "")}${t.source ? `<br><span class="muted">Fuente: ${esc(srcName(t.source))}</span>` : ""}</td>
           <td class="num">${count.get(t.id) || 0}</td></tr>`).join("")}</table>`).join("")}`;
     } },
-    { id: "Sources", title: "資料來源", html: () => `
-      ${h2("pedia", "📖", "資料來源")}
-      ${data.sources?.length ? "" : `<p class="muted">這一版資料沒有 sources.json。</p>`}
+    { id: "Sources", title: "Fuentes", html: () => `
+      ${h2("pedia", "📖", "Fuentes")}
+      ${data.sources?.length ? "" : `<p class="muted">Esta versión de los datos no trae sources.json.</p>`}
       ${(data.sources || []).map((s) => `
         <h4>${esc(s.title || s.id || "")}</h4>
         <p>${esc(s.description || "")}<br>
         <span class="muted">${[s.publisher, s.license, s.vintage].filter(Boolean).map(esc).join(" · ")}${
-          s.homepage ? ` · <a href="${esc(s.homepage)}" target="_blank" rel="noopener">官方網站</a>` : ""}</span></p>
+          s.homepage ? ` · <a href="${esc(s.homepage)}" target="_blank" rel="noopener">sitio oficial</a>` : ""}</span></p>
         <table>${(s.files || []).map((f) => `<tr><td><code>${esc(f.url || "")}</code></td><td class="muted" style="white-space:nowrap">${esc((f.retrieved || "").slice(0, 10))}<br>${((f.bytes || 0) / 1e6).toFixed(1)} MB</td></tr>`).join("")}</table>`).join("")}
-      <p class="muted">地圖引擎改編自 Andrej Karpathy 的 <a href="${UPSTREAM_URL}" target="_blank" rel="noopener">usaciv</a>（MIT 授權）；
-      本站原始碼：<a href="${SOURCE_URL}" target="_blank" rel="noopener">${esc(SOURCE_URL.replace(/^https:\/\//, ""))}</a></p>` },
+      <p class="muted">El motor del mapa viene de <a href="${UPSTREAM_URL}" target="_blank" rel="noopener">usaciv</a> de Andrej Karpathy (MIT),
+      a través del port <a href="${TAIWAN_URL}" target="_blank" rel="noopener">taiwanciv</a>.</p>` },
   ];
   const pageById = new Map(pages.map((p) => [p.id, p]));
-  // A caller may pass the id or the Chinese title.
+  // A caller may pass the id or the visible title.
   const resolve = (name) => pageById.get(name) || pages.find((p) => p.title === name) || pageById.get(DEFAULT_PAGE);
 
   const show = (name) => {
@@ -155,7 +160,7 @@ export function initPedia(data) {
       b.setAttribute("aria-current", on ? "page" : "false");
     });
   };
-  nav.innerHTML = `<div class="hd">資料年鑑</div>` + pages.map((p) => `<button data-page="${esc(p.id)}">${esc(p.title)}</button>`).join("");
+  nav.innerHTML = `<div class="hd">Almanaque</div>` + pages.map((p) => `<button data-page="${esc(p.id)}">${esc(p.title)}</button>`).join("");
   nav.onclick = (e) => {
     const b = e.target.closest("button[data-page]");
     if (b) show(b.dataset.page);

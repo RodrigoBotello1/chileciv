@@ -189,7 +189,7 @@ def build() -> None:
         cities.append({
             "id": code,
             "name": t["name"],
-            "full": f"{t['name']}, Región Metropolitana",
+            "full": f"Comuna de {t['name']}",
             "name_en": t["name"],
             "seat": t["name"],
             "states": [abbr[t["state_fips"]]],

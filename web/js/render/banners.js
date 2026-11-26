@@ -561,7 +561,7 @@ function badgeFor(badges, city) {
 /**
  * Population floor for a hex radius in screen px: the national view shows the biggest cities, close zoom everything.
  * The floor is the population of the N-th largest city (cities are sorted by population), so it follows the data:
- * a map with a few dozen cities (Taiwan's 22 縣市) shows them all at every zoom and leaves the rest to the collision
+ * a map with a few dozen cities (the 52 comunas) shows them all at every zoom and leaves the rest to the collision
  * test, while a map with hundreds thins them out as before.
  */
 const RANK_FLOOR = [[5, 35], [8, 85], [14, 190], [24, 290], [40, 400], [70, 750]]; // [hex radius px under, cities shown]
@@ -600,8 +600,8 @@ export function drawBanners(ctx, cam, w, state, yields, nation = state.nation) {
   const sel = state.selectedCity || null;
   const hov = state.hoverCell >= 0 ? w.cityByCell?.get(state.hoverCell) ?? null : null;
   const focus = state.bannerFocus || null;
-  // The capital goes right after the selected city, then the rest by population: Taiwan's capital (臺北市) is only
-  // the fourth largest 縣市 and sits beside the largest (新北市), so in population order its plate always lost.
+  // The capital goes right after the selected city, then the rest by population: Santiago is not the most
+  // populous comuna and sits beside bigger neighbours, so in population order its plate could lose.
   const cities = state.cities.some(isCapital)
     ? [...state.cities.filter(isCapital), ...state.cities.filter((c) => !isCapital(c))]
     : state.cities;

@@ -3,10 +3,10 @@ import { drawIcon, hasIcon } from "../icons.js";
 import { icon } from "../ui/icon.js";
 import { SERIF, SANS } from "../fonts.js";
 
-// The address printed on shared images. Set it to the published site (e.g. "example.com/atlas"); when left
+// The address printed on shared images. Set it to the published site (e.g. "example.com/chileciv"); when left
 // empty, the page's own host and path are used, except on a local dev server, where SITE_FALLBACK is printed.
-export const SITE_URL = "i-am-alvin.github.io/taiwanciv";
-const SITE_FALLBACK = "taiwanciv";
+export const SITE_URL = "";
+const SITE_FALLBACK = "chileciv";
 
 export function siteLabel() {
   if (SITE_URL) return SITE_URL;
@@ -24,31 +24,33 @@ export function siteLabel() {
 export const IMG_W = 1600;
 export const IMG_H = 900;
 export const CAPTION_H = 118;
-const CREDIT_LEAD = "資料來源：";
-const CREDIT_GENERIC = "資料來源：政府開放資料與公開地理資料";
+const CREDIT_LEAD = "Datos: ";
+const CREDIT_GENERIC = "Datos: fuentes públicas oficiales y datos geográficos abiertos";
+const CREDIT_MORE = " y otras";
 
 /**
  * The credit line under the selection: the publishers named in sources.json (info.sources, in file order, each once),
- * as many as fit in maxW, then 等. Without the list (or without publishers in it) a general line is printed; a ready
+ * as many as fit in maxW, then "y otras". Without the list (or without publishers in it) a general line is printed; a ready
  * string in info.credit wins over both.
  */
 function creditLine(ctx, info, maxW) {
   if (typeof info.credit === "string" && info.credit) return fit(ctx, info.credit, maxW);
   const list = Array.isArray(info.sources) ? info.sources : Object.values(info.sources || {});
-  // A Chinese publisher name is credited without its asides "（…）"; one written "English name (中文名稱)" by the
-  // Chinese name in its parentheses.
-  const zhName = (p) => {
-    const bare = p.replace(/\s*[（(][^()（）]*[)）]/g, "").trim();
-    if (/[\u4e00-\u9fff]/.test(bare)) return bare;
-    return /[（(]([^()（）]*[\u4e00-\u9fff][^()（）]*)[)）]/.exec(p)?.[1].trim() || p;
+  // A publisher is credited by its short name: text before the first "," or ";" (their asides), then the
+  // acronym in trailing parentheses ("Servicio de Impuestos Internos (SII)" -> "SII") or else the name without
+  // its parenthetical.
+  const shortName = (p) => {
+    const head = p.split(/[,;]/)[0].trim();
+    const acr = /\(([A-Z][A-Za-z]{1,9})\)\s*$/.exec(head)?.[1];
+    return acr || head.replace(/\s*\([^()]*\)/g, "").trim();
   };
-  const names = [...new Set(list.map((s) => zhName(String(s?.publisher || "").trim())).filter(Boolean))];
+  const names = [...new Set(list.map((s) => shortName(String(s?.publisher || "").trim())).filter(Boolean))];
   if (!names.length) return CREDIT_GENERIC;
   let text = CREDIT_LEAD + names[0];
-  if (ctx.measureText(text + (names.length > 1 ? "等" : "")).width > maxW) return CREDIT_GENERIC;
+  if (ctx.measureText(text + (names.length > 1 ? CREDIT_MORE : "")).width > maxW) return CREDIT_GENERIC;
   for (let k = 1; k < names.length; k++) {
-    const next = `${text}、${names[k]}`;
-    if (ctx.measureText(next + (k < names.length - 1 ? "等" : "")).width > maxW) return text + "等";
+    const next = `${text}, ${names[k]}`;
+    if (ctx.measureText(next + (k < names.length - 1 ? CREDIT_MORE : "")).width > maxW) return text + CREDIT_MORE;
     text = next;
   }
   return text;
@@ -143,11 +145,11 @@ export function composeImage(info, { height = IMG_H } = {}) {
   ctx.fillStyle = "#ecd08e";
   ctx.font = `bold 36px ${SERIF}`;
   spaced(ctx, 5);
-  ctx.fillText("臺灣文明地圖", 112, cy + 2);
+  ctx.fillText("CHILECIV", 112, cy + 2);
   spaced(ctx, 0);
   ctx.fillStyle = "#b9ab88";
-  ctx.font = `17px ${SERIF}`; // upright: Chinese faces have no italic
-  ctx.fillText("以公開資料繪製的策略遊戲地圖", 114, cy + 28);
+  ctx.font = `italic 17px ${SERIF}`;
+  ctx.fillText("La Región Metropolitana como mapa de estrategia", 114, cy + 28);
 
   // Lens + legend ramp
   const mx = 640;
@@ -159,7 +161,7 @@ export function composeImage(info, { height = IMG_H } = {}) {
   ctx.font = `24px ${SERIF}`;
   spaced(ctx, 1.5);
   // Room up to the selection column (right-aligned, at most 460 px wide).
-  ctx.fillText(fit(ctx, lens ? `「${lens.name}」濾鏡` : "地形", IMG_W - 44 - 460 - 24 - (mx + 50)), mx + 50, cy - 8);
+  ctx.fillText(fit(ctx, (lens ? `Lente: ${lens.name}` : "Terreno").toUpperCase(), IMG_W - 44 - 460 - 24 - (mx + 50)), mx + 50, cy - 8);
   spaced(ctx, 0);
   if (lens?.ramp?.length) {
     const rx = mx + 50, ry = cy + 4, rw = 330, rh = 12;
@@ -179,7 +181,7 @@ export function composeImage(info, { height = IMG_H } = {}) {
   } else {
     ctx.font = `15px ${SANS}`;
     ctx.fillStyle = "#b9ab88";
-    ctx.fillText("土地覆蓋、地形起伏、河川與資源", mx + 50, cy + 16);
+    ctx.fillText("Cobertura del suelo, relieve, ríos y recursos", mx + 50, cy + 16);
   }
 
   // Selection, credits, site
@@ -190,7 +192,7 @@ export function composeImage(info, { height = IMG_H } = {}) {
     ctx.font = `13px ${SANS}`;
     ctx.fillStyle = "#b9ab88";
     spaced(ctx, 2);
-    ctx.fillText(sel.kind === "state" ? "縣市" : "城市", rx, cy - 30);
+    ctx.fillText(sel.kind === "state" ? "PROVINCIA" : "COMUNA", rx, cy - 30);
     spaced(ctx, 0);
     ctx.font = `bold 24px ${SERIF}`;
     ctx.fillStyle = "#f3e6c4";
@@ -243,11 +245,11 @@ export function initShare(opts) {
   let restore = null;
 
   pop.innerHTML = `
-    <div class="sp-title">分享目前畫面</div>
-    <button class="sp-item" data-act="copy">${icon("share", "🔗", { size: 16 })}<span>複製連結</span></button>
-    <button class="sp-item" data-act="image">${icon("terrain", "🖼️", { size: 16 })}<span>下載圖片 <span class="muted">1600×900 PNG</span></span></button>
+    <div class="sp-title">Compartir esta vista</div>
+    <button class="sp-item" data-act="copy">${icon("share", "🔗", { size: 16 })}<span>Copiar enlace</span></button>
+    <button class="sp-item" data-act="image">${icon("terrain", "🖼️", { size: 16 })}<span>Descargar imagen <span class="muted">1600×900 PNG</span></span></button>
     <div class="sp-status" role="status" aria-live="polite"></div>
-    <input class="sp-url" type="text" readonly hidden aria-label="目前畫面的連結">`;
+    <input class="sp-url" type="text" readonly hidden aria-label="Enlace de la vista actual">`;
   const status = pop.querySelector(".sp-status");
   const urlBox = pop.querySelector(".sp-url");
 
@@ -285,17 +287,17 @@ export function initShare(opts) {
       opts.beforeCopy?.();
       const link = location.href;
       if (await copyText(link)) {
-        status.textContent = "已將連結複製到剪貼簿";
-        opts.onToast?.("已複製連結");
+        status.textContent = "Enlace copiado al portapapeles";
+        opts.onToast?.("Enlace copiado");
       } else {
-        status.textContent = "請複製這個連結：";
+        status.textContent = "Copia este enlace:";
         urlBox.hidden = false;
         urlBox.value = link;
         urlBox.focus();
         urlBox.select();
       }
     } else if (b.dataset.act === "image") {
-      status.textContent = "正在繪製地圖…";
+      status.textContent = "Dibujando el mapa…";
       await new Promise((r) => setTimeout(r, 30)); // let the status paint
       try {
         const cv = composeImage(opts.getInfo());
@@ -308,10 +310,10 @@ export function initShare(opts) {
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-        status.textContent = `已儲存 ${a.download}`;
+        status.textContent = `Guardado: ${a.download}`;
       } catch (err) {
         console.warn(err);
-        status.textContent = "這個瀏覽器無法產生圖片。";
+        status.textContent = "Este navegador no pudo crear la imagen.";
       }
     }
   });

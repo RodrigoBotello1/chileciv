@@ -14,7 +14,7 @@
 import { esc, fin, clamp, scale, ticks, logTicks, pad, extent, sizeCanvas, onWidth } from "./util.js";
 import { SERIF, SANS } from "../../../fonts.js";
 
-const M = { l: 60, r: 12, t: 10, b: 38 }; // l: room for a tick such as 3000萬 beside the rotated axis title
+const M = { l: 60, r: 12, t: 10, b: 38 }; // l: room for a tick such as 30 M beside the rotated axis title
 
 export function createScatter(host, opts) {
   const root = document.createElement("div");
@@ -56,8 +56,8 @@ export function createScatter(host, opts) {
       r: o.size ? rmin + (rmax - rmin) * Math.sqrt(clamp((fin(p.s) ? p.s : 0) / smax, 0, 1)) : o.radius || 3,
     })).sort((a, b) => b.r - a.r);
     root._count = valid.length;
-    cv.setAttribute("aria-label", o.ariaLabel || `散佈圖，共 ${valid.length} 個點：${o.y?.label || "y"} 對 ${o.x?.label || "x"}`);
-    hint.textContent = o.brush === false ? "" : `${valid.length.toLocaleString("zh-TW")} 個點 · 拖曳可框選`;
+    cv.setAttribute("aria-label", o.ariaLabel || `Gráfico de dispersión, ${valid.length} puntos: ${o.y?.label || "y"} contra ${o.x?.label || "x"}`);
+    hint.textContent = o.brush === false ? "" : `${valid.length.toLocaleString("en-US")} puntos · arrastra para seleccionar`;
     draw();
   }
 
@@ -96,11 +96,11 @@ export function createScatter(host, opts) {
     c.fillStyle = "rgba(236,208,142,.9)";
     c.font = `11px ${SERIF}`;
     c.textAlign = "center";
-    c.fillText(`${o.x?.label || ""}${sx.log ? "（對數）" : ""}`, (M.l + W - M.r) / 2, H - 9);
+    c.fillText(`${o.x?.label || ""}${sx.log ? " (log)" : ""}`, (M.l + W - M.r) / 2, H - 9);
     c.save();
     c.translate(11, (M.t + H - M.b) / 2);
     c.rotate(-Math.PI / 2);
-    c.fillText(`${o.y?.label || ""}${sy.log ? "（對數）" : ""}`, 0, 0);
+    c.fillText(`${o.y?.label || ""}${sy.log ? " (log)" : ""}`, 0, 0);
     c.restore();
     // reference lines
     c.save();
@@ -259,11 +259,11 @@ export function createScatter(host, opts) {
     const p = q.p;
     const rows = [
       `<b>${esc(p.title || p.row?.full || p.label || p.key)}</b>${p.sub ? ` <span class="sub">${esc(p.sub)}</span>` : ""}`,
-      `${esc(o.x?.label || "x")}：<b>${esc((o.x?.fmt || String)(p.x))}</b>`,
-      `${esc(o.y?.label || "y")}：<b>${esc((o.y?.fmt || String)(p.y))}</b>`,
+      `${esc(o.x?.label || "x")}: <b>${esc((o.x?.fmt || String)(p.x))}</b>`,
+      `${esc(o.y?.label || "y")}: <b>${esc((o.y?.fmt || String)(p.y))}</b>`,
     ];
-    if (o.size && fin(p.s)) rows.push(`${esc(o.size.label || "大小")}：<b>${esc((o.size.fmt || String)(p.s))}</b>`);
-    if (o.colorLabel && p.c != null && !o.colorIsSame) rows.push(`${esc(o.colorLabel)}：<b>${esc((o.colorFmt || String)(p.c))}</b>`);
+    if (o.size && fin(p.s)) rows.push(`${esc(o.size.label || "Tamaño")}: <b>${esc((o.size.fmt || String)(p.s))}</b>`);
+    if (o.colorLabel && p.c != null && !o.colorIsSame) rows.push(`${esc(o.colorLabel)}: <b>${esc((o.colorFmt || String)(p.c))}</b>`);
     if (p.extra) rows.push(esc(p.extra));
     tip.innerHTML = rows.join("<br>");
     tip.hidden = false;

@@ -5,27 +5,27 @@
 // nation.json `industries` (the pipeline writes the official names in Chinese); `short` is only the fallback for a
 // key the data does not name. The keys are whatever the data has: none of them is assumed to exist.
 export const INDUSTRY = {
-  agriculture: { short: "農林漁牧業", color: "#4f7a2a" },
-  mining: { short: "礦業", color: "#6a5038" },
-  construction: { short: "營建工程業", color: "#8a5426" },
-  manufacturing: { short: "製造業", color: "#9a5a22" },
-  wholesale: { short: "批發業", color: "#7a6420" },
-  retail: { short: "批發及零售業", color: "#8a6a1e" },
-  transportation: { short: "運輸及倉儲業", color: "#3d5f73" },
-  utilities: { short: "電力、燃氣及用水", color: "#2a5f86" },
-  information: { short: "資訊及通訊傳播業", color: "#25557e" },
-  finance: { short: "金融及保險業", color: "#7a6420" },
-  real_estate: { short: "不動產業", color: "#6b4a2f" },
-  professional: { short: "專業及科技服務業", color: "#2b4f8a" },
-  management: { short: "企業管理", color: "#4a4a7a" },
-  admin: { short: "支援服務業", color: "#4b5a68" },
-  education: { short: "教育業", color: "#2a3f7a" },
-  health: { short: "醫療保健業", color: "#7a2f2f" },
-  arts: { short: "藝術及娛樂業", color: "#5b3a7e" },
-  accommodation: { short: "住宿及餐飲業", color: "#6e3a5e" },
-  other: { short: "其他服務業", color: "#4b4b4b" },
-  public_admin: { short: "公共行政", color: "#3a5a4a" },
-  government: { short: "公共行政", color: "#3a5a4a" },
+  agriculture: { short: "Agricultura", color: "#4f7a2a" },
+  mining: { short: "Minería", color: "#6a5038" },
+  construction: { short: "Construcción", color: "#8a5426" },
+  manufacturing: { short: "Manufactura", color: "#9a5a22" },
+  wholesale: { short: "Mayorista", color: "#7a6420" },
+  retail: { short: "Comercio", color: "#8a6a1e" },
+  transportation: { short: "Transporte", color: "#3d5f73" },
+  utilities: { short: "Servicios básicos", color: "#2a5f86" },
+  information: { short: "Información", color: "#25557e" },
+  finance: { short: "Finanzas", color: "#7a6420" },
+  real_estate: { short: "Inmobiliario", color: "#6b4a2f" },
+  professional: { short: "Profesional", color: "#2b4f8a" },
+  management: { short: "Gestión", color: "#4a4a7a" },
+  admin: { short: "Apoyo admin.", color: "#4b5a68" },
+  education: { short: "Educación", color: "#2a3f7a" },
+  health: { short: "Salud", color: "#7a2f2f" },
+  arts: { short: "Artes", color: "#5b3a7e" },
+  accommodation: { short: "Alojamiento", color: "#6e3a5e" },
+  other: { short: "Otros servicios", color: "#4b4b4b" },
+  public_admin: { short: "Gobierno", color: "#3a5a4a" },
+  government: { short: "Gobierno", color: "#3a5a4a" },
 };
 export const industryIcon = (k) => `i-${k === "government" ? "public_admin" : k}`;
 /** An industry's display name: the data's own (nation.json industries), else the fallback above, else the key. */
@@ -33,22 +33,22 @@ export const industryName = (nation, key) => nation?.industries?.[key] || INDUST
 
 // Land-use groups shown as a hex's "tile yield" (world.json pct keys → group). Cover ids give the map colour.
 export const LAND = [
-  { key: "built", label: "建成區", icon: "l-developed", cover: 9, keys: ["developed"] },
-  { key: "farm", label: "農地", icon: "l-farmland", cover: 7, keys: ["crop", "pasture"] },
-  { key: "forest", label: "森林", icon: "l-forest", cover: 3, keys: ["forest"] },
-  { key: "open", label: "開闊地", icon: null, cover: 4, keys: ["grass", "shrub", "wetland"] },
+  { key: "built", label: "Zona construida", icon: "l-developed", cover: 9, keys: ["developed"] },
+  { key: "farm", label: "Tierras agrícolas", icon: "l-farmland", cover: 7, keys: ["crop", "pasture"] },
+  { key: "forest", label: "Bosque", icon: "l-forest", cover: 3, keys: ["forest"] },
+  { key: "open", label: "Terreno abierto", icon: null, cover: 4, keys: ["grass", "shrub", "wetland"] },
 ];
 
 const sum = (o) => Object.values(o || {}).reduce((a, v) => a + (Number.isFinite(v) ? v : 0), 0);
 // km² of one hex. The grid radius is in map units; world.json `projection.scale` says how many map units make a
-// km (12.5 on the Taiwan map; absent on a map whose units are km).
+// km (12.5 on the Santiago map; absent on a map whose units are km).
 const HEX_AREA = (R, scale = 1) => (3 * Math.sqrt(3) / 2) * (R / scale) * (R / scale);
 export const mapScale = (w) => {
   const s = w?.raw?.projection?.scale;
   return Number.isFinite(s) && s > 0 ? s : 1;
 };
-// Names differ only by 台 / 臺 or surrounding space when they mean the same 縣市.
-const sameName = (a, b) => !!a && !!b && String(a).trim().replace(/台/g, "臺") === String(b).trim().replace(/台/g, "臺");
+// Names differ only by surrounding space when they mean the same provincia.
+const sameName = (a, b) => !!a && !!b && String(a).trim() === String(b).trim();
 
 /** Industries by jobs (where residents work) with location quotients vs the nation. */
 export function jobIndustries(city, nation) {
@@ -97,7 +97,7 @@ export function gdpIndustries(city, nation) {
     const missing = Object.entries(g).filter(([, v]) => v == null).map(([k]) => k);
     rows.push({
       key: "undisclosed", value: und, share: und / total, natShare: 0, lq: null, undisclosed: true, missing,
-      label: "未公開", short: "未公開", color: "#4a5260", icon: "lock",
+      label: "No publicado", short: "No publicado", color: "#4a5260", icon: "lock",
     });
   }
   return rows;
@@ -189,8 +189,8 @@ export function buildModel(app, city) {
   }
 
   const peers = (city.peers || []).map((id) => app.cityById.get(id)).filter(Boolean);
-  // A 縣市 is both the city and its "state": `self` marks the state that is the city itself (same code or same
-  // name), so the screen never prints the name twice. Abbreviations are 3-letter ISO codes; names read better.
+  // A comuna belongs to a provincia (its "state"): `self` marks the provincia that is the comuna itself (same code or
+  // same name), so the screen never prints the name twice. Abbreviations are codes; names read better.
   const stateName = (abbr) => {
     const i = w.raw.states.findIndex((s) => s.abbr === abbr);
     return i >= 0 ? (app.data.states?.[i]?.name || w.raw.states[i].name) : abbr;
@@ -201,7 +201,7 @@ export function buildModel(app, city) {
     const name = stateName(abbr);
     return { abbr, index: i, name, self: isSelf(city, i, name) };
   });
-  /** Names of the 縣市 behind these abbreviations that are not the city `c` itself ([] for a city that is its own 縣市). */
+  /** Names of the provincias behind these abbreviations that are not the city `c` itself ([] for a comuna that is its own provincia). */
   const otherStates = (c, abbrs) => (abbrs || []).filter(Boolean).map((abbr) => {
     const i = w.raw.states.findIndex((s) => s.abbr === abbr);
     const name = stateName(abbr);
@@ -250,14 +250,14 @@ export function rankCount(cities, key) {
   return n;
 }
 
-/** A resource value with its unit, short ("3.9 GW", "878 人"). */
+/** A resource value with its unit, short ("3.9 GW", "878 empleados"). */
 export function resourceValue(item, type, compact) {
   const v = item.value;
   if (!Number.isFinite(v)) return "";
   const u = type?.unit || "";
   if (u === "MW") return v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)} GW` : `${Math.round(v)} MW`;
-  if (u === "employees") return `${compact(v)} 人`;
-  if (/tons/.test(u)) return `${compact(v)} 公噸/年`;
+  if (u === "employees") return `${compact(v)} empleados`;
+  if (/tons/.test(u)) return `${compact(v)} t/año`;
   if (/km²/.test(u)) return `${compact(v)} km²`;
   return `${compact(v)} ${u}`.trim();
 }

@@ -24,13 +24,13 @@ const DEFAULT_XY = {
 // Table headers shorter than the field's own label, for the columns core/data.js defines (labels that come from
 // the data files are shown as they are).
 const SHORT = {
-  energy_mw: "電廠容量", median_income: "所得中位數", n_districts: "區域數", qcew_jobs: "產業就業", top_industry: "最專精產業", top_lq: "區位商數",
-  cz_median_age: "年齡中位數", cz_specialist: "突出市民", def_per_resident: "人均國防支出", def_pct_gdp: "國防占比",
+  energy_mw: "Capacidad eléctrica", median_income: "Mediana ingreso", n_districts: "N.º distritos", qcew_jobs: "Empleo por rubro", top_industry: "Rubro más especializado", top_lq: "CL",
+  cz_median_age: "Mediana de edad", cz_specialist: "Habitantes destacados", def_per_resident: "Defensa por habitante", def_pct_gdp: "Defensa % ventas",
 };
 const OPS = { num: [">", "≥", "<", "≤", "="], text: ["=", "contains", "≠"] };
-const OP_LABEL = { contains: "包含" };
-// Text filters ignore case and the 台 / 臺 spelling difference.
-const fold = (s) => String(s ?? "").toLowerCase().replace(/台/g, "臺");
+const OP_LABEL = { contains: "contiene" };
+// Text filters ignore case and accents (Ñuñoa = nunoa).
+const fold = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 // Remember the explorer's setup per viewer (a convenience; the page works without it).
 const STORE = "advisors.explorer.v1";
@@ -41,7 +41,7 @@ export async function mount(ctx) {
   const { app, data, el, link } = ctx;
   // Columns from the optional files (industry districts, citizen mixes): loaded on demand, only when the Explorer
   // opens, and added to the levels once. The military columns are added only when that file is already loaded
-  // (it is left out of the Taiwan build, so they never are: no request, no empty columns).
+  // (it is left out of the Santiago build, so they never are: no request, no empty columns).
   await extendData(data, [...(app.data.military != null ? ["military"] : []), "districts", "citizens"]);
   const avail = ["states", "metros", "counties"].filter((k) => data.levels[k]);
   const saved = load() || {};
@@ -76,12 +76,12 @@ export async function mount(ctx) {
   const L = () => data.levels[st.level];
 
   // --- controls -------------------------------------------------------------------------------------------------
-  const top = section(el, { title: "探索資料", note: "選擇要比較的對象、加上篩選條件、排序表格，並以任兩個欄位作圖。將游標移到某一列或某個點上，地圖會標出它的位置；在圖表上拖曳可框選一組。" });
+  const top = section(el, { title: "Explorar los datos", note: "Elige qué comparar, agrega filtros, ordena la tabla y grafica dos columnas cualesquiera. Pasa el cursor sobre una fila o un punto para verlo en el mapa; arrastra sobre el gráfico para seleccionar un grupo." });
   const lvRow = document.createElement("div");
   lvRow.className = "adv-row";
   top.appendChild(lvRow);
   segmented(lvRow, {
-    label: "層級", value: st.level,
+    label: "Nivel", value: st.level,
     options: avail.map((k) => ({ value: k, label: data.levels[k].label })),
     onChange: (v) => { st.level = v; st.filters = st.filters.filter((f) => live(L(), f.key)); st.sel = null; persist(); rebuild(); },
   });
@@ -100,7 +100,7 @@ export async function mount(ctx) {
   top.appendChild(summary);
 
   // --- table ----------------------------------------------------------------------------------------------------
-  const tBody = section(el, { title: "表格" });
+  const tBody = section(el, { title: "Tabla" });
   const selRow = document.createElement("div");
   selRow.className = "adv-row";
   tBody.appendChild(selRow);
@@ -109,7 +109,7 @@ export async function mount(ctx) {
   let table = null;
 
   // --- chart ----------------------------------------------------------------------------------------------------
-  const cBody = section(el, { title: "圖表" });
+  const cBody = section(el, { title: "Gráfico" });
   const axes = document.createElement("div");
   axes.className = "adv-axes";
   cBody.appendChild(axes);
@@ -135,7 +135,7 @@ export async function mount(ctx) {
   // --- logic ----------------------------------------------------------------------------------------------------
   const fieldOpts = (withNone = false, numeric = true) => {
     const fs = L().fields.filter((f) => !f.empty && (numeric ? f.format !== "text" : f.key !== "name"));
-    return [...(withNone ? [{ value: "", label: "無" }] : []), ...fs.map((f) => ({ value: f.key, label: f.label, group: f.group }))];
+    return [...(withNone ? [{ value: "", label: "Ninguno" }] : []), ...fs.map((f) => ({ value: f.key, label: f.label, group: f.group }))];
   };
   const numeric = (f) => f && f.format !== "text";
   const val = (r, k) => r.v[k] ?? null;
@@ -173,14 +173,14 @@ export async function mount(ctx) {
       if (!groups.has(f.group)) groups.set(f.group, []);
       groups.get(f.group).push(f);
     }
-    colsBox.innerHTML = `<summary class="adv-mini">欄位（${shownCols().length}）</summary><div class="adv-cols-pop">${[...groups].map(([g, list]) => `<fieldset><legend>${esc(g)}</legend>${list.map((f) => `<label title="${esc(f.description)}"><input type="checkbox" value="${esc(f.key)}"${on.has(f.key) ? " checked" : ""}> ${esc(f.label)}</label>`).join("")}</fieldset>`).join("")}</div>`;
+    colsBox.innerHTML = `<summary class="adv-mini">Columnas (${shownCols().length})</summary><div class="adv-cols-pop">${[...groups].map(([g, list]) => `<fieldset><legend>${esc(g)}</legend>${list.map((f) => `<label title="${esc(f.description)}"><input type="checkbox" value="${esc(f.key)}"${on.has(f.key) ? " checked" : ""}> ${esc(f.label)}</label>`).join("")}</fieldset>`).join("")}</div>`;
   }
   colsBox.addEventListener("change", (e) => {
     const k = e.target.value;
     const list = st.cols[st.level].filter((x) => x !== k);
     if (e.target.checked) list.push(k);
     st.cols = { ...st.cols, [st.level]: list };
-    colsBox.querySelector("summary").textContent = `欄位（${shownCols().length}）`;
+    colsBox.querySelector("summary").textContent = `Columnas (${shownCols().length})`;
     persist();
     buildTable();
   });
@@ -190,21 +190,21 @@ export async function mount(ctx) {
     const fs = L().fields.filter((f) => !f.empty);
     if (!fs.length) return;
     // An example of a text value: a real name from the level's own rows.
-    const sample = (f) => { const v = L().rows.map((r) => val(r, f.key)).find((x) => x != null && x !== ""); return v != null ? `例如 ${v}` : "文字"; };
-    const fsel = selectBox(fRow, { label: "篩選", value: fs.find((f) => f.key === "population")?.key || fs[0].key, options: fs.map((f) => ({ value: f.key, label: f.label, group: f.group })) });
+    const sample = (f) => { const v = L().rows.map((r) => val(r, f.key)).find((x) => x != null && x !== ""); return v != null ? `ej. ${v}` : "texto"; };
+    const fsel = selectBox(fRow, { label: "Filtro", value: fs.find((f) => f.key === "population")?.key || fs[0].key, options: fs.map((f) => ({ value: f.key, label: f.label, group: f.group })) });
     const ops = document.createElement("select");
-    ops.setAttribute("aria-label", "比較方式");
+    ops.setAttribute("aria-label", "Comparación");
     const valIn = document.createElement("input");
     valIn.type = "text";
-    valIn.setAttribute("aria-label", "數值");
+    valIn.setAttribute("aria-label", "Valor");
     const add = document.createElement("button");
     add.type = "button";
     add.className = "adv-mini";
-    add.textContent = "加入";
+    add.textContent = "Agregar";
     const syncOps = () => {
       const f = L().field(fsel.value);
       ops.innerHTML = (numeric(f) ? OPS.num : OPS.text).map((o) => `<option value="${esc(o)}">${esc(OP_LABEL[o] || o)}</option>`).join("");
-      valIn.placeholder = numeric(f) ? (f.format === "pct" || f.format === "signed" ? "例如 25%" : f.format === "usd" || f.format === "money" ? "例如 80萬" : "例如 100萬") : sample(f);
+      valIn.placeholder = numeric(f) ? (f.format === "pct" || f.format === "signed" ? "ej. 25%" : f.format === "usd" || f.format === "money" ? "ej. 800k" : "ej. 1m") : sample(f);
     };
     fsel.select.addEventListener("change", syncOps);
     syncOps();
@@ -212,7 +212,7 @@ export async function mount(ctx) {
       const f = L().field(fsel.value);
       if (!f || !valIn.value.trim()) return;
       const v = numeric(f) ? parseNum(valIn.value, f.format) : valIn.value.trim();
-      if (v == null) { valIn.setCustomValidity("請輸入數字"); valIn.reportValidity(); return; }
+      if (v == null) { valIn.setCustomValidity("Escribe un número"); valIn.reportValidity(); return; }
       valIn.setCustomValidity("");
       st.filters.push({ key: f.key, op: ops.value, value: v });
       valIn.value = "";
@@ -226,7 +226,7 @@ export async function mount(ctx) {
     presets.className = "adv-presets";
     const P = (!live(L(), "population") ? [] : st.level === "counties" ? [["population", "≥", 1e5]] : [["population", "≥", 1e6], ["population", "≥", 2.5e5]])
       .filter(([k, , v]) => L().rows.some((r) => val(r, k) >= v)); // a preset no row passes is not offered
-    presets.innerHTML = P.map((p, i) => `<button type="button" class="adv-mini" data-preset="${i}">${esc(`${compact(p[2])}人以上`)}</button>`).join("");
+    presets.innerHTML = P.map((p, i) => `<button type="button" class="adv-mini" data-preset="${i}">${esc(`${compact(p[2])} habitantes o más`)}</button>`).join("");
     presets.addEventListener("click", (e) => {
       const i = e.target.closest("[data-preset]")?.dataset.preset;
       if (i == null) return;
@@ -242,8 +242,8 @@ export async function mount(ctx) {
     chipsRow.innerHTML = st.filters.map((f, i) => {
       const fd = L().field(f.key);
       const txt = `${fd?.label || f.key} ${OP_LABEL[f.op] || f.op} ${numeric(fd) ? fmtShort(fd.format, f.value) : f.value}`;
-      return `<span class="adv-fchip">${esc(txt)}<button type="button" data-rm="${i}" aria-label="移除篩選條件：${esc(txt)}">✕</button></span>`;
-    }).join("") + (st.filters.length > 1 ? `<button type="button" class="adv-mini" data-rm="all">全部清除</button>` : "") + (st.filters.length && filterHighlight() ? frameBtn() : "");
+      return `<span class="adv-fchip">${esc(txt)}<button type="button" data-rm="${i}" aria-label="Quitar el filtro: ${esc(txt)}">✕</button></span>`;
+    }).join("") + (st.filters.length > 1 ? `<button type="button" class="adv-mini" data-rm="all">Limpiar todo</button>` : "") + (st.filters.length && filterHighlight() ? frameBtn() : "");
   }
   chipsRow.addEventListener("click", (e) => {
     const i = e.target.closest("[data-rm]")?.dataset.rm;
@@ -264,12 +264,12 @@ export async function mount(ctx) {
     const sortKey = keys.includes("population") ? "population" : keys[0] || "name";
     const maxOf = (k) => { const e = extent(lv.rows.map((r) => val(r, k))); return e ? Math.max(Math.abs(e[0]), Math.abs(e[1])) : 1; };
     const cols = [
-      { key: "name", label: lv.field("name")?.label || "名稱", align: "l", width: "minmax(92px,1.7fr)", value: (r) => r.name, html: (r) => `${esc(r.name)}${st.level !== "states" && r.sub ? ` <span class="sub">${esc(r.sub)}</span>` : ""}` },
+      { key: "name", label: lv.field("name")?.label || "Nombre", align: "l", width: "minmax(92px,1.7fr)", value: (r) => r.name, html: (r) => `${esc(r.name)}${st.level !== "states" && r.sub ? ` <span class="sub">${esc(r.sub)}</span>` : ""}` },
       ...keys.map((k) => {
         const f = lv.field(k);
-        const title = `${f.label}${f.unit ? `（${f.unit}）` : ""}。點擊可排序。`;
-        const short = SHORT[k] || (k.startsWith("y_") ? esc(f.label.replace(/就業人口$/, "")) : null);
-        // The name column already carries the state as a suffix, so a state column goes first when space is short.
+        const title = `${f.label}${f.unit ? ` (${f.unit})` : ""}. Haz clic para ordenar.`;
+        const short = SHORT[k] || (k.startsWith("y_") ? esc(f.label.replace(/\s*\(?(trabajadores|ocupados|empleo)\)?$/i, "")) : null);
+        // The name column already carries the province as a suffix, so a province column goes first when space is short.
         const isState = k === "state" || k === "states";
         return numeric(f)
           ? { key: k, label: f.label, short, title, value: (r) => val(r, k), text: (r) => fmtCell(f.format, val(r, k), f.unit), tip: (r) => fmtF(f, val(r, k)), bar: k === sortKey ? { max: maxOf(k), color: "rgba(154,123,201,.32)" } : null }
@@ -278,8 +278,8 @@ export async function mount(ctx) {
     ];
     if (!table) {
       table = createTable(tableHost, {
-        caption: `${lv.label}資料表`, columns: cols, rows: [], sort: { key: sortKey, dir: "desc" }, rank: true, maxHeight: 360,
-        search: `搜尋${lv.label}`,
+        caption: `Tabla de ${lv.label}`, columns: cols, rows: [], sort: { key: sortKey, dir: "desc" }, rank: true, maxHeight: 360,
+        search: `Buscar en ${lv.label}`,
         onHover: (r) => { link.hover(r ? rowsHighlight(L(), [r]) : null); scatter.setHot(r ? r.key : null); },
         onClick: (r) => L().focus(r),
       });
@@ -303,11 +303,11 @@ export async function mount(ctx) {
     });
     mk("x", "X", false);
     mk("y", "Y", false);
-    mk("s", "大小", true);
-    mk("c", "顏色", true);
+    mk("s", "Tamaño", true);
+    mk("c", "Color", true);
     const logs = document.createElement("span");
     logs.className = "adv-logs";
-    logs.innerHTML = `<label class="adv-check"><input type="checkbox" data-log="x"> X 取對數</label><label class="adv-check"><input type="checkbox" data-log="y"> Y 取對數</label>`;
+    logs.innerHTML = `<label class="adv-check"><input type="checkbox" data-log="x"> X en escala log</label><label class="adv-check"><input type="checkbox" data-log="y"> Y en escala log</label>`;
     axes.appendChild(logs);
     logs.addEventListener("change", (e) => {
       const a = e.target.dataset.log;
@@ -328,7 +328,7 @@ export async function mount(ctx) {
     const xy = st.xy[st.level];
     const rows = filtered();
     const fx = lv.field(xy.x), fy = lv.field(xy.y), fs = xy.s ? lv.field(xy.s) : null, fc = xy.c ? lv.field(xy.c) : null;
-    if (!fx || !fy) { scatter.update({ points: [] }); lensRow.innerHTML = ""; fieldInfo.innerHTML = `<p class="adv-empty">無資料。</p>`; srcEl.innerHTML = sourcesHtml(data, []); return; }
+    if (!fx || !fy) { scatter.update({ points: [] }); lensRow.innerHTML = ""; fieldInfo.innerHTML = `<p class="adv-empty">Sin datos.</p>`; srcEl.innerHTML = sourcesHtml(data, []); return; }
     const lx = xy.logx ?? autoLog(xy.x, rows), ly = xy.logy ?? autoLog(xy.y, rows);
     axes.querySelector('[data-log="x"]').checked = lx;
     axes.querySelector('[data-log="y"]').checked = ly;
@@ -349,7 +349,7 @@ export async function mount(ctx) {
         const m = new Map(cats.map((c, i) => [c, pal[i]]));
         color = (c) => m.get(c) || "#8b8070";
         const more = new Set(rows.map((r) => val(r, fc.key))).size > cats.length;
-        legendEl.innerHTML = swatchLegend([...cats.map((c) => ({ label: c ?? "–", color: m.get(c) })), ...(more ? [{ label: "其他", color: "#8b8070" }] : [])], fc.label);
+        legendEl.innerHTML = swatchLegend([...cats.map((c) => ({ label: c ?? "–", color: m.get(c) })), ...(more ? [{ label: "Otros", color: "#8b8070" }] : [])], fc.label);
       }
     }
     const big = [...rows].sort((a, b) => (val(b, "population") || 0) - (val(a, "population") || 0)).slice(0, st.level === "states" ? 10 : 6).map((r) => r.key);
@@ -375,19 +375,19 @@ export async function mount(ctx) {
       b.className = "adv-lensbtn";
       const on = app.state.lens?.id === lens.id;
       b.setAttribute("aria-pressed", String(on));
-      b.textContent = on ? `地圖正顯示「${lens.name}」濾鏡` : `在地圖上以濾鏡顯示「${f.label}」`;
+      b.textContent = on ? `El mapa muestra el lente "${lens.name}"` : `Ver "${f.label}" en el mapa como lente`;
       b.addEventListener("click", () => { app.setLens(app.state.lens?.id === lens.id ? null : lens.id); drawScatter(); });
       lensRow.appendChild(b);
     }
-    if (!lensFields.length) lensRow.innerHTML = `<span class="adv-note">這些欄位沒有對應的地圖濾鏡：將游標移到圖上或拖曳框選，即可在地圖上看到位置。</span>`;
-    fieldInfo.innerHTML = [fx, fy, fs, fc].filter((f, i, a) => f && a.indexOf(f) === i).map((f) => `<p><b>${esc(f.label)}</b>${f.unit ? ` <span class="sub">${esc(f.unit)}</span>` : ""}${f.description ? `：${esc(f.description)}` : ""}</p>`).join("");
+    if (!lensFields.length) lensRow.innerHTML = `<span class="adv-note">Estas columnas no tienen un lente en el mapa: pasa el cursor sobre el gráfico o arrastra para seleccionar, y verás dónde están.</span>`;
+    fieldInfo.innerHTML = [fx, fy, fs, fc].filter((f, i, a) => f && a.indexOf(f) === i).map((f) => `<p><b>${esc(f.label)}</b>${f.unit ? ` <span class="sub">${esc(f.unit)}</span>` : ""}${f.description ? `: ${esc(f.description)}` : ""}</p>`).join("");
     const srcIds = [fx, fy, fs, fc].filter(Boolean).map((f) => f.source).filter(Boolean);
     const gdpVintage = data.nation?.gdp_vintage;
     srcEl.innerHTML = sourcesHtml(data, srcIds, [
-      ...(lv.fields.some((f) => !f.empty && f.label.endsWith("≈")) ? ["標有 ≈ 的欄位是鄉鎮市區數值依人口加權的平均：可供參考，但不是該地區本身的統計值。"] : []),
-      ...(data.vintage || data.countyVintage ? [`${data.vintage ? `城市與縣市資料：${esc(data.vintage)}。` : ""}${data.countyVintage ? `鄉鎮市區資料：${esc(data.countyVintage)}。` : ""}`] : []),
-      ...(gdpVintage && live(lv, "gdp") ? [`生產毛額：${esc(gdpVintage)}，與人口的統計年度不同。`] : []),
-      ...(st.level === "counties" && data.countiesOffMap ? [`有 ${int(data.countiesOffMap)} 個鄉鎮市區小於一個六角格：它們仍列在表格與圖表中，但無法在地圖上標出輪廓。`] : []),
+      ...(lv.fields.some((f) => !f.empty && f.label.endsWith("≈")) ? ["Las columnas marcadas con ≈ son promedios de las comunas ponderados por población: sirven de referencia, pero no son la estadística de esa unidad."] : []),
+      ...(data.vintage || data.countyVintage ? [`${data.vintage ? `Datos de comunas y provincias: ${esc(data.vintage)}. ` : ""}${data.countyVintage ? `Datos de comunas (detalle): ${esc(data.countyVintage)}.` : ""}`.trim()] : []),
+      ...(gdpVintage && live(lv, "gdp") ? [`Ventas: ${esc(gdpVintage)}, de un año distinto al de la población.`] : []),
+      ...(st.level === "counties" && data.countiesOffMap ? [`${int(data.countiesOffMap)} comunas son más chicas que un hexágono: siguen en la tabla y los gráficos, pero no se pueden delinear en el mapa.`] : []),
     ]);
   }
 
@@ -396,8 +396,8 @@ export async function mount(ctx) {
     const sel = st.sel ? lv.rows.filter((r) => st.sel.has(r.key)) : [];
     link.base(sel.length ? rowsHighlight(lv, sel, { dim: true }) : filterHighlight(), { frame: sel.length > 1 || (!sel.length && st.filters.length > 0) });
     table?.setSelected(st.sel);
-    selRow.innerHTML = st.sel ? `<span class="adv-fchip">已在圖表上選取 ${int(st.sel.size)} 個<button type="button" data-clear-sel aria-label="清除選取">✕</button></span>${frameBtn()}
-      <label class="adv-check"><input type="checkbox" data-only${st.onlySel ? " checked" : ""}> 只顯示選取的項目</label>` : `<span class="adv-note">提示：在下方圖表上拖曳，即可框選一組。</span>`;
+    selRow.innerHTML = st.sel ? `<span class="adv-fchip">${int(st.sel.size)} seleccionados en el gráfico<button type="button" data-clear-sel aria-label="Quitar la selección">✕</button></span>${frameBtn()}
+      <label class="adv-check"><input type="checkbox" data-only${st.onlySel ? " checked" : ""}> Mostrar solo lo seleccionado</label>` : `<span class="adv-note">Tip: arrastra sobre el gráfico de abajo para seleccionar un grupo.</span>`;
     refreshRows();
     updateSummary();
   }
@@ -421,7 +421,7 @@ export async function mount(ctx) {
   function updateSummary() {
     const rows = filtered();
     const pop = rows.reduce((a, r) => a + (val(r, "population") || 0), 0);
-    summary.innerHTML = `<b>${int(rows.length)}</b> / ${int(L().rows.length)} 個${esc(L().label)}${pop > 0 ? ` · 人口 ${count3(pop)}` : ""}${st.sel ? ` · 已選取 <b>${int(st.sel.size)}</b> 個` : ""}`;
+    summary.innerHTML = `<b>${int(rows.length)}</b> / ${int(L().rows.length)} ${esc(L().label.toLowerCase())}${pop > 0 ? ` · población ${count3(pop)}` : ""}${st.sel ? ` · <b>${int(st.sel.size)}</b> seleccionados` : ""}`;
   }
   function refresh() {
     renderChips();

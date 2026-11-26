@@ -2,13 +2,13 @@
 //
 //   app mode "advisor", params {id, ...}  (id = an advisor id, or none for the council picker)
 //   URL hash: #advisor=<id> ("council" for the picker)
-//   top-bar button "顧問團"
+//   top-bar button "Consejeros"
 // An advisor with `needs: "<file>"` is about an optional data file: it is offered (tab, council card, deep link)
-// only while app.data has that file. military.json is left out of the Taiwan build on purpose, so that advisor
+// only while app.data has that file. military.json is left out of the Chile build on purpose, so that advisor
 // never shows.
 // Each advisor is a module in views/ exporting mount(ctx) → {onMapHover?, onMapClick?, onEscape?, destroy?}.
 // ctx = {app, data, el, link, params, on(name, fn), bubbles(id, opts), tip, setResourceFilter, setShowResources,
-//        switchTo(id, params)} — everything registered through ctx is undone when the view goes away.
+//        switchTo(id, params)}, everything registered through ctx is undone when the view goes away.
 import { buildData } from "./core/data.js";
 import { createLinker, createBubbles, createMapTip } from "./core/link.js";
 import { emblem } from "./core/emblems.js";
@@ -17,25 +17,25 @@ import { esc, el } from "./core/util.js";
 import { icon } from "../../ui/icon.js";
 
 export const ADVISORS = [
-  { id: "energy", name: "能源與資源", role: "能源大臣", color: "#d98a2b", dark: "#3a1f08", blurb: "電力從哪裡來：各類電廠的位置與裝置容量。", load: () => import("./views/energy.js") },
-  { id: "economy", name: "經濟", role: "財政大臣", color: "#c9a43a", dark: "#3a2c08", blurb: "各縣市的生產毛額與產業結構，以及領先的城市。", load: () => import("./views/economy.js") },
-  { id: "people", name: "人口", role: "戶政總管", color: "#c46a4f", dark: "#3a140c", blurb: "人住在哪裡、往哪裡移動，各地的年齡結構又是如何。", load: () => import("./views/people.js") },
-  { id: "prosperity", name: "所得與住房", role: "民生總管", color: "#3f9c82", dark: "#082a22", blurb: "所得、房價與失業，以及過得比較辛苦的地方。", load: () => import("./views/prosperity.js") },
-  { id: "knowledge", name: "知識", role: "首席學者", color: "#4a86d6", dark: "#0a1c3a", blurb: "學歷與科研人力的分布。", load: () => import("./views/knowledge.js") },
-  { id: "land", name: "土地", role: "測繪總長", color: "#6e9a3c", dark: "#18280a", blurb: "森林、農地與城市：這片土地上覆蓋著什麼。", load: () => import("./views/land.js") },
-  { id: "military", needs: "military", name: "軍事", role: "將軍", color: "#8796ab", dark: "#141b26", blurb: "基地與訓練場、各縣市的兵力與國防支出，以及退伍軍人的分布。", load: () => import("./views/military.js") },
-  { id: "commerce", name: "商貿", role: "貿易大臣", color: "#2fa4b8", dark: "#062630", blurb: "城市之間的主要貨運路線，以及最繁忙的港口與機場。", load: () => import("./views/commerce.js") },
-  { id: "culture", name: "文化", role: "奇觀守護者", color: "#c25b9a", dark: "#2e0c22", blurb: "這片土地上的奇觀，以及各地的文化與生活面貌。", load: () => import("./views/culture.js") },
-  { id: "explorer", name: "資料探索", role: "製圖師", color: "#9a7bc9", dark: "#1e1236", blurb: "自由切換層級、欄位與圖表，交叉比對每一項數字。", load: () => import("./views/explorer.js") },
+  { id: "energy", name: "Energía y recursos", role: "Ministro de Energía", color: "#d98a2b", dark: "#3a1f08", blurb: "De dónde viene la electricidad: dónde están las centrales y cuánta potencia tienen.", load: () => import("./views/energy.js") },
+  { id: "economy", name: "Economía", role: "Tesorero", color: "#c9a43a", dark: "#3a2c08", blurb: "El PIB y la estructura productiva de cada provincia, y las comunas que lideran.", load: () => import("./views/economy.js") },
+  { id: "people", name: "Población", role: "Guardián del Censo", color: "#c46a4f", dark: "#3a140c", blurb: "Dónde vive la gente, hacia dónde se mueve y cómo es la estructura de edades de cada lugar.", load: () => import("./views/people.js") },
+  { id: "prosperity", name: "Ingresos y vivienda", role: "Custodio del hogar", color: "#3f9c82", dark: "#082a22", blurb: "Ingresos, precios de la vivienda y desempleo, y los lugares donde más cuesta vivir.", load: () => import("./views/prosperity.js") },
+  { id: "knowledge", name: "Conocimiento", role: "Erudito real", color: "#4a86d6", dark: "#0a1c3a", blurb: "Cómo se distribuyen los títulos y el personal de ciencia.", load: () => import("./views/knowledge.js") },
+  { id: "land", name: "Suelo", role: "Agrimensor general", color: "#6e9a3c", dark: "#18280a", blurb: "Bosque, cultivos y ciudad: qué cubre este territorio.", load: () => import("./views/land.js") },
+  { id: "military", needs: "military", name: "Militar", role: "General", color: "#8796ab", dark: "#141b26", blurb: "Bases y campos de entrenamiento, tropas y gasto en defensa por provincia, y dónde viven los veteranos.", load: () => import("./views/military.js") },
+  { id: "commerce", name: "Comercio", role: "Maestro del comercio", color: "#2fa4b8", dark: "#062630", blurb: "Las principales rutas de carga entre comunas y los puertos y aeropuertos más activos.", load: () => import("./views/commerce.js") },
+  { id: "culture", name: "Cultura", role: "Guardián de las maravillas", color: "#c25b9a", dark: "#2e0c22", blurb: "Las maravillas de este territorio, y la cultura y el modo de vida de cada lugar.", load: () => import("./views/culture.js") },
+  { id: "explorer", name: "Explorador", role: "Cartógrafo", color: "#9a7bc9", dark: "#1e1236", blurb: "Cambia a gusto de nivel, columnas y gráficos para cruzar cada cifra.", load: () => import("./views/explorer.js") },
 ];
 const byId = new Map(ADVISORS.map((a) => [a.id, a]));
 // The council picker groups its advisors (any advisor not listed here is added to the last group).
 const COUNCIL = (() => {
   const g = [
-    { label: "財富與工作", ids: ["economy", "prosperity", "commerce", "energy"] },
-    { label: "人口與土地", ids: ["people", "knowledge", "culture", "land"] },
-    { label: "國防", ids: ["military"] },
-    { label: "自由探索", ids: ["explorer"] },
+    { label: "Riqueza y trabajo", ids: ["economy", "prosperity", "commerce", "energy"] },
+    { label: "Población y suelo", ids: ["people", "knowledge", "culture", "land"] },
+    { label: "Defensa", ids: ["military"] },
+    { label: "Tus propias preguntas", ids: ["explorer"] },
   ];
   const listed = new Set(g.flatMap((x) => x.ids));
   g[g.length - 1].ids.push(...ADVISORS.filter((a) => !listed.has(a.id)).map((a) => a.id));
@@ -75,17 +75,17 @@ export function install(app) {
 
   // --- top-bar button ---------------------------------------------------------------------------------------------
   const btn = app.ui.addTopButton({
-    id: "btn-advisors", icon: "g-people", label: "顧問團", title: "顧問團：探索地圖背後的數據",
+    id: "btn-advisors", icon: "g-people", label: "Consejeros", title: "Consejeros: explora los datos detrás del mapa",
     onClick: () => (app.mode === "advisor" ? app.setMode(null) : app.setMode("advisor", { id: lastId })),
   });
   if (btn) {
-    btn.innerHTML = `<svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5 3 7v2h18V7z" fill="currentColor"/><path d="M5 10.5h2.6v7H5zM10.7 10.5h2.6v7h-2.6zM16.4 10.5H19v7h-2.6zM3.5 19h17v2.5h-17z" fill="currentColor"/></svg><span class="lbl">顧問團</span>`;
+    btn.innerHTML = `<svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5 3 7v2h18V7z" fill="currentColor"/><path d="M5 10.5h2.6v7H5zM10.7 10.5h2.6v7h-2.6zM16.4 10.5H19v7h-2.6zM3.5 19h17v2.5h-17z" fill="currentColor"/></svg><span class="lbl">Consejeros</span>`;
     btn.setAttribute("aria-pressed", "false");
   }
   app.on("mode", ({ name }) => btn?.setAttribute("aria-pressed", String(name === "advisor")));
 
   // --- dock shell -------------------------------------------------------------------------------------------------
-  const tabsHtml = () => offered().map((a) => `<button type="button" role="tab" data-adv="${a.id}" aria-selected="false" title="${esc(`${a.name}：${a.role}`)}" style="--adv:${a.color}">${emblem(a, 30)}<span class="sr-only">${esc(a.name)}</span></button>`).join("");
+  const tabsHtml = () => offered().map((a) => `<button type="button" role="tab" data-adv="${a.id}" aria-selected="false" title="${esc(`${a.name}: ${a.role}`)}" style="--adv:${a.color}">${emblem(a, 30)}<span class="sr-only">${esc(a.name)}</span></button>`).join("");
   /** Mark the current advisor's tab (and keep exactly one tab in the focus order). */
   function syncTabs(root) {
     const tabs = [...root.querySelectorAll(".adv-tabs [role=tab]")];
@@ -97,7 +97,7 @@ export function install(app) {
     });
   }
   function shell() {
-    dock = app.ui.dock("left", { width: dockW(), label: "顧問團" });
+    dock = app.ui.dock("left", { width: dockW(), label: "Consejeros" });
     if (dock.querySelector(".adv-root")) return dock.querySelector(".adv-root");
     dock.innerHTML = "";
     dock.classList.add("adv-dock");
@@ -105,9 +105,9 @@ export function install(app) {
     root.innerHTML = `
       <div class="adv-grip" aria-hidden="true"></div>
       <header class="adv-head">
-        <button type="button" class="adv-council-btn" data-adv="council" title="所有顧問">${icon("g-people", "👥", { size: 14 })}<span>顧問總覽</span></button>
-        <nav class="adv-tabs" role="tablist" aria-label="顧問團">${tabsHtml()}</nav>
-        <button type="button" class="icon-btn adv-close" aria-label="關閉顧問團（Esc）" title="關閉（Esc）">${icon("close", "✕", { size: 12 })}</button>
+        <button type="button" class="adv-council-btn" data-adv="council" title="Todos los consejeros">${icon("g-people", "👥", { size: 14 })}<span>Consejo</span></button>
+        <nav class="adv-tabs" role="tablist" aria-label="Consejeros">${tabsHtml()}</nav>
+        <button type="button" class="icon-btn adv-close" aria-label="Cerrar los consejeros (Esc)" title="Cerrar (Esc)">${icon("close", "✕", { size: 12 })}</button>
       </header>
       <div class="adv-main" tabindex="-1"></div>`;
     dock.appendChild(root);
@@ -179,13 +179,13 @@ export function install(app) {
       main.querySelectorAll(".adv-card").forEach((c) => c.addEventListener("click", () => switchTo(c.dataset.adv)));
       return;
     }
-    main.innerHTML = `${titleHtml(adv)}<div class="adv-body"><div class="adv-loading">${esc(adv.role)}正在彙整數據…</div></div>`;
+    main.innerHTML = `${titleHtml(adv)}<div class="adv-body"><div class="adv-loading">${esc(adv.role)} está reuniendo las cifras…</div></div>`;
     let mod;
     try {
       [mod] = await Promise.all([adv.load(), ensureData()]);
     } catch (err) {
       console.error(err);
-      if (my === token) main.querySelector(".adv-body").innerHTML = `<p class="adv-empty pad">這位顧問的面板無法載入（${esc(err.message || err)}）。</p>`;
+      if (my === token) main.querySelector(".adv-body").innerHTML = `<p class="adv-empty pad">No se pudo cargar el panel de este consejero (${esc(err.message || err)}).</p>`;
       return;
     }
     if (my !== token || app.mode !== "advisor") return;
@@ -233,7 +233,7 @@ export function install(app) {
       a.api = (await mod.mount(ctx)) || {};
     } catch (err) {
       console.error(`advisor "${adv.id}" failed`, err);
-      body.insertAdjacentHTML("beforeend", `<p class="adv-empty pad">繪製這位顧問的面板時發生錯誤。</p>`);
+      body.insertAdjacentHTML("beforeend", `<p class="adv-empty pad">Ocurrió un error al dibujar el panel de este consejero.</p>`);
       a.api = {};
     }
     loading?.remove();
@@ -262,11 +262,11 @@ export function install(app) {
     // The publishers are read from sources.json, so the line always matches the data that was really built.
     const pubs = [...new Set((app.data?.sources || []).map((s) => s?.publisher).filter(Boolean))];
     const groups = COUNCIL.map((g) => ({ label: g.label, list: g.ids.map((id) => byId.get(id)).filter(available) })).filter((g) => g.list.length);
-    return `<div class="adv-title council"><div class="adv-titles"><div class="adv-kind">你的顧問團</div><h2>顧問團</h2>
-      <p>每位顧問各自掌管真實經濟的一個面向。將游標移到任何項目上，地圖會標出它的位置；將游標移到地圖上，圖表也會跟著標示；點擊可深入檢視。</p></div></div>
+    return `<div class="adv-title council"><div class="adv-titles"><div class="adv-kind">Tu consejo</div><h2>Consejeros</h2>
+      <p>Cada consejero abre un panel sobre una parte de la economía real. Pasa el cursor sobre cualquier elemento para verlo en el mapa; pasa el cursor sobre el mapa para encontrarlo en los gráficos; haz clic para profundizar.</p></div></div>
       ${groups.map((g) => `<h4 class="adv-council-h">${esc(g.label)}</h4><div class="adv-council">${g.list.map((a) => `<button type="button" class="adv-card" data-adv="${a.id}" style="--adv:${a.color}">
         ${emblem(a, 48)}<span class="t"><span class="r">${esc(a.role)}</span><b>${esc(a.name)}</b><span class="d">${esc(a.blurb)}</span></span></button>`).join("")}</div>`).join("")}
-      <p class="adv-note pad">所有數字都來自公開資料${pubs.length ? `：${esc(pubs.join("、"))}` : ""}。每個面板的底部都列出資料來源與解讀時的注意事項。</p>`;
+      <p class="adv-note pad">Todas las cifras vienen de datos públicos${pubs.length ? `: ${esc(pubs.join(", "))}` : ""}. Cada panel lista sus fuentes y advertencias al final.</p>`;
   }
 
   // An optional file an advisor needs has arrived (or turned out to be missing): offer exactly the advisors that

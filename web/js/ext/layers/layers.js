@@ -33,8 +33,8 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
   const moved = (it, html) => {
     if (!html || !it.nudged || typeof html !== "string") return html;
     const city = m.w.cityByCell.get(it.cell);
-    const where = city ? `${esc(city.name)}的城市所在格` : "城市所在的六角格";
-    return `${html}<br><span class="muted">為避免被遮住，圖示畫在相鄰的六角格；實際位置在${where}。</span>`;
+    const where = city ? `el hexágono de ${esc(city.name)}` : "el hexágono de la comuna";
+    return `${html}<br><span class="muted">Para que no quede tapado, el ícono se dibuja en un hexágono vecino; la ubicación real está en ${where}.</span>`;
   };
   const ver = () => `v${m.version}`;
   const grid = () => m.w.grid;

@@ -261,7 +261,7 @@ export function createMapLayer(app, { focusRect = () => null } = {}) {
       return { x: Math.min(sx - r, sx - tw / 2), y: sy - r, w: Math.max(2 * r, tw), h: r * 0.98 + 7 + r };
     });
 
-    // 1. Tile yields: [people ≈1.2萬 | land 41%] under each footprint hex (not the city's own hex: its banner). They
+    // 1. Tile yields: [people ≈12 mil | land 41%] under each footprint hex (not the city's own hex: its banner). They
     //    give way to the plaques and to each other; on phones only the five most populous hexes get one.
     if (Rpx >= 18) {
       const full = Rpx >= 30;

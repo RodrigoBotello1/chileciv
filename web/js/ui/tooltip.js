@@ -1,4 +1,4 @@
-import { esc, int, popShort, compact, hasCJK } from "../format.js";
+import { esc, int, popShort, compact } from "../format.js";
 import { formatLensValue } from "./lenses.js";
 import { glyph } from "./icon.js";
 import { FOREIGN } from "../world.js";
@@ -11,31 +11,31 @@ export function showCellTooltip(mx, my, w, i, lens, showResources = true) {
   const raw = w.raw;
   const lines = [];
   const city = w.cityByCell.get(i);
-  if (city) lines.push(`<b>${esc(city.name)}</b> <span class="muted">· 人口 ${popShort(city.population)}</span>`);
+  if (city) lines.push(`<b>${esc(city.name)}</b> <span class="muted">· Población ${popShort(city.population)}</span>`);
 
   const wt = w.water[i];
   if (wt) {
-    const depth = raw.elev[i] < 0 ? ` <span class="muted">· 水深 ${int(-raw.elev[i])} 公尺</span>` : "";
-    lines.push(`<b>${esc(nameOf(w.tables.water, wt) || "水域")}</b>${depth}`);
+    const depth = raw.elev[i] < 0 ? ` <span class="muted">· Profundidad ${int(-raw.elev[i])} m</span>` : "";
+    lines.push(`<b>${esc(nameOf(w.tables.water, wt) || "Agua")}</b>${depth}`);
   } else {
     const cover = w.cover[i] > 0 ? nameOf(w.tables.cover, w.cover[i]) : null;
     const relief = w.relief[i] > 0 ? nameOf(w.tables.relief, w.relief[i]) : null;
-    const terrain = [cover, relief].filter(Boolean).join(" · ") || (relief ?? "陸地");
-    lines.push(`<b>${esc(terrain)}</b> <span class="muted">· 海拔 ${int(raw.elev[i])} 公尺</span>`);
+    const terrain = [cover, relief].filter(Boolean).join(" · ") || (relief ?? "Tierra");
+    lines.push(`<b>${esc(terrain)}</b> <span class="muted">· Altitud ${int(raw.elev[i])} m</span>`);
   }
   const o = raw.owner[i];
   if (o >= 0) {
-    // 縣市 then 鄉鎮市區, as an address reads (臺北市信義區). A name already on the tooltip is not repeated: under a
-    // city's own name line only the 鄉鎮市區 is added.
+    // Comuna then province, as an address reads (Providencia, Santiago). A name already on the tooltip is not
+    // repeated: under a city's own name line only the province is dropped.
     const state = raw.states[o].name || "";
     const county = raw.county[i] >= 0 ? raw.counties[raw.county[i]].name || "" : "";
     const stateShown = city && (city.name === state || city.full === state) && county ? "" : state;
     const place = !county || county === stateShown ? stateShown
-      : !stateShown ? county : hasCJK(stateShown + county) ? stateShown + county : `${county}, ${stateShown}`;
+      : !stateShown ? county : `${county}, ${stateShown}`;
     if (place) lines.push(esc(place));
-    if (lens) lines.push(`${glyph(lens, 13)} ${esc(lens.name)}：<b>${esc(formatLensValue(lens, lens.values[i]))}</b>`);
+    if (lens) lines.push(`${glyph(lens, 13)} ${esc(lens.name)}: <b>${esc(formatLensValue(lens, lens.values[i]))}</b>`);
   } else if (o === FOREIGN) {
-    lines.push(`<span class="muted">境外（沒有資料）</span>`);
+    lines.push(`<span class="muted">Fuera de la región (sin datos)</span>`);
   }
   const res = showResources && w.resources?.byCell.get(i);
   if (res) {
@@ -46,10 +46,10 @@ export function showCellTooltip(mx, my, w, i, lens, showResources = true) {
       const kind = it.name && it.name !== t.name ? ` <span class="muted">· ${esc(t.name)}${val}</span>` : `<span class="muted">${val}</span>`;
       lines.push(`<span style="color:${esc(t.color || "#efe4c6")}">${glyph(t, 13)}</span> ${esc(it.name || t.name)}${kind}`);
     }
-    if (res.length > 4) lines.push(`<span class="muted">另有 ${res.length - 4} 項</span>`);
+    if (res.length > 4) lines.push(`<span class="muted">y ${res.length - 4} más</span>`);
   }
-  if (city) lines.push(`<span class="muted" data-hint="open-city">點擊開啟城市</span>`);
-  else if (o >= 0) lines.push(`<span class="muted">點擊開啟${esc(raw.states[o].name)}</span>`);
+  if (city) lines.push(`<span class="muted" data-hint="open-city">Haz clic para abrir la comuna</span>`);
+  else if (o >= 0) lines.push(`<span class="muted">Haz clic para abrir ${esc(raw.states[o].name)}</span>`);
   show(mx, my, lines.join("<br>"));
 }
 
@@ -64,7 +64,7 @@ export function showHtmlTooltip(mx, my, content) {
 }
 
 export function showCityTooltip(mx, my, city) {
-  show(mx, my, `<b>${esc(city.full || city.name)}</b><br><span class="muted" data-hint="open-city">點擊開啟城市</span>`);
+  show(mx, my, `<b>${esc(city.full || city.name)}</b><br><span class="muted" data-hint="open-city">Haz clic para abrir la comuna</span>`);
 }
 
 function show(mx, my, html) {

@@ -56,8 +56,8 @@ export async function install(app) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "cv-open";
-    b.innerHTML = `<span class="cv-open-ic" aria-hidden="true">${icon("layers", "▦", { size: 15 })}</span><span>開啟城市檢視</span><span class="cv-open-go" aria-hidden="true">›</span>`;
-    b.title = `在城市檢視中開啟${city.name}：地圖上的轄區、市民、經濟、就業、資源與規模相近的城市`;
+    b.innerHTML = `<span class="cv-open-ic" aria-hidden="true">${icon("layers", "▦", { size: 15 })}</span><span>Abrir vista de comuna</span><span class="cv-open-go" aria-hidden="true">›</span>`;
+    b.title = `Abrir ${city.name} en la vista de comuna: territorio en el mapa, habitantes, economía, empleo, recursos y comunas de tamaño similar`;
     b.onclick = () => openCityView(city);
     head.appendChild(b);
     addDistrictsLink(panel, city);
@@ -73,7 +73,7 @@ export async function install(app) {
     if (!sec || sec.querySelector(".cv-plink")) return;
     const p = document.createElement("p");
     p.className = "cv-plink";
-    p.innerHTML = `這裡是居民就業的產業分布。本城市專精的特色區域（依區位商數判定）在城市檢視中。<button type="button">特色區域 ›</button>`;
+    p.innerHTML = `Esta es la distribución de las industrias donde trabajan los habitantes. Los distritos en que se especializa la comuna (según el cociente de localización) están en la vista de comuna.<button type="button">Distritos ›</button>`;
     p.querySelector("button").onclick = () => openCityView(city, { section: "districts" });
     sec.appendChild(p);
   }
@@ -125,7 +125,7 @@ export async function install(app) {
     cv.pinned = -1;
     layer.focus(-1);
 
-    cv.dock = app.ui.dock("right", { width: dockWidth(), label: `城市檢視：${city.name}` });
+    cv.dock = app.ui.dock("right", { width: dockWidth(), label: `Vista de comuna: ${city.name}` });
     if (!same) {
       render(cv.dock, m, {
         onClose: () => leave(true),
@@ -218,15 +218,15 @@ export async function install(app) {
     const n = m.footprint.length;
     const hasDistricts = (m.districts || []).length > 0;
     const hasRes = m.tiles.some((t) => t.residents != null); // needs the population-density lens
-    cv.legend.setAttribute("aria-label", `${m.city.name}在地圖上的範圍`);
+    cv.legend.setAttribute("aria-label", `Extensión de ${m.city.name} en el mapa`);
     cv.legend.innerHTML = `
-      <div class="cv-ml-t"><i class="cv-ml-sw" style="--sc:${col}"></i><b title="${esc(m.city.full || m.city.name)}">${esc(m.city.name)}</b><span class="cv-ml-k">· ${n} 個六角格</span><button type="button" class="cv-ml-i" aria-controls="cv-ml-body" title="地圖圖例">i</button></div>
-      ${hasDistricts ? `<div class="cv-ml-sch">${icon("layers", "▦", { size: 11 })}特色區域的位置僅為示意</div>` : ""}
+      <div class="cv-ml-t"><i class="cv-ml-sw" style="--sc:${col}"></i><b title="${esc(m.city.full || m.city.name)}">${esc(m.city.name)}</b><span class="cv-ml-k">· ${n} hexágonos</span><button type="button" class="cv-ml-i" aria-controls="cv-ml-body" title="Leyenda del mapa">i</button></div>
+      ${hasDistricts ? `<div class="cv-ml-sch">${icon("layers", "▦", { size: 11 })}posición esquemática de los distritos</div>` : ""}
       <div class="cv-ml-body" id="cv-ml-body">
-        ${hasRes ? `<div class="cv-ml-r"><span class="cv-ml-pill">${icon("pop", "👥", { size: 11 })}≈</span>每格居民數 <small>（密度 × 面積）</small></div>` : ""}
-        <div class="cv-ml-r"><span class="cv-ml-pill">${icon("l-developed", "▦", { size: 11 })}%</span>主要土地利用</div>
-        ${hasDistricts ? `<div class="cv-ml-r"><span class="cv-ml-hex" aria-hidden="true"></span>特色區域：實際的產業專精</div>
-        <p class="cv-ml-n">特色區域來自真實資料（在本城市就業中占比偏高的產業），但位置僅為示意，並不是這些工作的所在地。</p>` : ""}
+        ${hasRes ? `<div class="cv-ml-r"><span class="cv-ml-pill">${icon("pop", "👥", { size: 11 })}≈</span>Habitantes por hexágono <small>(densidad × área)</small></div>` : ""}
+        <div class="cv-ml-r"><span class="cv-ml-pill">${icon("l-developed", "▦", { size: 11 })}%</span>Uso de suelo principal</div>
+        ${hasDistricts ? `<div class="cv-ml-r"><span class="cv-ml-hex" aria-hidden="true"></span>Distritos: especialización industrial real</div>
+        <p class="cv-ml-n">Los distritos salen de datos reales (industrias con un peso alto en el empleo de la comuna), pero su posición es esquemática y no es donde están esos empleos.</p>` : ""}
       </div>`;
     setLegendOpen(cv.legend.classList.contains("open") || (legendOpen ?? false));
   }
@@ -236,7 +236,7 @@ export async function install(app) {
     const b = cv.legend.querySelector(".cv-ml-i");
     if (b) {
       b.setAttribute("aria-expanded", open ? "true" : "false");
-      b.setAttribute("aria-label", open ? "隱藏地圖圖例" : "顯示地圖圖例");
+      b.setAttribute("aria-label", open ? "Ocultar la leyenda del mapa" : "Mostrar la leyenda del mapa");
     }
   }
 
@@ -291,7 +291,7 @@ export async function install(app) {
   // belongs to the core (ui/tooltip.js), so this rewrites its line after the core has drawn it. The hint is found by
   // a data-hint="open-city" attribute when the core sets one, else by position: with a city under the pointer the
   // hint is the tooltip's last muted line (its wording is the core's, so it is not matched by text).
-  const SWITCH_HINT = "點擊切換到這座城市";
+  const SWITCH_HINT = "Haz clic para cambiar a esta comuna";
   let hoverCity = null;
   app.on("hover", (h) => { hoverCity = h?.city || null; });
   const tipObserver = new MutationObserver(() => {
@@ -452,7 +452,7 @@ export async function install(app) {
   addEventListener("resize", () => {
     clearTimeout(rz);
     rz = setTimeout(() => {
-      if (app.mode === MODE && cv.dock && !app.isMobile()) app.ui.dock("right", { width: dockWidth(), label: `城市檢視：${cv.city?.name || ""}` });
+      if (app.mode === MODE && cv.dock && !app.isMobile()) app.ui.dock("right", { width: dockWidth(), label: `Vista de comuna: ${cv.city?.name || ""}` });
     }, 150);
   });
 
@@ -481,7 +481,7 @@ export async function install(app) {
   app.on("data", (e) => {
     if (e?.name !== "districts") return;
     setBadges(e.data);
-    // The quick panel may already show a city: it gets its "特色區域 ›" line now that the file is in.
+    // The quick panel may already show a city: it gets its "Distritos ›" line now that the file is in.
     const panel = app.panels.element;
     if (e.data && app.mode !== MODE && app.state.selectedCity && panel && !panel.hidden && panel.dataset.kind === "city") {
       addDistrictsLink(panel, app.state.selectedCity);

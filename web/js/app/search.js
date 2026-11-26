@@ -1,59 +1,60 @@
-// Top-bar search over cities, 縣市 and 鄉鎮市區: prefix matches first, then word-prefix, then substring; ties by
-// population. Names are matched in Chinese (台 and 臺 are the same letter here), by English name and by ISO code.
+// Top-bar search over comunas and provincias: prefix matches first, then word-prefix, then substring; ties by
+// population. Matching ignores accents and case; names are matched by Spanish name, English name and province code.
 import { esc, popShort } from "../format.js";
 import { icon } from "../ui/icon.js";
 
-// NFKC folds full-width letters and digits; every run of non-letters becomes one space, so CJK text survives.
+// NFD + dropping combining marks makes matching accent-insensitive ("nunoa" finds Ñuñoa); every run of non-letters
+// becomes one space.
 const norm = (s) =>
-  String(s || "").normalize("NFKC").replace(/台/g, "臺").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  String(s || "").normalize("NFD").replace(/\p{M}+/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const MAX = 8;
 
 /**
  * opts: {cities, states (list of {name, abbr, name_en?, population?}),
  *        counties? (list of {name, name_en?, geoid?, state (index into states), population?}),
  *        onPick({kind:'city', city} | {kind:'state', index, county?, geoid?})}
- * A picked 鄉鎮市區 reports its 縣市 (kind 'state', index) plus `county` (its index in opts.counties) and `geoid`.
+ * A picked comuna reports its province (kind 'state', index) plus `county` (its index in opts.counties) and `geoid`.
  */
 export function initSearch(opts) {
   const input = document.getElementById("search-input");
   const box = document.getElementById("search-results");
   if (!input || !box) return { focus() {}, close() {}, get isOpen() { return false; } };
   const hasCounties = (opts.counties || []).length > 0;
-  // The full placeholder only fits the wide search box; narrower ones say just 搜尋.
+  // The full placeholder only fits the wide search box; narrower ones say just "Buscar".
   const narrow = matchMedia("(max-width: 1120px)");
-  const full = hasCounties ? "搜尋縣市、鄉鎮市區" : "搜尋縣市";
-  const setPlaceholder = () => (input.placeholder = narrow.matches ? "搜尋" : full);
+  const full = hasCounties ? "Buscar comuna o provincia…" : "Buscar provincia…";
+  const setPlaceholder = () => (input.placeholder = narrow.matches ? "Buscar…" : full);
   setPlaceholder();
-  input.setAttribute("aria-label", `${full}（/ 或 Ctrl K）`);
+  input.setAttribute("aria-label", `${full.replace("…", "")} (/ o Ctrl K)`);
   narrow.addEventListener?.("change", setPlaceholder);
 
-  // Each entry: n = the normalised name, alt = other normalised keys (full name, English name), abbr = the code.
+  // Each entry: n = the normalised name, alt = other normalised keys (full name, English name), abbr = the province code.
   const entries = [];
   const alts = (...keys) => keys.map(norm).filter(Boolean);
   for (const c of opts.cities || []) {
-    // A city and its 縣市 are the same unit, so the row says only what it opens; a longer official name is shown.
+    // A city and its comuna are the same unit, so the row says only what it opens; a longer official name is shown.
     const long = c.full && norm(c.full) !== norm(c.name) ? c.full : "";
     entries.push({ kind: "city", city: c, n: norm(c.name), alt: alts(c.full, c.name_en), pop: c.population || 0,
-      sub: long ? `城市 · ${long}` : "城市", label: c.name });
+      sub: long ? `Comuna · ${long}` : "Comuna", label: c.name });
   }
   (opts.states || []).forEach((s, index) => {
     if (!s) return;
     entries.push({ kind: "state", index, n: norm(s.name), alt: alts(s.name_en), abbr: norm(s.abbr),
-      pop: s.population || 0, sub: "縣市", label: s.name });
+      pop: s.population || 0, sub: "Provincia", label: s.name });
   });
   (opts.counties || []).forEach((c, county) => {
     if (!c || !(c.state >= 0)) return;
     const st = opts.states?.[c.state];
     const stName = st?.name || "";
-    // "臺北市中山區" and "臺北中山" both find 中山區 of 臺北市.
+    // "Providencia Santiago" finds Providencia in the province of Santiago.
     entries.push({ kind: "county", index: c.state, county, geoid: c.geoid, n: norm(c.name),
-      alt: alts(stName + c.name, stName.replace(/[縣市]$/, "") + c.name, c.name_en), pop: c.population || 0,
-      sub: stName ? `${stName} · 鄉鎮市區` : "鄉鎮市區", label: c.name });
+      alt: alts(`${c.name} ${stName}`, c.name_en), pop: c.population || 0,
+      sub: stName ? `Comuna · provincia de ${stName}` : "Comuna", label: c.name });
   });
 
   let results = [];
   let sel = -1;
-  let composing = false; // an input method (注音, 倉頡 …) is still building the text
+  let composing = false; // an input method (Japanese, Chinese, Korean …) is still building the text
 
   function score(e, q) {
     if (e.abbr && e.abbr === q) return 0;
@@ -89,7 +90,7 @@ export function initSearch(opts) {
     if (!results.length) {
       // No "not found" while an input method is composing: its half-typed symbols match nothing yet.
       const text = composing ? "" : input.value.trim();
-      box.innerHTML = text ? `<div class="sr-empty">找不到符合「${esc(text)}」的${hasCounties ? "縣市或鄉鎮市區" : "縣市"}</div>` : "";
+      box.innerHTML = text ? `<div class="sr-empty">Sin resultados para "${esc(text)}" entre ${hasCounties ? "comunas y provincias" : "provincias"}</div>` : "";
       box.hidden = !text;
       input.setAttribute("aria-expanded", String(!box.hidden));
       input.removeAttribute("aria-activedescendant");
