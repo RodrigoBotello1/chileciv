@@ -19,7 +19,7 @@ import unicodedata
 
 from .yields import INDUSTRIES, YIELDS, economy, merge
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "sii_empresas", "uf"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf"]
 PRODUCES = ["cities.json", "nation.json"]
 
 CAPITAL = "13101"  # Santiago, seat of the national government
@@ -30,6 +30,14 @@ def name_key(name: str) -> str:
     s = unicodedata.normalize("NFD", name.lower())
     s = "".join(c for c in s if unicodedata.category(c) != "Mn").replace(" ", "")
     return SII_ALIAS.get(s, s)
+
+
+GROWTH_YEARS = [2017, 2024]  # the two censuses (2017: INE republished population; 2024: first results)
+
+
+def growth_of(p2017: float | None, p2024: float | None) -> float | None:
+    """Population change between the censuses as a fraction (0.12 = +12%), or None if either is missing."""
+    return round(p2024 / p2017 - 1, 4) if p2017 and p2024 else None
 
 
 def sii_by_code(sii: dict, censo: dict) -> dict[str, dict]:
@@ -166,6 +174,7 @@ def build() -> None:
     developed = world["pct"]["developed"]
     county_of = world["county"]
     pop = {c["code"]: c["population"] for c in censo["comunas"]}
+    pop17 = {code: rec["pop"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
     sii_of = sii_by_code(sii, censo)
     state_index = {fips: i for i, fips in enumerate(world["states"])}
     abbr = {s["fips"]: s["abbr"] for s in bounds["states"]}
@@ -199,10 +208,10 @@ def build() -> None:
             "y": round(y, 1),
             "cell": grid.cell_at(x, y),
             **econ,
-            "growth": None,
-            "growth_years": None,
+            "growth": growth_of(pop17.get(code), pop[code]),
+            "growth_years": GROWTH_YEARS,
             "counties": [code],
-            "pop_series": None,
+            "pop_series": {"2017": int(pop17[code]) if pop17.get(code) else None, "2024": pop[code]},
         })
     cities.sort(key=lambda c: -c["population"])
     state_of = {t["geoid"]: t["state_fips"] for t in bounds["counties"]}
@@ -247,9 +256,10 @@ def build() -> None:
             print(f"    {len(items)} {label}: {', '.join(items)}")
 
     region = economy(sum(pop.values()), merge(list(sii_of.values())), uf, sii["year"])
-    region["growth"] = None
-    region["growth_years"] = None
-    region["pop_series"] = None
+    p17 = sum(pop17.values())
+    region["growth"] = growth_of(p17, region["population"])
+    region["growth_years"] = GROWTH_YEARS
+    region["pop_series"] = {"2017": int(p17), "2024": region["population"]}
     write_web("cities.json", cities)
     write_web(
         "nation.json",

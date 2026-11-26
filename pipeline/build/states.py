@@ -19,10 +19,10 @@ from collections import deque
 from ..core.hexgrid import HexGrid
 from ..core.paths import WEB_DATA
 from ..core.store import load_interim, write_web
-from .cities import sii_by_code
+from .cities import GROWTH_YEARS, growth_of, sii_by_code
 from .yields import YIELDS, economy, merge
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "sii_empresas", "uf"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf"]
 PRODUCES = ["states.json"]
 
 MIN_LABEL_KM, MAX_LABEL_KM = 14.0, 110.0  # suggested font height range, map units (hex radius = 25)
@@ -158,6 +158,7 @@ def build() -> None:
     owner = world["owner"]
     names = {s["fips"]: s for s in bounds["states"]}
     sii_of = sii_by_code(sii, censo)
+    pop17 = {code: rec["pop"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
 
     energy = energy_by_state()
     if energy is None:
@@ -174,9 +175,9 @@ def build() -> None:
                 "name": meta["name"],
                 "name_en": meta["name_en"],
                 **econ,
-                "growth": None,
-                "growth_years": None,
-                "pop_series": None,
+                "growth": growth_of(sum(pop17[c["code"]] for c in comunas), econ["population"]),
+                "growth_years": GROWTH_YEARS,
+                "pop_series": {"2017": int(sum(pop17[c["code"]] for c in comunas)), "2024": econ["population"]},
                 "ranks": {},
                 "label": label_anchor(grid, owner, i, meta["name"]),
                 "land": land_shares(world, i),
