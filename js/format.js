@@ -1,27 +1,44 @@
+// Number formatting for the Santiago map: Spanish large-number words (mil, M = millones, mil M = miles de millones,
+// billones = 1e12, the Spanish billón), US-style digit grouping and decimal point (1,234.5), and Chilean pesos.
+// Yield / field units that say "usd" in the data contracts are CLP here.
+const UNITS = [[1e12, " billones"], [1e9, " mil M"], [1e6, " M"], [1e3, " mil"]];
+const LOCALE = "en-US";
+
+export const CURRENCY = "$";
+export const hasCJK = (s) => /[㐀-鿿豈-﫿]/.test(String(s ?? ""));
+
+/** |n| in the unit at UNITS[i]: 1 decimal under 100, none above; ".0" is dropped. */
+function inUnit(a, i) {
+  const q = a / UNITS[i][0];
+  return q.toFixed(q >= 100 ? 0 : 1).replace(/\.0+$/, "");
+}
+
 export function compact(n) {
   if (n == null || Number.isNaN(n)) return "–";
   const a = Math.abs(n);
-  if (a >= 1e12) return (n / 1e12).toFixed(a >= 1e13 ? 1 : 2) + "T";
-  if (a >= 1e9) return (n / 1e9).toFixed(a >= 1e11 ? 0 : 1) + "B";
-  if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e8 ? 0 : 1) + "M";
-  if (a >= 1e3) return (n / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(/\.0$/, "") + "K";
-  return String(Math.round(n));
+  const sign = n < 0 ? "-" : "";
+  let i = UNITS.findIndex(([d]) => a >= d);
+  if (i < 0) {
+    if (Math.round(a) < 1e3) return Math.round(n).toLocaleString(LOCALE);
+    i = UNITS.length - 1; // 999.6 rounds up into mil
+  }
+  let s = inUnit(a, i);
+  if (i > 0 && Number(s) >= 1000) s = inUnit(a, --i); // 999.6 mil reads 1 M, never 1000 mil
+  return sign + Number(s).toLocaleString(LOCALE, { maximumFractionDigits: 1 }) + UNITS[i][1];
 }
 
-export const money = (n) => (n == null ? "–" : "$" + compact(n));
-export const dollars = (n) => (n == null ? "–" : "$" + Math.round(n).toLocaleString("en-US"));
-export const int = (n) => (n == null ? "–" : Math.round(n).toLocaleString("en-US"));
+export const money = (n) => (n == null || Number.isNaN(n) ? "–" : (n < 0 ? "-" : "") + CURRENCY + compact(Math.abs(n)));
+export const dollars = (n) =>
+  n == null || Number.isNaN(n) ? "–" : (n < 0 ? "-" : "") + CURRENCY + Math.round(Math.abs(n)).toLocaleString(LOCALE);
+export const int = (n) => (n == null ? "–" : Math.round(n).toLocaleString(LOCALE));
 export const pct = (x, d = 1) => (x == null ? "–" : (x * 100).toFixed(d) + "%");
 
 export function yieldValue(y, v) {
   return y.unit === "usd" ? money(v) : compact(v);
 }
 
-export function popShort(n) {
-  if (n >= 1e7) return Math.round(n / 1e6) + "M";
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
-  return Math.round(n / 1e3) + "K";
-}
+/** Population on a banner: 568 mil, 7.4 M, 850. */
+export const popShort = (n) => compact(n);
 
 export const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
