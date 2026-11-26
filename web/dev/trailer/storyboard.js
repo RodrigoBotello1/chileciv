@@ -19,24 +19,24 @@ import { compact, int, money, pct } from "../../js/format.js";
 
 export const FPS = 30;
 export const W = 1920, H = 1080;
-const FADE = 0.45; // crossfade between shots, s
+export const FADE = 0.45; // crossfade between shots, s
 
 // --- number formatting ------------------------------------------------------------------------------------------
 // Money is Chilean pesos and counts follow the site's own helpers (js/format.js): "mil", "M", "mil M", "billones".
-const people = (v) => (v >= 1e3 ? compact(v) : int(v));
-const signedPct = (x) => `${x >= 0 ? "+" : "-"}${Math.abs(x * 100).toFixed(0)}%`;
+export const people = (v) => (v >= 1e3 ? compact(v) : int(v));
+export const signedPct = (x) => `${x >= 0 ? "+" : "-"}${Math.abs(x * 100).toFixed(0)}%`;
 /** "1 de cada 4 personas" from a share. */
-function oneIn(share) {
+export function oneIn(share) {
   if (!(share > 0)) return "nadie";
   if (share >= 0.3) return `${Math.round(share * 10)} de cada 10 personas`;
   return `1 de cada ${Math.round(1 / share)} personas`;
 }
 // drops asides in parentheses: "Censo 2024 (INE)" → "Censo 2024"
-const stripParen = (s) => String(s || "").replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
+export const stripParen = (s) => String(s || "").replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
 // Short on-screen names for a few sources (the full titles are in sources.json and the app's Almanac); the year,
 // when the title has one, is read from the title.
 const SHORT = { srtm15: "SRTM15+", worldcover: "ESA WorldCover" };
-function srcLabel(s) {
+export function srcLabel(s) {
   if (!s) return "";
   if (!SHORT[s.id]) return stripParen(s.title);
   const y = /\b(19|20)\d\d\b/.exec(s.title) || /\b(19|20)\d\d\b/.exec(s.vintage || "");
@@ -45,30 +45,30 @@ function srcLabel(s) {
 
 // --- camera -----------------------------------------------------------------------------------------------------
 /** Interpolate two camera keys: position linearly, zoom geometrically (so a zoom feels even). */
-function camAt(a, b, k) {
+export function camAt(a, b, k) {
   return { x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k), rpx: Math.exp(lerp(Math.log(a.rpx), Math.log(b.rpx), k)) };
 }
 /** A zoom between two keys that keeps the ground under the moving point steady (no swing): the position follows
  *  1/zoom, not time. */
-function camZoom(a, b, k) {
+export function camZoom(a, b, k) {
   const rpx = Math.exp(lerp(Math.log(a.rpx), Math.log(b.rpx), k));
   const u = Math.abs(1 / b.rpx - 1 / a.rpx) < 1e-9 ? k : (1 / rpx - 1 / a.rpx) / (1 / b.rpx - 1 / a.rpx);
   return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), rpx };
 }
 /** A flight between two far-apart keys: it rises (zooms out by up to 1 + h) mid-way, so the ground never streaks. */
-function camFly(a, b, k, h = 4) {
+export function camFly(a, b, k, h = 4) {
   const c = camAt(a, b, k);
   return { ...c, rpx: c.rpx / (1 + h * Math.sin(Math.PI * k)) };
 }
 /** Slow-in, mostly constant speed, slow-out: for drifts that should never look parked. */
 /** Quintic smootherstep: an even softer start and stop than smooth(). */
-const smoother = (k) => { k = clamp01(k); return k * k * k * (k * (6 * k - 15) + 10); };
-const glide = (k) => 0.35 * clamp01(k) + 0.65 * smooth(k);
+export const smoother = (k) => { k = clamp01(k); return k * k * k * (k * (6 * k - 15) + 10); };
+export const glide = (k) => 0.35 * clamp01(k) + 0.65 * smooth(k);
 /** Gentle start, peak speed early, then a long settle to rest (quartic ease-out of k^1.3). */
-const easeOutQ = (k) => 1 - (1 - clamp01(k) ** 1.3) ** 4;
+export const easeOutQ = (k) => 1 - (1 - clamp01(k) ** 1.3) ** 4;
 
 /** Everything the storyboard reads from the data, gathered once (so the words are checkable in one place). */
-function gatherFacts(stage) {
+export function gatherFacts(stage) {
   const { data, w } = stage;
   const g = w.grid;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;

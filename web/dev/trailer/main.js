@@ -10,7 +10,7 @@
 //   progress, state         progress text and {phase, frame, frames, error, bytes, ms}
 //   blob                    the last MP4 (Download MP4 saves it)
 import { loadStage } from "./stage.js";
-import { buildStoryboard, activeShots, CONFIG, W, H } from "./storyboard.js";
+import { activeShots, W, H } from "./storyboard.js";
 import { muxMp4, parseBoxes, findBox, tracksOf } from "./mp4.js";
 import { runMp4SelfTest } from "./mp4.test.js";
 import { smooth, easeOut } from "./overlays.js";
@@ -35,8 +35,11 @@ const say = (msg, err = false) => {
 
 let stage, sb;
 try {
-  stage = await loadStage("../data/");
-  sb = buildStoryboard(stage, CONFIG);
+  // ?map=chile: the Chile data and story (js/terms.js reads data-map, set in trailer.html before any module loads)
+  const chile = new URLSearchParams(location.search).get("map") === "chile";
+  stage = await loadStage(chile ? "../chile/data/" : "../data/");
+  const story = await import(chile ? "./storyboard_chile.js" : "./storyboard.js");
+  sb = story.buildStoryboard(stage, story.CONFIG);
 } catch (err) {
   say(`No se pudo cargar: ${err.message}`, true);
   T.state = { phase: "error", error: String(err.stack || err) };
