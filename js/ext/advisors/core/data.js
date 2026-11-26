@@ -586,7 +586,7 @@ function extendCitizens(data, cz) {
       description: `${lbl}: proporción dentro de "${rowDesc[row] || rowName[row] || row}"${paren(vint)}. Vacío cuando la fuente no tiene el área.${row === "commute" ? " El denominador son los ocupados, no todos los habitantes." : ""}`,
     })),
     F4("cz_median_age", "Edad mediana (comuna)", "years", { unit: "años", source: srcOf("age"), group: grp.age, description: `Edad mediana de los habitantes${paren(vint)}: la mediana de la propia comuna, no una aproximación sumada desde otras áreas.` }),
-    F4("cz_degree", "Título universitario o más", "pct", { unit: "% de la población adulta", source: srcOf("education"), group: grp.education, description: `Proporción de adultos con título universitario o más${paren(vint)}.` }),
+    F4("cz_degree", "Educación superior", "pct", { unit: "% de la población adulta", source: srcOf("education"), group: grp.education, description: `Proporción de adultos con título universitario o más${paren(vint)}.` }),
     F4("cz_specialist", "Categoría más marcada", "text", { source: csrc, group: G.citizens, description: `Categoría cuya proporción más supera a la regional${fin(minRatio) ? ` (al menos ${minRatio} veces)` : ""}. ${cz.rule?.text || ""}` }),
   ]);
   for (const r of metros.rows) {

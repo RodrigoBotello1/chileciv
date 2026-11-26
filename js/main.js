@@ -38,7 +38,7 @@ async function loadJSON(name, optional = false) {
 const EAGER_DATA = ["infrastructure", "wonders", "trade"];
 // Files this build leaves out on purpose (docs/PORTING-taiwan.md: no military layer for this build). loadData() answers null
 // for them without a request, so nothing logs a 404 and every consumer takes its "no data" path.
-const OMITTED_DATA = new Set(["military", "trade", "resources", "citizens", "districts", "counties", "disasters", "lenses"]); // not built for the region yet
+const OMITTED_DATA = new Set(["military", "trade", "resources", "counties", "disasters"]); // not built for the region yet
 const DATA_NAME = /^[a-z0-9_-]+$/;
 
 // render/snapshot.js draws a whole view into any canvas; optional, with a local fallback.

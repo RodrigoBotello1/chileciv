@@ -169,7 +169,7 @@ export function citizensHtml(m, data) {
   return `
     <div class="cv-cz-top">
       ${chip(med, usMed, (v) => `${v.toFixed(1)} años`, "edad mediana", "Edad mediana de los habitantes")}
-      ${chip(ba, usBa, (v) => pct(v, 0), "con título universitario", "Proporción de personas con licenciatura o un nivel superior")}
+      ${chip(ba, usBa, (v) => pct(v, 0), "con educación superior", "Personas de 15 años o más cuyo nivel educativo más alto es la educación superior (completa o incompleta)")}
       ${chip(fb, usFb, (v) => pct(v, 0), "nacidos en el extranjero", "Proporción de habitantes nacidos en otro país")}
     </div>
     ${great}
