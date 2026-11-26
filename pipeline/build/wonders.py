@@ -17,7 +17,7 @@ from ..core.mapcfg import CFG
 from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, load_interim_payload, write_web
 
-REQUIRES = ["_world", "cl_boundaries", "wikidata_rm"]
+REQUIRES = ["_world", "cl_boundaries", "wikidata_rm", "gvp_volcanes"]
 PRODUCES = ["wonders.json"]
 
 # rule id, Wikidata list, kind, how many, rule text
@@ -35,7 +35,10 @@ RULES = [
 ]
 RULES = [(r, k, kind, CFG["wonders"].get(r, n), t.replace(f" {n} ", f" {CFG['wonders'].get(r, n)} ", 1))
          for r, k, kind, n, t in RULES]
-RULE_NAME = {"protected_area": "Naturaleza", "historic_monument": "Monumento Histórico", "university": "Universidad",
+VOLCANOES = 12 if CFG["regions"] is None else 3
+VOLCANO_RULE = (f"Los {VOLCANOES} volcanes con la erupción conocida más reciente (Global Volcanism Program del Smithsonian), "
+                "entre los que han hecho erupción desde 1900.")
+RULE_NAME = {"volcano": "Volcán", "protected_area": "Naturaleza", "historic_monument": "Monumento Histórico", "university": "Universidad",
              "tallest_building": "Rascacielos"}
 
 
@@ -78,11 +81,31 @@ def build() -> None:
             used_cells[at["cell"]] += 1
             wonders.append({"id": f"wd-{it['qid']}", "name": it["name"], "short": it["name"], "kind": kind,
                             "rule": rule, "rank": rank, "metrics": metrics, "curated": False, **at})
+    # Volcanoes: drawn as a snowy peak (motif), ranked by their most recent eruption.
+    vols = [v for v in load_interim("gvp_volcanes")["volcanoes"] if (v["last_eruption"] or -9999) >= 1900]
+    vols.sort(key=lambda v: (-v["last_eruption"], -(v["elevation_m"] or 0)))
+    rank = 0
+    for v in vols:
+        if rank >= VOLCANOES:
+            break
+        at = place(v["lon"], v["lat"])
+        if at is None:
+            continue
+        rank += 1
+        nm = v["name"]
+        if ", " in nm:  # GVP writes "Hudson, Cerro" and "Chillan, Nevados de"
+            head, tail = nm.split(", ", 1)
+            nm = f"{tail} {head}"
+        full = nm if nm.split()[0] in ("Cerro", "Nevados", "Volcán") else f"Volcán {nm}"
+        wonders.append({"id": f"gvp-{v['id']}", "name": full, "short": nm, "kind": "natural",
+                        "rule": "volcano", "rank": rank, "motif": "peak", "curated": False,
+                        "metrics": {"last_eruption": v["last_eruption"], "elevation_m": v["elevation_m"]}, **at})
     doc = {
         "version": 1,
         "vintage": {"landmarks": wd_payload["vintage"]},
-        "sources": ["wikidata_rm"],
-        "rules": [{"id": r, "name": RULE_NAME[r], "kind": k, "kinds": [k], "text": t} for r, _, k, _, t in RULES],
+        "sources": ["wikidata_rm", "gvp_volcanes"],
+        "rules": [{"id": r, "name": RULE_NAME[r], "kind": k, "kinds": [k], "text": t} for r, _, k, _, t in RULES]
+        + [{"id": "volcano", "name": RULE_NAME["volcano"], "kind": "natural", "kinds": ["natural"], "text": VOLCANO_RULE}],
         "national": {},
         "wonders": wonders,
     }

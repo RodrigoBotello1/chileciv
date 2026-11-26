@@ -30,6 +30,7 @@ export function wonderMotif(x) {
   const m = WONDER_MOTIF_BY_ID[x?.id];
   if (m) return m;
   if (x?.kind === "university") return UNI_MOTIFS[hashStr(x.id) % 3];
+  if (x && typeof x.motif === "string") return x.motif; // a motif chosen by the pipeline rule (volcanoes: "peak")
   return null; // drawWonder falls back to a generic motif by kind and variant
 }
 

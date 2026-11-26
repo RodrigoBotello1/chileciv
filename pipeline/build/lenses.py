@@ -16,7 +16,7 @@ from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, write_web
 from .cities import sii_by_code
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos"]
 PRODUCES = ["lenses.json"]
 
 GROUPS = [
@@ -25,6 +25,7 @@ GROUPS = [
     {"id": "knowledge", "name": "Conocimiento"},
     {"id": "life", "name": "Vida diaria"},
     {"id": "faith", "name": "Religión"},
+    {"id": "nature", "name": "Clima y tierra"},
     {"id": "land", "name": "Suelo"},
 ]
 DOMAIN_NOTE = " La escala de colores va del percentil 2 al 98 de los hexágonos; los valores fuera de ese rango toman el color del extremo."
@@ -49,6 +50,9 @@ RAMP = {
     "firewood": ["#1a0505", "#4a0f0f", "#80201a", "#b8452b", "#e07b54", "#f9c9a8"],
     "vacant": ["#121218", "#2c2c3c", "#4b4b66", "#727294", "#a3a3c2", "#e2e2f0"],
     "faith": ["#1a1033", "#3d2466", "#6b3d8f", "#a5649c", "#d99a8f", "#f7dca0"],
+    "rain": ["#5a3a1a", "#a8743a", "#e3c27a", "#c9e3c0", "#5fb3c9", "#1f5fa6", "#0b2a66"],
+    "temperature": ["#2b3a8f", "#4a7fc1", "#9cc7e0", "#f2efd4", "#f4b06a", "#d9583b", "#8f1d1d"],
+    "quakes": ["#14161f", "#2e2a4a", "#5b3466", "#93405f", "#cf6a4a", "#f4b860"],
     "forest": ["#0b1f0f", "#14401c", "#1f6b2b", "#3a9443", "#7fc07a", "#d5efcd"],
     "farmland": ["#141d05", "#2f4510", "#557019", "#84a02a", "#b8cf55", "#eef7b8"],
     "developed": ["#121218", "#2c2c3c", "#4b4b66", "#727294", "#a3a3c2", "#e2e2f0"],
@@ -81,6 +85,17 @@ def percentile_domain(values: list, log: bool) -> list[float] | None:
 
 def _div(a, b):
     return a / b if a is not None and b else None
+
+
+def _km(lon1, lat1, lon2, lat2) -> float:
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    return 2 * 6371.0088 * math.asin(math.sqrt(a))
+
+
+def _year(ms: int) -> int:
+    import datetime
+    return (datetime.datetime(1970, 1, 1) + datetime.timedelta(milliseconds=ms)).year
 
 
 def median_age(ages: dict[str, float | None]) -> float | None:
@@ -205,6 +220,14 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
     add("faith_tradition", "faith", "Religión mayoritaria", "⛪", "la religión con más fieles", "category", "linear", "neutral",
         "ine_censo_tablas", f"La religión o credo más declarado por la población de 15 años o más de la comuna, {CENSO}. "
         "'Ninguna religión' cuenta como una opción más.")
+    add("rain", "nature", "Lluvia anual", "🌧️", "mm al año", "int", "log", "neutral", "worldclim",
+        "Precipitación anual promedio 1970-2000 (WorldClim 2.1, variable BIO12), en la celda de 5 minutos de arco (unos 9 km) "
+        "bajo el centro de cada hexágono.", "Climatología interpolada desde estaciones; donde hay pocas (altiplano, campos de hielo) es aproximada.")
+    add("temperature", "nature", "Temperatura media", "🌡️", "°C, promedio anual", "float", "linear", "neutral", "worldclim",
+        "Temperatura media anual 1970-2000 (WorldClim 2.1, variable BIO1), en la celda de unos 9 km bajo el centro de cada hexágono.")
+    add("quakes", "nature", "Terremotos", "🌋", "sismos de magnitud 7 o más a menos de 100 km, desde 1900", "int", "linear", "bad",
+        "usgs_sismos", "Número de sismos de magnitud 7 o más desde 1900 cuyo epicentro está a menos de 100 km del centro del "
+        "hexágono (catálogo ComCat del USGS).", "Cuenta epicentros, no daños: un terremoto se siente mucho más allá de 100 km.")
     land = ("Proporción del hexágono con {what} según ESA WorldCover 2021 (píxeles de unos 148 m), sobre su suelo que no es agua.")
     add("forest", "land", "Bosque", "🌲", "del suelo del hexágono", "pct", "linear", "neutral", "worldcover", land.format(what="cobertura arbórea"))
     add("farmland", "land", "Cultivos", "🚜", "del suelo del hexágono", "pct", "linear", "neutral", "worldcover", land.format(what="cultivos"))
@@ -256,11 +279,39 @@ def build() -> None:
             density[i] = int(round(people / (hex_km2 * land / len(s))))
 
     tv = comuna_values(codes, censo, tablas, sii_by_code(sii, censo), uf)
+    clim = load_interim("worldclim")
+    quakes = load_interim("usgs_sismos")["quakes"]
     lenses = []
     for lid, m in meta(censo["year"], sii["year"]).items():
         m = dict(m)
         if lid == "density":
             values = density
+        elif lid in ("rain", "temperature"):
+            g = clim["prec" if lid == "rain" else "temp"]
+            values = []
+            for i in range(len(samples)):
+                if owner[i] < 0:
+                    values.append(None)
+                    continue
+                lon, lat = proj.inverse(*grid.center(*grid.col_row(i)))
+                r, c = round((g["lat0"] - lat) / g["px"]), round((lon - g["lon0"]) / g["px"])
+                v = g["rows"][r][c] if 0 <= r < len(g["rows"]) and 0 <= c < len(g["rows"][0]) else None
+                values.append(None if v is None else (int(round(v)) if lid == "rain" else round(v, 1)))
+            if lid == "rain":
+                m["domain"] = percentile_domain([v if v else None for v in values], True)
+                m["description"] += DOMAIN_NOTE
+        elif lid == "quakes":
+            strong = [q for q in quakes if q["mag"] >= 7]
+            values = []
+            for i in range(len(samples)):
+                if owner[i] < 0:
+                    values.append(None)
+                    continue
+                lon, lat = proj.inverse(*grid.center(*grid.col_row(i)))
+                values.append(sum(1 for q in strong if _km(lon, lat, q["lon"], q["lat"]) < 100))
+            top = sorted(strong, key=lambda q: -q["mag"])[:5]
+            m["description"] += " Los más fuertes en la ventana del mapa: " + "; ".join(
+                f"magnitud {q['mag']:.1f} en {_year(q['time'])} ({q['place']})" for q in top) + "."
         elif lid in ("forest", "farmland", "developed"):
             key = {"forest": "forest", "farmland": "crop", "developed": "developed"}[lid]
             values = [round(world["pct"][key][i] / 100, 4) if owner[i] >= 0 and world["cover"][i] else None
