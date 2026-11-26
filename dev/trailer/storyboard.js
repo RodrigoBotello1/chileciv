@@ -35,7 +35,7 @@ export function oneIn(share) {
 export const stripParen = (s) => String(s || "").replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
 // Short on-screen names for a few sources (the full titles are in sources.json and the app's Almanac); the year,
 // when the title has one, is read from the title.
-const SHORT = { srtm15: "SRTM15+", worldcover: "ESA WorldCover", worldclim: "WorldClim 2.1", usgs_sismos: "USGS", gvp_volcanes: "Smithsonian" };
+const SHORT = { srtm15: "SRTM15+", worldcover: "ESA WorldCover", worldclim: "WorldClim 2.1", cr2met: "CR2MET 1991-2020", usgs_sismos: "USGS", gvp_volcanes: "Smithsonian" };
 export function srcLabel(s) {
   if (!s) return "";
   if (!SHORT[s.id]) return stripParen(s.title);
