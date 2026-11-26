@@ -36,9 +36,9 @@ async function loadJSON(name, optional = false) {
 // Optional data files (docs/DATA_CONTRACTS.md). Small map-layer files are fetched right after the first frame; the
 // others only when something asks for them (app.loadData(name)). A missing file (404) loads as null.
 const EAGER_DATA = ["infrastructure", "wonders", "trade"];
-// Files this build leaves out on purpose (docs/PORTING.md: no military layer for Taiwan). loadData() answers null
+// Files this build leaves out on purpose (docs/PORTING-taiwan.md: no military layer for this build). loadData() answers null
 // for them without a request, so nothing logs a 404 and every consumer takes its "no data" path.
-const OMITTED_DATA = new Set(["military"]);
+const OMITTED_DATA = new Set(["military", "trade", "resources", "citizens", "districts", "counties", "disasters", "lenses"]); // not built for the region yet
 const DATA_NAME = /^[a-z0-9_-]+$/;
 
 // render/snapshot.js draws a whole view into any canvas; optional, with a local fallback.
@@ -533,13 +533,13 @@ async function main() {
     announceEl.textContent = "";
     setTimeout(() => (announceEl.textContent = text), 30);
   };
-  const stateName = (idx) => states?.[idx]?.name || w.raw.states[idx]?.name || "縣市";
+  const stateName = (idx) => states?.[idx]?.name || w.raw.states[idx]?.name || "Provincia";
 
   function describeCanvas() {
-    const parts = ["臺灣六角格地圖", state.lens ? `以「${state.lens.name}」濾鏡著色` : "顯示地形"];
-    if (state.selectedCity) parts.push(`已選取${state.selectedCity.name}`);
-    else if (state.selectedState != null) parts.push(`已選取${stateName(state.selectedState)}`);
-    canvas.setAttribute("aria-label", parts.join("，"));
+    const parts = ["Mapa de hexágonos de la Región Metropolitana", state.lens ? `coloreado con el lente ${state.lens.name}` : "mostrando el terreno"];
+    if (state.selectedCity) parts.push(`${state.selectedCity.name} seleccionada`);
+    else if (state.selectedState != null) parts.push(`Provincia de ${stateName(state.selectedState)} seleccionada`);
+    canvas.setAttribute("aria-label", parts.join(", "));
   }
 
   const panelCtx = () => ({
@@ -556,7 +556,7 @@ async function main() {
     state.selectedState = null;
     app.panels.city(city, panelCtx());
     if (fly && city.cell != null) focusCity(city);
-    announce(`已選取${city.name}。${city.full && city.full !== city.name ? city.full : ""}`);
+    announce(`Comuna de ${city.name} seleccionada. ${city.full && city.full !== city.name ? city.full : ""}`.trim());
     afterSelect();
   }
 
@@ -566,7 +566,7 @@ async function main() {
     state.selectedState = idx;
     app.panels.state(idx, panelCtx());
     if (fly) focusState(idx);
-    announce(`已選取${stateName(idx)}。`);
+    announce(`Provincia de ${stateName(idx)} seleccionada.`);
     afterSelect();
   }
 
@@ -575,7 +575,7 @@ async function main() {
     state.selectedCity = null;
     state.selectedState = null;
     app.panels.close();
-    if (had) announce("已取消選取。");
+    if (had) announce("Selección quitada.");
     afterSelect();
   }
 
@@ -597,9 +597,9 @@ async function main() {
   installSheetSwipe(() => clearSelection());
 
   // --- URL state -------------------------------------------------------------------------------------------------
-  // #state= accepts a county code (COUNTYCODE: "63000", "09020", also "9020" without its leading zero), an ISO 3166-2
-  // code ("TPE", "tpe") or a name ("臺北市", "台北市", "Taipei City"). Links keep the form they were opened with; the app
-  // itself writes the county code (the `fips` field of world.json states).
+  // #state= accepts a province code (3 digits: "131"), a province abbreviation ("STG", "stg": STG, CRD, CHB, MAI, MEL,
+  // TAL) or a name ("Santiago", "melipilla"; accents and case are ignored). Links keep the form they were opened with;
+  // the app itself writes the province code (the `fips` field of world.json states).
   function stateFromHash(ref) {
     const t = String(ref ?? "").trim();
     if (!t) return -1;
@@ -609,7 +609,7 @@ async function main() {
     }
     const k = stateIndex(w, t.toUpperCase());
     if (k >= 0) return k;
-    const fold = (s) => String(s || "").normalize("NFKC").toLowerCase().replace(/台/g, "臺").replace(/[_+\s]+/g, " ").trim();
+    const fold = (s) => String(s || "").normalize("NFD").replace(/\p{M}+/gu, "").toLowerCase().replace(/[_+\s]+/g, " ").trim();
     const name = fold(t);
     return w.raw.states.findIndex((st, i) => [states?.[i]?.name, st.name, st.name_en].some((n) => n && fold(n) === name));
   }
@@ -668,18 +668,18 @@ async function main() {
     if (b) b.innerHTML = html;
     return b;
   };
-  // The brand emblem carries the country's name from the data (nation.json `country`), "臺灣" in index.html otherwise.
+  // The brand emblem carries the country's name from the data (nation.json `country`), the region name in index.html otherwise.
   const brandText = document.querySelector(".brand-text");
   if (brandText && nation.country?.name) brandText.textContent = nation.country.name;
-  setBtn("btn-share", `${icon("share", "🔗", { size: 15 })}<span class="lbl">分享</span>`);
+  setBtn("btn-share", `${icon("share", "🔗", { size: 15 })}<span class="lbl">Compartir</span>`);
   setBtn("btn-help", icon("help", "?", { size: 15 }));
-  setBtn("btn-pedia", `${icon("pedia", "📖", { size: 16 })}<span class="lbl">資料年鑑</span>`);
+  setBtn("btn-pedia", `${icon("pedia", "📖", { size: 16 })}<span class="lbl">Almanaque</span>`);
   const searchIc = document.querySelector(".search-ic");
   if (searchIc) searchIc.innerHTML = icon("search", "🔍", { size: 14 });
-  document.querySelector(".search-kbd")?.setAttribute("title", "按 / 或 Ctrl K 開始搜尋");
+  document.querySelector(".search-kbd")?.setAttribute("title", "Pulsa / o Ctrl K para buscar");
 
-  // Townships (world.json counties) are searchable too: each belongs to the 縣市 whose code starts its own
-  // (TOWNCODE = COUNTYCODE + 3 digits). Picking one opens its 縣市 and frames the township's hexes.
+  // Comunas (world.json counties) are searchable too: each belongs to the province whose code starts its own
+  // (comuna code 13101 = province 131 + 2 digits). Picking one opens its province and frames the comuna's hexes.
   const fipsLen = w.raw.states[0]?.fips?.length || 0;
   const stateByFips = new Map(w.raw.states.map((s, i) => [s.fips, i]));
   const searchCounties = (w.raw.counties || []).map((c) => ({
@@ -693,7 +693,7 @@ async function main() {
       const x = g.cx(i), y = g.cy(i);
       if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     }
-    if (x0 === Infinity) return false; // a township smaller than a hex owns no cell: stay on its 縣市
+    if (x0 === Infinity) return false; // a comuna smaller than a hex owns no cell: stay on its province
     const pad = g.W * 2.5;
     fitBounds(x0 - pad, y0 - pad, x1 + pad, y1 + pad, { maxScale: 2.2 });
     return true;
@@ -826,7 +826,7 @@ async function main() {
     fileName: () => {
       const sel = shareInfo().selection;
       const place = sel ? slug(sel.name_en) : "";
-      return `taiwanciv-${state.lens?.id || "terrain"}${place ? "-" + place : ""}.png`;
+      return `chileciv-${state.lens?.id || "terrain"}${place ? "-" + place : ""}.png`;
     },
     onToast: toast,
   });
@@ -859,7 +859,7 @@ async function main() {
   const resBtn = document.getElementById("btn-res");
   if (resBtn) {
     resBtn.hidden = !w.resources;
-    resBtn.innerHTML = `${icon("resources", "⛏️", { size: 15 })}<span>資源</span>`;
+    resBtn.innerHTML = `${icon("resources", "⛏️", { size: 15 })}<span>Recursos</span>`;
     const sync = () => {
       resBtn.classList.toggle("active", state.showResources);
       resBtn.setAttribute("aria-pressed", String(state.showResources));
@@ -878,7 +878,7 @@ async function main() {
       const on = !document.body.classList.contains("minimap-on");
       document.body.classList.toggle("minimap-on", on);
       mmBtn.setAttribute("aria-pressed", String(on));
-      mmBtn.setAttribute("aria-label", on ? "隱藏小地圖" : "顯示小地圖");
+      mmBtn.setAttribute("aria-label", on ? "Ocultar el minimapa" : "Mostrar el minimapa");
       minimap.draw();
     };
   }
@@ -1315,5 +1315,5 @@ main().catch((err) => {
   const el = document.getElementById("loading");
   if (!el) return;
   el.classList.add("error");
-  el.textContent = `無法載入地圖資料（${err.message}）。請先執行「uv run python -m pipeline all」，再以 HTTP 伺服器提供 web/ 目錄。`;
+  el.textContent = `No se pudieron cargar los datos del mapa (${err.message}). Ejecuta primero "uv run python -m pipeline all" y luego sirve la carpeta web/ por HTTP.`;
 });

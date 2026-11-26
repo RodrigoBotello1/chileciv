@@ -346,7 +346,7 @@ export function createUi(app, { toast, onLayout }) {
     b.type = "button";
     b.className = "btn btn-ext" + (label ? "" : " btn-icon");
     if (title) b.title = title;
-    b.setAttribute("aria-label", title || label || id || "按鈕");
+    b.setAttribute("aria-label", title || label || id || "Botón");
     const glyph = ic ? (hasIcon(ic) ? icon(ic, "•", { size: 15 }) : `<span class="emoji" aria-hidden="true">${esc(ic)}</span>`) : "";
     b.innerHTML = `${glyph}${label ? `<span class="lbl">${esc(label)}</span>` : ""}`;
     if (onClick) b.addEventListener("click", (e) => onClick(e, b));
@@ -439,14 +439,14 @@ export function createMapToggles({ dock, after, area, hash, onChange }) {
     btn.setAttribute("aria-haspopup", "true");
     btn.setAttribute("aria-expanded", "false");
     btn.setAttribute("aria-controls", "map-layers-pop");
-    btn.title = "地圖圖層：公路、鐵路、港口機場等";
+    btn.title = "Capas del mapa: caminos, ferrocarril, Metro, aeropuertos y más";
     dock.insertBefore(btn, after && after.parentNode === dock ? after.nextSibling : dock.firstChild);
     pop = document.createElement("div");
     pop.id = "map-layers-pop";
     pop.className = "panel map-layers-pop";
     pop.hidden = true;
     pop.setAttribute("role", "menu");
-    pop.setAttribute("aria-label", "地圖圖層");
+    pop.setAttribute("aria-label", "Capas del mapa");
     (area || document.body).insertBefore(pop, (area || document.body).firstChild);
     btn.onclick = () => (pop.hidden ? open() : close());
     pop.onclick = (e) => {
@@ -480,10 +480,10 @@ export function createMapToggles({ dock, after, area, hash, onChange }) {
     btn.hidden = !list.length;
     const nOn = list.filter(isOn).length;
     btn.classList.toggle("active", nOn > 0);
-    btn.setAttribute("aria-label", `地圖圖層（已開啟 ${nOn}／${list.length}）`);
-    btn.innerHTML = `${glyph("terrain", 15)}<span>圖層</span>${nOn ? `<b class="ml-count">${nOn}</b>` : ""}`;
+    btn.setAttribute("aria-label", `Capas del mapa (${nOn} de ${list.length} activas)`);
+    btn.innerHTML = `${glyph("terrain", 15)}<span>Capas</span>${nOn ? `<b class="ml-count">${nOn}</b>` : ""}`;
     if (pop.hidden) return;
-    pop.innerHTML = `<div class="ml-head">地圖圖層</div>` + list.map((t) => {
+    pop.innerHTML = `<div class="ml-head">Capas del mapa</div>` + list.map((t) => {
       const on = isOn(t);
       return `<button type="button" class="ml-row${on ? " on" : ""}" role="menuitemcheckbox" aria-checked="${on}" data-toggle="${esc(t.id)}"
         ${t.title ? `title="${esc(t.title)}"` : ""}><span class="ml-ic">${glyph(t.icon, 16)}</span><span class="ml-lbl">${esc(t.label)}</span>

@@ -587,12 +587,12 @@ function drawStateLabels(ctx, vp, w, Rpx) {
     let a = stateLabelAlpha(lbl, Rpx, s);
     if (a < 0.02) continue;
     let px = Math.min(lbl.size * s, 110);
-    // A short label (world.js: a name that did not fit) is drawn small and bold. Chinese names are three characters
-    // long, so the length alone no longer tells a short code from a full name.
+    // A short label (world.js: a name that did not fit) is drawn small and bold. Names are longer than
+    // three letters, so the length alone no longer tells a short code from a full name.
     const abbr = lbl.short ?? lbl.text.length <= 3;
     const glyphs = [...lbl.text].length;
     if (abbr) {
-      // Small units (嘉義市, 新竹市, 連江縣 ...): a modest short name that must fit the unit on screen.
+      // Small units (Lo Barnechea, Pirque, San Pedro ...): a modest short name that must fit the unit on screen.
       const extent = Math.sqrt(cells[lbl.state] || 1) * Rpx * 1.6;
       px = Math.min(px, 15, extent * 0.42);
       if (px < 9) continue;

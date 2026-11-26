@@ -13,28 +13,28 @@ import { createModel } from "./model.js";
 import { makeLayers } from "./layers.js";
 import { tips } from "./tips.js";
 
-// A file's own words for a tooltip: the names in one of its tables ("國道、省道"), else a general description.
-const names = (list, fallback) => (Array.isArray(list) && list.length ? list.map((x) => x?.name).filter(Boolean).join("、") : "") || fallback;
+// A file's own words for a tooltip: the names in one of its tables ("Ruta 5, Costanera Norte"), else a general description.
+const names = (list, fallback) => (Array.isArray(list) && list.length ? list.map((x) => x?.name).filter(Boolean).join(", ") : "") || fallback;
 const vintage = (d, ...parts) => {
   const v = d?.vintage;
-  const text = typeof v === "object" && v ? parts.map((p) => v[p]).filter(Boolean).join("；") : v;
-  return text ? `（${text}）` : "";
+  const text = typeof v === "object" && v ? parts.map((p) => v[p]).filter(Boolean).join("; ") : v;
+  return text ? ` (${text})` : "";
 };
 
 // `file`: the data file the switch needs. `title(data)` describes the layer from that file.
 const TOGGLES = [
-  { id: "roads", file: "infrastructure", label: "公路", icon: "t-road", def: true, layers: ["roads"],
-    title: (d) => `${names(d?.road_classes, "高速公路與主要公路")}，地圖示意${vintage(d, "roads")}` },
-  { id: "rail", file: "infrastructure", label: "鐵路", icon: "t-rail", def: true, layers: ["rail"],
-    title: (d) => `${names(d?.rail_tiers, "鐵路幹線與支線")}，地圖示意${vintage(d, "rail")}` },
-  { id: "hubs", file: "infrastructure", label: "港口與機場", icon: "d-harbor", def: true, layers: ["hubs"],
-    title: (d) => `主要港口與機場${vintage(d, "ports", "airports")}` },
-  { id: "military", file: "military", request: false, label: "軍事設施", icon: "m-army", def: true, layers: ["forts", "restricted", "plates"],
-    title: () => "軍事設施與管制區" },
-  { id: "wonders", file: "wonders", label: "奇觀", icon: "w-landmark", def: true, layers: ["wonders", "protected", "plates"],
-    title: (d) => `自然景觀、頂尖大學與精選地標${vintage(d)}` },
-  { id: "trade", file: "trade", label: "貿易路線", icon: "t-trade", def: false, layers: ["trade"],
-    title: (d) => d?.rule || `區域之間最大的貨運流量，估計值${vintage(d)}` },
+  { id: "roads", file: "infrastructure", label: "Carreteras", icon: "t-road", def: true, layers: ["roads"],
+    title: (d) => `${names(d?.road_classes, "Autopistas y caminos principales")}, esquemático en el mapa${vintage(d, "roads")}` },
+  { id: "rail", file: "infrastructure", label: "Ferrocarril y Metro", icon: "t-rail", def: true, layers: ["rail"],
+    title: (d) => `${names(d?.rail_tiers, "Líneas ferroviarias y de Metro")}, esquemático en el mapa${vintage(d, "rail")}` },
+  { id: "hubs", file: "infrastructure", label: "Puertos y aeropuertos", icon: "d-harbor", def: true, layers: ["hubs"],
+    title: (d) => `Principales puertos y aeropuertos${vintage(d, "ports", "airports")}` },
+  { id: "military", file: "military", request: false, label: "Instalaciones militares", icon: "m-army", def: true, layers: ["forts", "restricted", "plates"],
+    title: () => "Instalaciones militares y zonas restringidas" },
+  { id: "wonders", file: "wonders", label: "Maravillas", icon: "w-landmark", def: true, layers: ["wonders", "protected", "plates"],
+    title: (d) => `Paisajes naturales, universidades destacadas y monumentos selectos${vintage(d)}` },
+  { id: "trade", file: "trade", label: "Rutas comerciales", icon: "t-trade", def: false, layers: ["trade"],
+    title: (d) => d?.rule || `Mayores flujos de carga entre zonas, estimados${vintage(d)}` },
 ];
 const FILES = [...new Set(TOGGLES.map((t) => t.file))];
 

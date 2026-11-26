@@ -1,7 +1,7 @@
 // The advisors' data model: three "levels" (states, metros, counties) of rows with typed fields, plus the links
 // between rows and the hex map (row → highlight, cell → row). Built once from app.data (counties.json optional).
-// In the Taiwan build (docs/PORTING.md) states = 縣市 (abbr = ISO code, fips = 5-digit COUNTYCODE), counties = 鄉鎮市區
-// (geoid = 8-digit TOWNCODE, whose first five digits are its 縣市) and metros = the same 22 縣市 as cities.
+// In the Chile build, states = provincias (abbr = 3-letter code, fips = 3-digit province code such as "131"), counties = comunas
+// (geoid = 5-digit comuna code such as "13101", whose first three digits are its provincia) and metros = the comunas as cities.
 //
 //   level = {id, label, noun, rows: [row], fields: [field], field(key), value(row, key),
 //            highlight(rows, opts) → app.state.highlight, rowAtCell(cell) → row | null, focus(row), byKey: Map}
@@ -31,15 +31,15 @@ const APPROX = new Set(ROLLUP.filter((k) => k !== "density"));
 const SUMS = [["veterans", "veterans_pct"], ["armed_forces", "armed_forces_pct"]];
 const LAND_KEYS = ["forest", "crop", "pasture", "grass", "shrub", "wetland", "developed"];
 export const LAND_LABEL = {
-  forest: "森林", crop: "農地", pasture: "牧草地", grass: "草地", shrub: "灌叢", wetland: "濕地", developed: "建成區",
+  forest: "Bosque", crop: "Cultivos", pasture: "Pastizal", grass: "Pradera", shrub: "Matorral", wetland: "Humedal", developed: "Zona urbanizada",
 };
 // Field groups (the headings of the Explorer's column picker).
 const G = {
-  economy: "經濟", people: "人口", prosperity: "所得與住房", knowledge: "教育", life: "日常生活", land: "土地", name: "名稱",
-  faith: "信仰", wellbeing: "身心健康", hazards: "災害", military: "軍事", yields: "產出", energy: "能源", districts: "特色區域",
-  citizens: "市民", other: "其他",
+  economy: "Economía", people: "Población", prosperity: "Ingresos y vivienda", knowledge: "Educación", life: "Vida diaria", land: "Suelo", name: "Nombre",
+  faith: "Fe", wellbeing: "Salud y bienestar", hazards: "Desastres", military: "Militar", yields: "Rendimientos", energy: "Energía", districts: "Distritos",
+  citizens: "Habitantes", other: "Otros",
 };
-const paren = (s) => (s ? `（${s}）` : "");
+const paren = (s) => (s ? ` (${s})` : "");
 export const LAND_COLOR = {
   forest: "#3f7a3a", crop: "#d2c457", pasture: "#93b852", grass: "#b9b06a", shrub: "#c9a874", wetland: "#4f9a86", developed: "#9a8f9e",
 };
@@ -78,7 +78,7 @@ export function buildData(app) {
   const countyVintage = counties?.vintage || "";
 
   // --- place references -----------------------------------------------------------------------------------------
-  // A state (縣市) may be referred to by its ISO code, its COUNTYCODE or its name; rows are keyed by the code (abbr).
+  // A state (provincia) may be referred to by its abbr, its 3-digit code or its name; rows are keyed by the code (abbr).
   const stateList = Array.isArray(states) ? states : [];
   const stateRef = new Map();
   for (const list of [w.raw.states || [], stateList]) {
@@ -86,20 +86,20 @@ export function buildData(app) {
   }
   const stateNameAt = (i) => stateList[i]?.name || w.raw.states?.[i]?.name || "";
   const stateKeyAt = (i) => stateList[i]?.abbr ?? w.raw.states?.[i]?.abbr ?? null;
-  /** Index of a county's state: from its `state` value (code or name), else from the first five digits of its geoid. */
+  /** Index of a county's state: from its `state` value (code or name), else from the first three digits of its geoid. */
   const countyState = (stateVal, geoid) => {
     let i = stateVal != null ? stateRef.get(String(stateVal)) : undefined;
-    if (i == null && geoid != null) i = stateRef.get(String(geoid).slice(0, 5));
+    if (i == null && geoid != null) i = stateRef.get(String(geoid).slice(0, 3));
     return i ?? -1;
   };
   const cityIds = new Set(cities.map((c) => c.id));
-  /** The city a county belongs to: its `cbsa` value, else the city whose id is its 縣市 code. */
+  /** The city a county belongs to: its `cbsa` value, else the city whose id is its comuna code. */
   const countyCity = (cbsa, geoid) => {
     if (cbsa != null && cityIds.has(cbsa)) return cbsa;
     const code = geoid != null ? String(geoid).slice(0, 5) : null;
     return code != null && cityIds.has(code) ? code : cbsa ?? null;
   };
-  /** The other states a city spans, by name. Empty when the city is its own state (every 縣市 here), so no label
+  /** The other states a city spans, by name. Empty when the city has the same name as its provincia, so no label
    *  prints the same name twice. */
   const cityStates = (c) => (c.states || [])
     .map((a) => { const i = stateRef.get(String(a)); return i != null ? stateNameAt(i) : String(a); })
@@ -126,30 +126,30 @@ export function buildData(app) {
   };
   const incomeYear = nation.income_year ?? nat.income_year;
   const yrs = (nat.growth_years || []).join("–");
-  // Source ids (sources.json): the Taiwan build's ids first, the original build's as a fallback. An id that
+  // Source ids (sources.json): the Chile build's ids first, the original build's as a fallback. An id that
   // sources.json does not have simply cites nothing.
   const firstSource = (...ids) => ids.find((id) => id && srcTitle.has(id)) || ids.find(Boolean) || "";
   const SRC = {
-    population: firstSource("ris_population", "acs_1yr"), growth: firstSource("ris_population", "pep_population"),
-    gdp: firstSource("ics_census", "bea_gdp"), income: firstSource("mof_income", "acs_1yr"), labor: firstSource("dgbas_labor", "acs_1yr"),
+    population: firstSource("ine_censo2024", "acs_1yr"), growth: firstSource("ine_censo2024", "pep_population"),
+    gdp: firstSource("sii_empresas", "bea_gdp"), income: firstSource("acs_1yr"), labor: firstSource("sii_empresas", "acs_1yr"),
     land: firstSource("worldcover", "nlcd"),
   };
-  // What the gold yield / gdp column really measures is told by nation.json (Taiwan has no official GDP by 縣市).
+  // What the gold yield / gdp column really measures is told by nation.json (there is no official GDP by comuna).
   const goldNote = (nation.yields || []).find((y) => y.key === "gold")?.description || "";
   const F = (key, label, format, o = {}) => ({ key, label, format, unit: o.unit || null, higher_is: o.higher_is || "neutral", source: o.source || "", description: o.description || "", lens: o.lens || null, group: o.group || G.economy, derived: !!o.derived });
   const econFields = (src) => [
-    F("population", "人口", "int", { unit: "人", source: SRC.population, group: G.people, description: `居民人數${paren(vintage)}。`, lens: "density" }),
-    F("growth", "人口成長", "signed", { unit: "人口變動", higher_is: "neutral", source: SRC.growth, group: G.people, description: `${yrs ? `${yrs} 年間的` : ""}人口變動（戶籍登記年底人口，兩個年度的鄉鎮市區範圍相同）。` }),
-    F("gdp", "生產毛額", "money", { unit: `${CURRENCY}／年`, source: SRC.gdp, description: [nation.gdp_vintage ? `${nation.gdp_vintage}。` : "", goldNote].filter(Boolean).join("") }),
-    F("gdp_pc", "人均生產毛額", "usd", { unit: `${CURRENCY}／人`, higher_is: "good", source: SRC.gdp, description: `生產毛額${nat.gdp_year ? `（${nat.gdp_year} 年）` : ""} ÷ 居民人數${paren(vintage)}；兩者的統計年度不同。` }),
-    F("median_income", "申報戶所得中位數", "usd", { unit: "每申報戶所得總額的中位數", higher_is: "good", source: SRC.income, group: G.prosperity, description: `所得稅申報資料中，每申報戶（納稅單位）所得總額的中位數${incomeYear ? `（${incomeYear} 年度）` : ""}；不是家戶所得調查。`, lens: "income" }),
-    F("median_rent", "租金", "usd", { unit: "每月租金中位數", source: SRC.income, group: G.prosperity, description: `每月租金中位數${paren(vintage)}。` }),
-    F("home_value", "房價", "usd", { unit: "房價中位數", source: SRC.income, group: G.prosperity, description: `房價中位數${paren(vintage)}。`, lens: "home" }),
-    F("affordability", "房價所得比", "ratio", { unit: "年所得", higher_is: "bad", group: G.prosperity, description: "房價中位數 ÷ 所得中位數：一般住宅相當於幾年的所得。", derived: true }),
-    F("rent_burden", "租金所得比", "pct", { unit: "租金中位數 × 12 ÷ 所得中位數", higher_is: "bad", source: SRC.income, group: G.prosperity, description: "每月租金中位數 × 12 ÷ 所得中位數（兩個中位數相除，並非租金負擔過重的租屋戶比例）。" }),
-    F("unemployment", "失業率", "pct", { unit: "失業人口 ÷ 勞動力", higher_is: "bad", source: src, group: G.prosperity, description: `失業人口 ÷ 勞動力${paren(vintage)}。` }),
-    F("employed", "就業人口", "int", { unit: "人", source: src, description: `就業人數${paren(vintage)}。` }),
-    ...(nation.yields || []).filter((y) => y.unit !== "usd").map((y) => F(`y_${y.key}`, `${y.label}就業人口`, "int", { unit: "人", source: src, group: G.yields, description: y.description })),
+    F("population", "Población", "int", { unit: "habitantes", source: SRC.population, group: G.people, description: `Habitantes${paren(vintage)}.`, lens: "density" }),
+    F("growth", "Crecimiento", "signed", { unit: "variación de la población", higher_is: "neutral", source: SRC.growth, group: G.people, description: `Variación de la población${yrs ? ` ${yrs}` : ""} (mismos límites comunales en ambos años).` }),
+    F("gdp", "Ventas anuales", "money", { unit: `${CURRENCY} por año`, source: SRC.gdp, description: [nation.gdp_vintage ? `${nation.gdp_vintage}. ` : "", goldNote].filter(Boolean).join("") }),
+    F("gdp_pc", "Ventas por habitante", "usd", { unit: `${CURRENCY} por habitante`, higher_is: "good", source: SRC.gdp, description: `Ventas${nat.gdp_year ? ` (${nat.gdp_year})` : ""} ÷ habitantes${paren(vintage)}; los años de referencia son distintos.` }),
+    F("median_income", "Ingreso", "usd", { unit: "mediana del ingreso por hogar", higher_is: "good", source: SRC.income, group: G.prosperity, description: `Mediana del ingreso por hogar${incomeYear ? ` (${incomeYear})` : ""}.`, lens: "income" }),
+    F("median_rent", "Arriendo", "usd", { unit: "mediana del arriendo mensual", source: SRC.income, group: G.prosperity, description: `Mediana del arriendo mensual${paren(vintage)}.` }),
+    F("home_value", "Valor de la vivienda", "usd", { unit: "mediana del valor de la vivienda", source: SRC.income, group: G.prosperity, description: `Mediana del valor de la vivienda${paren(vintage)}.`, lens: "home" }),
+    F("affordability", "Vivienda ÷ ingreso", "ratio", { unit: "años de ingreso", higher_is: "bad", group: G.prosperity, description: "Mediana del valor de la vivienda ÷ mediana del ingreso: cuántos años de ingreso cuesta una vivienda típica.", derived: true }),
+    F("rent_burden", "Arriendo ÷ ingreso", "pct", { unit: "mediana del arriendo × 12 ÷ mediana del ingreso", higher_is: "bad", source: SRC.income, group: G.prosperity, description: "Mediana del arriendo mensual × 12 ÷ mediana del ingreso (cociente de medianas, no la proporción de arrendatarios con carga excesiva)." }),
+    F("unemployment", "Desempleo", "pct", { unit: "desocupados ÷ fuerza de trabajo", higher_is: "bad", source: src, group: G.prosperity, description: `Desocupados ÷ fuerza de trabajo${paren(vintage)}.` }),
+    F("employed", "Ocupados", "int", { unit: "personas", source: src, description: `Personas ocupadas${paren(vintage)}.` }),
+    ...(nation.yields || []).filter((y) => y.unit !== "usd").map((y) => F(`y_${y.key}`, `${y.label}: ocupados`, "int", { unit: "personas", source: src, group: G.yields, description: y.description })),
   ];
   const rollupFields = () => counties ? [...ROLLUP.map((k) => {
     const f = counties.fields.find((x) => x.key === k);
@@ -157,16 +157,16 @@ export function buildData(app) {
     const approx = APPROX.has(k);
     return F(k, f.label + (approx ? " ≈" : ""), f.format, {
       unit: f.unit, higher_is: f.higher_is, source: f.source || "", group: groupFor(k, f.source), lens: lensFor(k),
-      description: k === "density" ? `人口 ÷ 土地面積，由所屬鄉鎮市區加總${paren(countyVintage)}。`
-        : `${f.description || ""} 由所屬鄉鎮市區依人口加權平均彙總${approx ? "（近似值，並非該地區本身的統計數字）" : ""}${!f.source ? paren(countyVintage) : ""}。`,
+      description: k === "density" ? `Población ÷ superficie, sumadas desde las comunas${paren(countyVintage)}.`
+        : `${f.description || ""} Promedio de las comunas ponderado por población${approx ? " (aproximado, no es la cifra propia del área)" : ""}${!f.source ? paren(countyVintage) : ""}.`,
       derived: true,
     });
   }), ...SUMS.flatMap(([n, p]) => {
     const fn = counties.fields.find((x) => x.key === n), fp = counties.fields.find((x) => x.key === p);
     if (!fn || !fp) return [];
     return [
-      F(n, fn.label, fn.format, { unit: fn.unit, source: fn.source, group: groupFor(n, fn.source), description: `${fn.description || ""} 由所屬鄉鎮市區加總${paren(countyVintage)}。`, derived: true }),
-      F(p, fp.label, fp.format, { unit: fp.unit, source: fp.source, group: groupFor(p, fp.source), lens: lensFor(p), description: `${fp.description || ""} 所屬鄉鎮市區的人數加總 ÷ 各自母體的加總${paren(countyVintage)}。`, derived: true }),
+      F(n, fn.label, fn.format, { unit: fn.unit, source: fn.source, group: groupFor(n, fn.source), description: `${fn.description || ""} Suma de las comunas${paren(countyVintage)}.`, derived: true }),
+      F(p, fp.label, fp.format, { unit: fp.unit, source: fp.source, group: groupFor(p, fp.source), lens: lensFor(p), description: `${fp.description || ""} Suma de personas de las comunas ÷ suma de sus poblaciones base${paren(countyVintage)}.`, derived: true }),
     ];
   })].filter(Boolean) : [];
 
@@ -262,13 +262,13 @@ export function buildData(app) {
   const landSource = SRC.land;
   const areaSource = counties?.fields?.find((f) => f.key === "land_km2")?.source || "";
   const powerSource = (resources?.types || []).find((t) => t.unit === "MW" && t.source)?.source || "";
-  const landFields = LAND_KEYS.map((k) => F(`land_${k}`, LAND_LABEL[k], "pct", { unit: "占土地面積", source: landSource, group: G.land, description: `土地中「${LAND_LABEL[k]}」的占比（轄內六角格的平均）。`, lens: k === "forest" ? "forest" : k === "developed" ? "developed" : null }));
-  const energyField = () => F("energy_mw", "地圖電廠容量", "mw", { unit: "地圖上各電廠的 MW", source: powerSource, group: G.energy, description: "地圖上標為資源的發電設施容量（各類型只計達到門檻的設施），並非總裝置容量。" });
-  const areaField = () => F("land_km2", "土地面積", "km2", { unit: "km²", source: areaSource, group: G.land, derived: true });
+  const landFields = LAND_KEYS.map((k) => F(`land_${k}`, LAND_LABEL[k], "pct", { unit: "% de la superficie", source: landSource, group: G.land, description: `Proporción del suelo con "${LAND_LABEL[k]}" (promedio de los hexágonos del área).`, lens: k === "forest" ? "forest" : k === "developed" ? "developed" : null }));
+  const energyField = () => F("energy_mw", "Potencia en el mapa", "mw", { unit: "MW de las centrales del mapa", source: powerSource, group: G.energy, description: "Capacidad de las centrales marcadas como recurso en el mapa (de cada tipo solo cuentan las que superan el umbral): no es la capacidad instalada total." });
+  const areaField = () => F("land_km2", "Superficie", "km2", { unit: "km²", source: areaSource, group: G.land, derived: true });
   const states_ = makeLevel({
-    id: "states", label: "縣市", noun: "縣市",
+    id: "states", label: "Provincia", noun: "provincia",
     rows: stateRows,
-    fields: [F("name", "縣市", "text", { group: G.name }), ...econFields(SRC.labor), ...rollupFields(), areaField(), ...landFields, energyField()],
+    fields: [F("name", "Provincia", "text", { group: G.name }), ...econFields(SRC.labor), ...rollupFields(), areaField(), ...landFields, energyField()],
     highlight: (rows) => ({ states: new Set(rows.map((r) => r.ref)) }),
     rowAtCell: (cell, byKey) => (owner[cell] >= 0 ? stateRows[owner[cell]] || null : null),
     focus: (row) => app.selectState(row.ref, { fly: true }),
@@ -277,24 +277,24 @@ export function buildData(app) {
 
   // --- metros ---------------------------------------------------------------------------------------------------
   const metroRows = cities.map((c) => {
-    const sub = cityStates(c).join("、");
+    const sub = cityStates(c).join(", ");
     return {
       key: c.id, name: c.name, sub, level: "metros", ref: c,
       v: {
-        name: c.name, states: sub || null, kind: c.metro === false ? "小型都會" : "都會",
+        name: c.name, states: sub || null, kind: c.metro === false ? "Área urbana menor" : "Área urbana",
         ...econValues(c), ...rolled(roll.metros, c.id), energy_mw: mwByMetro.size ? mwByMetro.get(c.id) ?? 0 : null, // no power plants on the map at all: no column
       },
     };
   });
   const metroByCity = new Map(metroRows.map((r) => [r.ref, r]));
-  // "所屬縣市" and "類型" only say something when a city spans other states or the file tells two kinds apart.
+  // "Provincia" and "Tipo" only say something when a city spans other states or the file tells two kinds apart.
   const metroNameFields = [
-    F("name", "城市", "text", { group: G.name }),
-    ...(metroRows.some((r) => r.sub) ? [F("states", "所屬縣市", "text", { group: G.name })] : []),
-    ...(cities.some((c) => c.metro === false) ? [F("kind", "類型", "text", { group: G.name, description: "資料檔對城市的分類：都會或小型都會。" })] : []),
+    F("name", "Comuna", "text", { group: G.name }),
+    ...(metroRows.some((r) => r.sub) ? [F("states", "Provincia", "text", { group: G.name })] : []),
+    ...(cities.some((c) => c.metro === false) ? [F("kind", "Tipo", "text", { group: G.name, description: "Clasificación de la comuna en el archivo de datos: área urbana o área urbana menor." })] : []),
   ];
   const metros = makeLevel({
-    id: "metros", label: "城市", noun: "城市",
+    id: "metros", label: "Comuna", noun: "comuna",
     rows: metroRows,
     fields: [...metroNameFields, ...econFields(SRC.labor), ...rollupFields(), areaField(), energyField()],
     highlight: (rows, o = {}) => {
@@ -318,7 +318,7 @@ export function buildData(app) {
       const v = {};
       cols.forEach((k, j) => (v[k] = r[j]));
       const st = countyState(v.state, v.geoid);
-      // The state column shows the 縣市 name whatever the file holds (code or name); `state` keeps its index.
+      // The state column shows the provincia name whatever the file holds (code or name); `state` keeps its index.
       if (st >= 0) v.state = stateNameAt(st) || v.state;
       v.cbsa = countyCity(v.cbsa, v.geoid);
       v.metro = v.cbsa ? cityName.get(v.cbsa) || null : null;
@@ -332,15 +332,15 @@ export function buildData(app) {
     // Counties smaller than a hex own no cell: counties.json `cell` (the hex nearest the county's centre) stands in.
     const cellsOfRow = (r) => countyCells.get(r.ref) || (Number.isInteger(r.v.cell) ? [r.v.cell] : []);
     const fields = counties.fields.filter((f) => f.key !== "cbsa" && f.key !== "geoid" && f.key !== "cell").map((f) => ({
-      ...F(f.key, f.key === "name" ? "鄉鎮市區" : f.key === "state" ? "縣市" : f.label, f.format, { unit: f.unit, higher_is: f.higher_is, source: f.source, description: f.description, lens: lensFor(f.key), group: groupFor(f.key, f.source) }),
+      ...F(f.key, f.key === "name" ? "Comuna" : f.key === "state" ? "Provincia" : f.label, f.format, { unit: f.unit, higher_is: f.higher_is, source: f.source, description: f.description, lens: lensFor(f.key), group: groupFor(f.key, f.source) }),
     }));
-    // The city column repeats the 縣市 column when every city is its own state: add it only when it says more.
+    // The city column repeats the provincia column when every city is its own state: add it only when it says more.
     if (countyRows.some((r) => r.v.metro && r.v.metro !== r.v.state)) {
       const at = Math.max(0, fields.findIndex((f) => f.key === "state")) + 1;
-      fields.splice(at, 0, F("metro", "城市", "text", { group: G.name, description: "鄉鎮市區所屬的城市（若該城市在地圖上）。" }));
+      fields.splice(at, 0, F("metro", "Ciudad", "text", { group: G.name, description: "Ciudad a la que pertenece la comuna (si está en el mapa)." }));
     }
     counties_ = makeLevel({
-      id: "counties", label: "鄉鎮市區", noun: "鄉鎮市區",
+      id: "counties", label: "Comuna", noun: "comuna",
       rows: countyRows, fields,
       highlight: (rows) => {
         const cells = new Set();
@@ -375,13 +375,13 @@ export function buildData(app) {
   };
 }
 
-/** The short form of a county name for tables and chart labels. Township names (大安區, 竹北市) are short already;
+/** The short form of a county name for tables and chart labels. Comuna names (Providencia, Las Condes) are short already;
  *  a Latin "… County" is still abbreviated, as in the original. */
 export function shortCounty(name) {
   return String(name || "").replace(/ County$/, " Co.").replace(/ Parish$/, " Par.");
 }
 
-/** A row's name as one label: a township with its 縣市 in front (臺北市大安區), anything else by its own name. */
+/** A row's name as one label: a comuna with its provincia in front, anything else by its own name. */
 export function placeLabel(row) {
   if (!row) return "";
   const name = row.full || row.name || "";
@@ -468,13 +468,13 @@ function extendMilitary(data, mil) {
   const byState = instBy("state"), byMetro = instBy("cbsa");
   const src = { personnel: "dmdc_personnel", spending: "oldcc_spending" };
   states.addFields([
-    F4("mil_active", "現役軍人", "int", { unit: "人，依駐地縣市", source: src.personnel, group: G.military, description: `各軍種現役人員，依駐地縣市計${paren(v.personnel)}。` }),
-    F4("mil_guard_reserve", "後備人員", "int", { unit: "人", source: src.personnel, group: G.military, description: `各縣市的後備人員${paren(v.personnel)}。` }),
-    F4("mil_civilian", "國防文職人員", "int", { unit: "人", source: src.personnel, group: G.military, description: `國防部門文職人員，依任職縣市計${paren(v.personnel)}。` }),
-    F4("def_spending", "國防支出", "money", { unit: `${CURRENCY}／年`, source: src.spending, group: G.military, description: `縣市內的國防採購、補助與人事費${paren(v.spending)}。採購金額依履約地計，不是依基地所在地。` }),
-    F4("def_per_resident", "人均國防支出", "usd", { unit: `${CURRENCY}／人`, source: src.spending, group: G.military, description: `國防支出 ÷ 居民人數${paren(v.spending)}。` }),
-    F4("def_pct_gdp", "國防支出占生產毛額", "pct", { unit: "占縣市生產毛額", source: src.spending, group: G.military, description: `國防支出 ÷ 縣市生產毛額${paren(v.spending)}。` }),
-    F4("installations", "軍事設施", "int", { unit: "處", source: "mirta", group: G.military, description: `縣市內的軍事設施數${paren(v.installations)}。規模無法相互比較：一處設施可能是辦公室，也可能是訓練場。` }),
+    F4("mil_active", "Militares en servicio", "int", { unit: "personas, según provincia de destino", source: src.personnel, group: G.military, description: `Personal en servicio de todas las ramas, según provincia de destino${paren(v.personnel)}.` }),
+    F4("mil_guard_reserve", "Reservistas", "int", { unit: "personas", source: src.personnel, group: G.military, description: `Reservistas de cada provincia${paren(v.personnel)}.` }),
+    F4("mil_civilian", "Civiles de defensa", "int", { unit: "personas", source: src.personnel, group: G.military, description: `Personal civil del sector defensa, según provincia de trabajo${paren(v.personnel)}.` }),
+    F4("def_spending", "Gasto en defensa", "money", { unit: `${CURRENCY} por año`, source: src.spending, group: G.military, description: `Compras, transferencias y remuneraciones de defensa dentro de la provincia${paren(v.spending)}. Las compras se cuentan donde se ejecuta el contrato, no donde está la base.` }),
+    F4("def_per_resident", "Gasto en defensa por habitante", "usd", { unit: `${CURRENCY} por habitante`, source: src.spending, group: G.military, description: `Gasto en defensa ÷ habitantes${paren(v.spending)}.` }),
+    F4("def_pct_gdp", "Gasto en defensa como % del PIB", "pct", { unit: "% del PIB de la provincia", source: src.spending, group: G.military, description: `Gasto en defensa ÷ PIB de la provincia${paren(v.spending)}.` }),
+    F4("installations", "Instalaciones militares", "int", { unit: "instalaciones", source: "mirta", group: G.military, description: `Instalaciones militares dentro de la provincia${paren(v.installations)}. No son comparables en tamaño: una instalación puede ser una oficina o un campo de entrenamiento.` }),
   ]);
   for (const r of states.rows) {
     const s = mil.states?.[r.key];
@@ -486,12 +486,12 @@ function extendMilitary(data, mil) {
     });
   }
   metros.addFields([
-    F4("encampment", "軍營等級", "text", { source: "mirta", group: G.military, description: `城市符合軍營規則時為「要塞」或「駐軍」，否則留空。${mil.rules?.encampment || mil.rule || ""}` }),
-    F4("installations", "軍事設施", "int", { unit: "處", source: "mirta", group: G.military, description: `位於城市所屬鄉鎮市區內的軍事設施數${paren(v.installations)}。規模無法相互比較。` }),
+    F4("encampment", "Nivel de campamento", "text", { source: "mirta", group: G.military, description: `"Fortaleza" o "Guarnición" cuando la comuna cumple la regla de campamento; vacío en otro caso. ${mil.rules?.encampment || mil.rule || ""}` }),
+    F4("installations", "Instalaciones militares", "int", { unit: "instalaciones", source: "mirta", group: G.military, description: `Instalaciones militares dentro de la comuna${paren(v.installations)}. No son comparables en tamaño.` }),
   ]);
   for (const r of metros.rows) {
     const c = mil.cities?.[r.key];
-    r.v.encampment = c ? (c.tier === "fortress" ? "要塞" : "駐軍") + (c.naval ? "（海軍）" : "") : null;
+    r.v.encampment = c ? (c.tier === "fortress" ? "Fortaleza" : "Guarnición") + (c.naval ? " (naval)" : "") : null;
     r.v.installations = byMetro.get(r.key) || 0;
   }
 }
@@ -501,24 +501,24 @@ function extendDistricts(data, d) {
   const cat = new Map((d.catalog || []).map((c) => [c.id, c]));
   const vint = d.vintage || "";
   const dsrc = (d.sources || [])[0] || "";
-  const lb = (x) => (x?.lower_bound ? "（至少）" : "");
+  const lb = (x) => (x?.lower_bound ? " (al menos)" : "");
   const maxPer = d.rule?.max_per_city;
   metros.addFields([
-    F4("city_type", "城市類型", "text", { source: dsrc, group: G.districts, description: `城市的稱號：依最強的特色區域命名；其中某項專長的就業占比遠高於全國時，改用該專長的稱號${paren(vint)}。留空表示沒有特色區域達到門檻（產業多元）。` }),
-    F4("districts", "特色區域", "text", { source: dsrc, group: G.districts, description: `城市達到門檻的產業特色區域，由強到弱。${d.rule?.text || ""}` }),
-    F4("n_districts", "特色區域數", "int", { source: dsrc, group: G.districts, description: `達到門檻的特色區域數${maxPer ? `（最多 ${maxPer} 個）` : ""}。` }),
+    F4("city_type", "Tipo de comuna", "text", { source: dsrc, group: G.districts, description: `Título de la comuna: se nombra por su distrito más fuerte; si una especialidad pesa en el empleo mucho más que en la región, se usa el título de esa especialidad${paren(vint)}. Vacío significa que ningún distrito llega al umbral (industria diversa).` }),
+    F4("districts", "Distritos", "text", { source: dsrc, group: G.districts, description: `Distritos industriales que la comuna alcanza, del más fuerte al más débil. ${d.rule?.text || ""}` }),
+    F4("n_districts", "Número de distritos", "int", { source: dsrc, group: G.districts, description: `Distritos que alcanzan el umbral${maxPer ? ` (máximo ${maxPer})` : ""}.` }),
     // What these count (by workplace or by residence, employees or all workers) differs by build: the file's vintage and note say.
-    F4("qcew_jobs", "產業別就業人數", "int", { unit: "人", source: dsrc, group: G.districts, description: `劃分特色區域所用的產業別統計中，城市的就業人數合計${paren(vint)}。${d.note || ""}` }),
-    F4("qcew_pay", "平均年薪", "usd", { unit: `${CURRENCY}／人／年`, source: dsrc, group: G.districts, description: `同一份產業別統計中，每位就業者的平均年薪${paren(vint)}。` }),
-    F4("top_industry", "最專精的產業", "text", { source: dsrc, group: G.districts, description: "本專案取得的細分產業中，區位商數最高且就業達到門檻的一項。" }),
-    F4("top_lq", "其區位商數", "lq", { unit: "× 全國就業占比", source: dsrc, group: G.districts, description: "最專精產業的區位商數：該產業占城市就業的比例 ÷ 占全國就業的比例。部分資料未公開時為下限。" }),
+    F4("qcew_jobs", "Empleo por rubro", "int", { unit: "personas", source: dsrc, group: G.districts, description: `Empleo total de la comuna en la estadística por rubro usada para definir los distritos${paren(vint)}. ${d.note || ""}` }),
+    F4("qcew_pay", "Remuneración anual media", "usd", { unit: `${CURRENCY} por persona al año`, source: dsrc, group: G.districts, description: `Remuneración anual media por ocupado en la misma estadística por rubro${paren(vint)}.` }),
+    F4("top_industry", "Rubro más especializado", "text", { source: dsrc, group: G.districts, description: "Entre los rubros detallados que reunió este proyecto, el de mayor cociente de localización con empleo sobre el umbral." }),
+    F4("top_lq", "Su cociente de localización", "lq", { unit: "× proporción del empleo regional", source: dsrc, group: G.districts, description: "Cociente de localización del rubro más especializado: su proporción del empleo de la comuna ÷ su proporción del empleo de la región. Es un piso cuando hay datos reservados." }),
   ]);
   for (const r of metros.rows) {
     const c = d.cities?.[r.key];
     const top = c?.top?.[0];
     Object.assign(r.v, {
       city_type: c?.badge?.label ?? null,
-      districts: c ? (c.districts || []).map((x) => cat.get(x.id)?.name || x.id).join("、") || null : null,
+      districts: c ? (c.districts || []).map((x) => cat.get(x.id)?.name || x.id).join(", ") || null : null,
       n_districts: c ? (c.districts || []).length : null,
       qcew_jobs: c?.emp ?? null, qcew_pay: c?.avg_pay ?? null,
       top_industry: top ? `${d.industries?.[top.naics]?.title || top.naics}${lb(top)}` : null,
@@ -527,12 +527,12 @@ function extendDistricts(data, d) {
   }
   if (counties && d.counties) {
     counties.addFields([
-      F4("districts", "特色區域", "text", { source: dsrc, group: G.districts, description: `鄉鎮市區達到門檻的產業特色區域，由強到弱${paren(vint)}。${d.rule?.county_note || ""}` }),
-      F4("qcew_jobs", "產業別就業人數", "int", { unit: "人", source: dsrc, group: G.districts, description: `劃分特色區域所用的產業別統計中，鄉鎮市區的就業人數合計${paren(vint)}。` }),
+      F4("districts", "Distritos", "text", { source: dsrc, group: G.districts, description: `Distritos industriales que la comuna alcanza, del más fuerte al más débil${paren(vint)}. ${d.rule?.county_note || ""}` }),
+      F4("qcew_jobs", "Empleo por rubro", "int", { unit: "personas", source: dsrc, group: G.districts, description: `Empleo total de la comuna en la estadística por rubro usada para definir los distritos${paren(vint)}.` }),
     ]);
     for (const r of counties.rows) {
       const c = d.counties[r.key];
-      r.v.districts = c ? (c.districts || []).map((x) => cat.get(x[0])?.name || x[0]).join("、") || null : null;
+      r.v.districts = c ? (c.districts || []).map((x) => cat.get(x[0])?.name || x[0]).join(", ") || null : null;
       r.v.qcew_jobs = c?.emp ?? null;
     }
   }
@@ -542,13 +542,13 @@ function extendDistricts(data, d) {
 // The third entry is only the fallback label: the file's own group labels are used when it has them. A category the
 // file does not have gets no column.
 const CZ = [
-  ["workforce", "executive", "主管及經理人員"], ["workforce", "engineer", "工程師與科學家"], ["workforce", "healer", "醫療人員"],
-  ["workforce", "service", "服務工作人員"], ["workforce", "farmer", "農林漁牧人員"], ["workforce", "builder", "營建與維修人員"],
-  ["workforce", "maker", "生產與運輸人員"],
-  ["age", "child", "兒童"], ["age", "young", "青年"], ["age", "elder", "高齡者"],
-  ["commute", "drove_alone", "自行開車"], ["commute", "transit", "大眾運輸"], ["commute", "walk", "步行"], ["commute", "home", "在家工作"],
-  ["education", "graduate", "研究所以上"],
-  ["nativity", "born_in_state", "本縣市出生"], ["nativity", "foreign_born", "境外出生"],
+  ["workforce", "executive", "Directivos y gerentes"], ["workforce", "engineer", "Ingenieros y científicos"], ["workforce", "healer", "Personal de salud"],
+  ["workforce", "service", "Trabajadores de servicios"], ["workforce", "farmer", "Agricultura, silvicultura y pesca"], ["workforce", "builder", "Construcción y mantención"],
+  ["workforce", "maker", "Producción y transporte"],
+  ["age", "child", "Niños"], ["age", "young", "Jóvenes"], ["age", "elder", "Adultos mayores"],
+  ["commute", "drove_alone", "Maneja solo"], ["commute", "transit", "Transporte público"], ["commute", "walk", "A pie"], ["commute", "home", "Trabaja en casa"],
+  ["education", "graduate", "Posgrado"],
+  ["nativity", "born_in_state", "Nacidos en la provincia"], ["nativity", "foreign_born", "Nacidos fuera de la región"],
 ];
 function extendCitizens(data, cz) {
   const { metros } = data.levels;
@@ -565,8 +565,8 @@ function extendCitizens(data, cz) {
   const csrc = rest;
   const label = new Map(Object.entries(cz.groups || {}).flatMap(([row, list]) => list.map((g) => [`${row}.${g.key}`, g.label])));
   const rowDesc = cz.rows || {};
-  const rowName = { workforce: "就業者", age: "人口", commute: "通勤者", education: "成年人口", nativity: "人口" };
-  const grp = { workforce: `${G.citizens}：工作`, age: `${G.citizens}：年齡`, commute: `${G.citizens}：通勤`, education: `${G.citizens}：教育`, nativity: `${G.citizens}：出生地` };
+  const rowName = { workforce: "ocupados", age: "población", commute: "quienes se desplazan al trabajo", education: "población adulta", nativity: "población" };
+  const grp = { workforce: `${G.citizens}: trabajo`, age: `${G.citizens}: edad`, commute: `${G.citizens}: traslado`, education: `${G.citizens}: educación`, nativity: `${G.citizens}: lugar de nacimiento` };
   const minRatio = cz.rule?.specialist_high;
   // The columns are the categories the file itself lists (cz.groups: every row and key, with its own label); a file
   // without that list falls back to the fixed table above, keeping the categories some city has a share for.
@@ -582,12 +582,12 @@ function extendCitizens(data, cz) {
   });
   metros.addFields([
     ...cols.map(({ row, lbl, k }) => F4(k, lbl, "pct", {
-      unit: `占${rowName[row] || "該類合計"}的比例`, source: srcOf(row), group: grp[row] || G.citizens,
-      description: `${lbl}：在「${rowDesc[row] || rowName[row] || row}」中所占的比例${paren(vint)}。來源資料沒有該地區時留空。${row === "commute" ? "分母是就業者，不是全體居民。" : ""}`,
+      unit: `% de ${rowName[row] || "el total de la categoría"}`, source: srcOf(row), group: grp[row] || G.citizens,
+      description: `${lbl}: proporción dentro de "${rowDesc[row] || rowName[row] || row}"${paren(vint)}. Vacío cuando la fuente no tiene el área.${row === "commute" ? " El denominador son los ocupados, no todos los habitantes." : ""}`,
     })),
-    F4("cz_median_age", "年齡中位數（城市）", "years", { unit: "歲", source: srcOf("age"), group: grp.age, description: `居民年齡中位數${paren(vint)}：城市本身的中位數，不是由鄉鎮市區彙總的近似值。` }),
-    F4("cz_degree", "大學以上學歷", "pct", { unit: "占成年人口", source: srcOf("education"), group: grp.education, description: `具大學以上學歷的成年人口比例${paren(vint)}。` }),
-    F4("cz_specialist", "最突出的市民類別", "text", { source: csrc, group: G.citizens, description: `占比相對全國最偏高的類別${fin(minRatio) ? `（至少 ${minRatio} 倍）` : ""}。${cz.rule?.text || ""}` }),
+    F4("cz_median_age", "Edad mediana (comuna)", "years", { unit: "años", source: srcOf("age"), group: grp.age, description: `Edad mediana de los habitantes${paren(vint)}: la mediana de la propia comuna, no una aproximación sumada desde otras áreas.` }),
+    F4("cz_degree", "Título universitario o más", "pct", { unit: "% de la población adulta", source: srcOf("education"), group: grp.education, description: `Proporción de adultos con título universitario o más${paren(vint)}.` }),
+    F4("cz_specialist", "Categoría más marcada", "text", { source: csrc, group: G.citizens, description: `Categoría cuya proporción más supera a la regional${fin(minRatio) ? ` (al menos ${minRatio} veces)` : ""}. ${cz.rule?.text || ""}` }),
   ]);
   for (const r of metros.rows) {
     const c = cz.cities?.[r.key];
@@ -595,7 +595,7 @@ function extendCitizens(data, cz) {
     r.v.cz_median_age = c?.age?.median ?? null;
     r.v.cz_degree = c?.education?.bachelors_plus ?? r.v.cz_degree ?? null;
     const sp = (c?.specialists || []).find((s) => s.ratio >= 1);
-    r.v.cz_specialist = sp ? `${label.get(`${sp.row}.${sp.key}`) || sp.key} ×${sp.ratio.toFixed(1)}${c.reliable === false ? "（樣本小，僅供參考）" : ""}` : null;
+    r.v.cz_specialist = sp ? `${label.get(`${sp.row}.${sp.key}`) || sp.key} ×${sp.ratio.toFixed(1)}${c.reliable === false ? " (muestra pequeña, solo referencial)" : ""}` : null;
   }
 }
 
@@ -603,6 +603,6 @@ function extendCitizens(data, cz) {
 export function rowsHighlight(level, rows, opts = {}) {
   if (!level || !rows || !rows.length) return null;
   const one = rows.length === 1 ? rows[0] : null;
-  const label = opts.label ?? (one ? (one.level === "counties" ? placeLabel(one) : `${one.full || one.name}${one.sub ? `（${one.sub}）` : ""}`) : "");
+  const label = opts.label ?? (one ? (one.level === "counties" ? placeLabel(one) : `${one.full || one.name}${one.sub ? ` (${one.sub})` : ""}`) : "");
   return { ...level.highlight(rows, opts), dimOthers: !!opts.dim, color: opts.color, label };
 }

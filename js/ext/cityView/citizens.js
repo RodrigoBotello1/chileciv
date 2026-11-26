@@ -4,12 +4,12 @@
 //   mountCitizens(host, m, data)       paints the figures and wires the hover / focus read-out
 //
 // Each row: N figures (from the file's `figures`, or rounded here with the same largest-remainder method), a caption
-// ("每個人像 ≈ 7.2萬 位就業者"), a read-out line that a hovered or focused figure fills ("新北市的就業者中，每 7 位約有 1 位
-// 屬於「…」（全國：每 14 位約有 1 位）") and a thin national bar for comparison. A row type the file does not have at all
+// ("Cada figura ≈ 72 mil personas"), a read-out line that a hovered or focused figure fills ("Entre los trabajadores de
+// Santiago, 1 de cada 7 pertenece a "...", región: 1 de cada 14") and a thin regional bar for comparison. A row type the file does not have at all
 // (no `groups` entry) is left out; a row the source did not publish for this city is said so, never drawn as zeros.
 //
 // Category names and the row descriptions come from the file (`groups[row][].label` / `.short`, `rows[row]`): the
-// pipeline writes them in Chinese and defines what each category covers (age bands, schooling levels), so nothing
+// pipeline writes them in Spanish and defines what each category covers (age bands, schooling levels), so nothing
 // here states a definition of its own.
 import { esc, int, pct } from "../../format.js";
 import { compact } from "./fmt.js";
@@ -22,24 +22,24 @@ function artOf(groups) {
   return (r, k) => map.get(`${r}|${k}`) || k;
 }
 
-// noun: what one figure counts ("每 7 位就業者"). sub: shown only when the file has no description for the row.
+// noun: whom one figure counts, with its article ("los trabajadores"). sub: shown only when the file has no description for the row.
 const ROWS = [
-  { id: "workforce", title: "職業", sub: "依職業別", noun: "就業者", n: null },
-  { id: "age", title: "世代", sub: "依年齡", noun: "居民", n: null },
-  { id: "commute", title: "通勤", sub: "就業者上班的交通方式", noun: "就業者", n: null },
-  { id: "education", title: "教育程度", sub: "依最高學歷", noun: "人口", n: 10 },
-  { id: "nativity", title: "出生地", sub: "居民的出生地", noun: "居民", n: 10 },
+  { id: "workforce", title: "Ocupación", sub: "por ocupación", noun: "los trabajadores", n: null },
+  { id: "age", title: "Generaciones", sub: "por edad", noun: "los habitantes", n: null },
+  { id: "commute", title: "Traslado", sub: "cómo llegan al trabajo los ocupados", noun: "los trabajadores", n: null },
+  { id: "education", title: "Educación", sub: "por nivel educacional más alto", noun: "las personas", n: 10 },
+  { id: "nativity", title: "Origen", sub: "dónde nacieron los habitantes", noun: "los habitantes", n: 10 },
 ];
 
 /**
  * Whom a row counts, for its captions. The education row's base is an age floor that differs by source, so it is
- * read from the file's own description of the row ("15 歲以上戶籍人口的教育程度" → "15 歲以上人口").
+ * read from the file's own description of the row ("Nivel educacional de las personas de 15 años o más" → "las personas de 15 años o más").
  */
 function nounOf(rd, data) {
-  const m = rd.id === "education" ? /(\d+)\s*歲以上/.exec(data?.rows?.education || "") : null;
-  return m ? `${m[1]} 歲以上人口` : rd.noun;
+  const m = rd.id === "education" ? /(\d+)\s*años/.exec(data?.rows?.education || "") : null;
+  return m ? `las personas de ${m[1]} años o más` : rd.noun;
 }
-const lead = (noun) => (/^\d/.test(noun) ? " " : "") + noun; // a space between Chinese text and a leading number
+const bare = (noun) => noun.replace(/^(los|las) /, ""); // the noun without its article, for captions
 
 /** Largest-remainder rounding of counts into n figures (the pipeline's method, for rows without figures). */
 export function largestRemainder(counts, keys, n) {
@@ -53,17 +53,17 @@ export function largestRemainder(counts, keys, n) {
   return Object.fromEntries(keys.map((k, j) => [k, out[j]]));
 }
 
-/** "每 7 位約有 1 位", "每 10 位約有 3 位", "不到千分之一", as {text}; null without a share. */
+/** "1 de cada 7", "3 de cada 10", "menos de 1 en mil", as {text, pl} (pl: the verb takes the plural); null without a share. */
 export function oneIn(share) {
   if (share == null || !Number.isFinite(share)) return null;
-  if (share <= 0) return { text: "沒有人" };
-  if (share < 0.001) return { text: "不到千分之一" };
+  if (share <= 0) return { text: "nadie" };
+  if (share < 0.001) return { text: "menos de 1 en mil" };
   if (share >= 0.3) {
     const k = Math.round(share * 10);
-    return k >= 10 ? { text: "幾乎全部" } : { text: `每 10 位約有 ${k} 位` };
+    return k >= 10 ? { text: "casi todos", pl: true } : { text: `${k} de cada 10`, pl: true };
   }
   const n = Math.round(1 / share);
-  return { text: `每 ${int(n)} 位約有 1 位` };
+  return { text: `1 de cada ${int(n)}` };
 }
 
 /** The read-out sentence, built from the category's own label (no per-category wording to keep in step with the data). */
@@ -71,7 +71,7 @@ function sentence(label, share, natShare, cityName, noun) {
   const a = oneIn(share);
   if (!a) return "";
   const us = oneIn(natShare);
-  return `${cityName}的${lead(noun)}中，${a.text}屬於「${label}」${us ? `（全國：${us.text}）` : ""}`;
+  return `Entre ${noun} de ${cityName}, ${a.text} ${a.pl ? "pertenecen" : "pertenece"} a "${label}"${us ? ` (región: ${us.text})` : ""}`;
 }
 
 function rowModel(rowDef, row, nat, groups, figuresN) {
@@ -92,11 +92,11 @@ function specMap(city) {
 /** The Citizens rows. data = citizens.json (or null / undefined while loading). */
 export function citizensHtml(m, data) {
   const c = m.city;
-  if (data === undefined) return `<p class="muted cv-note">市民組成載入中…</p>`;
-  if (!data || !data.cities) return `<p class="muted cv-note">無市民組成資料。</p>`;
+  if (data === undefined) return `<p class="muted cv-note">Cargando la composición de los habitantes…</p>`;
+  if (!data || !data.cities) return `<p class="muted cv-note">No hay datos de composición de los habitantes.</p>`;
   const row0 = data.cities[c.id];
   if (!row0) {
-    return `<p class="muted cv-note">資料來源沒有${esc(c.name)}的市民組成統計，因此這裡沒有市民人像。</p>`;
+    return `<p class="muted cv-note">La fuente no tiene estadísticas de composición de los habitantes de ${esc(c.name)}, por eso aquí no hay figuras.</p>`;
   }
   const nat = data.national || {};
   const groups = data.groups || {};
@@ -113,13 +113,13 @@ export function citizensHtml(m, data) {
   const ba = row0.education?.bachelors_plus, usBa = nat.education?.bachelors_plus;
   const fb = row0.nativity?.foreign_born ?? row0.nativity?.shares?.foreign_born;
   const usFb = nat.nativity?.foreign_born ?? nat.nativity?.shares?.foreign_born;
-  const chip = (v, us, fmt, lbl, tip) => (v == null ? "" : `<div class="cv-cz-chip" title="${esc(tip)}"><b>${fmt(v)}</b><span>${esc(lbl)}</span>${us != null ? `<small>全國 ${fmt(us)}</small>` : ""}</div>`);
+  const chip = (v, us, fmt, lbl, tip) => (v == null ? "" : `<div class="cv-cz-chip" title="${esc(tip)}"><b>${fmt(v)}</b><span>${esc(lbl)}</span>${us != null ? `<small>región ${fmt(us)}</small>` : ""}</div>`);
   const top = (row0.specialists || []).find((s) => s.ratio >= hi);
   const topRow = ROWS.find((r) => r.id === top?.row);
   const great = top && topRow ? `<div class="cv-great" style="--fc:${esc(colorOf(top.row, top.key, "#c9a45c"))}">
       <span class="cv-great-fig" data-great="${esc(top.row)}|${esc(top.key)}" aria-hidden="true"></span>
-      <div><small>代表性市民</small><b>${esc(label[top.row]?.[top.key] || top.key)}</b>
-      <span>占本城市${esc(lead(nounOf(topRow, data)))}的 ${pct(top.share, 1)}，全國為 ${pct(top.national, 1)}：是全國占比的 ${top.ratio.toFixed(1)} 倍。</span></div></div>` : "";
+      <div><small>Habitante representativo</small><b>${esc(label[top.row]?.[top.key] || top.key)}</b>
+      <span>Representa el ${pct(top.share, 1)} de ${esc(nounOf(topRow, data))} de la comuna, frente al ${pct(top.national, 1)} en la región: ${top.ratio.toFixed(1)} veces la proporción regional.</span></div></div>` : "";
 
   // Only the row types this build has (a `groups` entry); the others are not part of the data at all.
   const rows = ROWS.filter((rd) => Array.isArray(groups[rd.id]) && groups[rd.id].length).map((rd) => {
@@ -127,10 +127,10 @@ export function citizensHtml(m, data) {
     const head = `<div class="cv-cz-h"><b>${esc(rd.title)}</b><span>${esc(data.rows?.[rd.id] || rd.sub)}</span></div>`;
     if (!row) {
       return `<div class="cv-cz-row missing" data-row="${rd.id}">${head}
-        <p class="muted cv-note">資料來源沒有${esc(c.name)}的這項統計，因此不顯示此列。</p></div>`;
+        <p class="muted cv-note">La fuente no tiene esta estadística para ${esc(c.name)}, por eso no se muestra esta fila.</p></div>`;
     }
     const { keys, n, figs, natFigs } = rowModel(rd, row, nat[rd.id], groups, data.figures || {});
-    if (!figs) return `<div class="cv-cz-row missing" data-row="${rd.id}">${head}<p class="muted cv-note">此列無資料。</p></div>`;
+    if (!figs) return `<div class="cv-cz-row missing" data-row="${rd.id}">${head}<p class="muted cv-note">Esta fila no tiene datos.</p></div>`;
     const per = row.total / n;
     const cells = [];
     for (const k of keys) {
@@ -146,18 +146,18 @@ export function citizensHtml(m, data) {
     const legend = keys.map((k) => {
       const sh = row.shares?.[k], us = nat[rd.id]?.shares?.[k];
       const sp = specs.get(`${rd.id}|${k}`);
-      const chev = sp ? `<em class="${sp.ratio >= 1 ? "up" : "down"}" title="是全國占比的 ${sp.ratio.toFixed(1)} 倍">${sp.ratio >= 1 ? "▲" : "▼"}</em>` : "";
-      return `<span class="cv-cz-k${figs[k] ? "" : " zero"}" data-k="${esc(k)}" title="${esc(label[rd.id]?.[k] || k)}：${sh != null ? pct(sh, 1) : "–"}${us != null ? `（全國 ${pct(us, 1)}）` : ""}${figs[k] ? "" : "。取整後不足一個人像。"}"><i style="background:${esc(colorOf(rd.id, k, "#888"))}"></i>${esc(short[rd.id]?.[k] || k)} <small>${sh != null ? pct(sh, 0) : "–"}</small>${chev}</span>`;
+      const chev = sp ? `<em class="${sp.ratio >= 1 ? "up" : "down"}" title="${sp.ratio.toFixed(1)} veces la proporción regional">${sp.ratio >= 1 ? "▲" : "▼"}</em>` : "";
+      return `<span class="cv-cz-k${figs[k] ? "" : " zero"}" data-k="${esc(k)}" title="${esc(label[rd.id]?.[k] || k)}: ${sh != null ? pct(sh, 1) : "–"}${us != null ? ` (región ${pct(us, 1)})` : ""}${figs[k] ? "" : ". Al redondear no alcanza una figura."}"><i style="background:${esc(colorOf(rd.id, k, "#888"))}"></i>${esc(short[rd.id]?.[k] || k)} <small>${sh != null ? pct(sh, 0) : "–"}</small>${chev}</span>`;
     }).join("");
     // National comparison bar (shares), aligned with the figures' order.
-    const usBar = nat[rd.id]?.shares ? `<div class="cv-cz-us" title="全國組成（順序相同）"><span>全國</span><div>${keys.map((k) => {
+    const usBar = nat[rd.id]?.shares ? `<div class="cv-cz-us" title="Composición regional (mismo orden)"><span>Región</span><div>${keys.map((k) => {
       const s = nat[rd.id].shares[k] || 0;
-      return s > 0 ? `<i style="flex:${s};background:${esc(colorOf(rd.id, k, "#888"))}" title="${esc(short[rd.id]?.[k] || k)}：全國 ${pct(s, 1)}"></i>` : "";
+      return s > 0 ? `<i style="flex:${s};background:${esc(colorOf(rd.id, k, "#888"))}" title="${esc(short[rd.id]?.[k] || k)}: región ${pct(s, 1)}"></i>` : "";
     }).join("")}</div></div>` : "";
-    const cap = `每個人像 ≈ ${compact(per)} 人 · 共 ${compact(row.total)} 人（${nounOf(rd, data)}）${rd.n && !row.figures ? " · 於此處取整" : ""}`;
-    const extra = rd.id === "age" && med != null ? ` · 年齡中位數 ${med.toFixed(1)} 歲${usMed != null ? `（全國 ${usMed.toFixed(1)} 歲）` : ""}` : "";
+    const cap = `Cada figura ≈ ${compact(per)} personas · ${compact(row.total)} en total (${bare(nounOf(rd, data))})${rd.n && !row.figures ? " · redondeado aquí" : ""}`;
+    const extra = rd.id === "age" && med != null ? ` · edad mediana ${med.toFixed(1)} años${usMed != null ? ` (región ${usMed.toFixed(1)} años)` : ""}` : "";
     return `<div class="cv-cz-row" data-row="${rd.id}" style="--n:${n}">${head}
-      <div class="cv-figs" role="group" aria-label="${esc(rd.title)}：${esc(keys.filter((k) => figs[k]).map((k) => `${short[rd.id]?.[k] || k} ${figs[k]}/${n}`).join("、"))}">${cells.join("")}</div>
+      <div class="cv-figs" role="group" aria-label="${esc(rd.title)}: ${esc(keys.filter((k) => figs[k]).map((k) => `${short[rd.id]?.[k] || k} ${figs[k]}/${n}`).join(", "))}">${cells.join("")}</div>
       ${usBar}
       <div class="cv-cz-out" aria-live="polite" data-default="${esc(cap + extra)}">${esc(cap + extra)}</div>
       <div class="cv-cz-legend">${legend}</div>
@@ -165,18 +165,18 @@ export function citizensHtml(m, data) {
   }).join("");
 
   const unreliable = row0.reliable === false
-    ? `<p class="cv-warn">這裡的樣本較小、誤差較大，以下數字僅供參考。</p>` : "";
+    ? `<p class="cv-warn">La muestra aquí es pequeña y el error es mayor: toma estas cifras solo como referencia.</p>` : "";
   return `
     <div class="cv-cz-top">
-      ${chip(med, usMed, (v) => `${v.toFixed(1)} 歲`, "年齡中位數", "居民的年齡中位數")}
-      ${chip(ba, usBa, (v) => pct(v, 0), "大學以上學歷", "具大學（學士）以上學歷者的占比")}
-      ${chip(fb, usFb, (v) => pct(v, 0), "外國出生", "在其他國家出生的居民占比")}
+      ${chip(med, usMed, (v) => `${v.toFixed(1)} años`, "edad mediana", "Edad mediana de los habitantes")}
+      ${chip(ba, usBa, (v) => pct(v, 0), "con título universitario", "Proporción de personas con licenciatura o un nivel superior")}
+      ${chip(fb, usFb, (v) => pct(v, 0), "nacidos en el extranjero", "Proporción de habitantes nacidos en otro país")}
     </div>
     ${great}
     ${unreliable}
     <div class="cv-cz${row0.reliable === false ? " unreliable" : ""}">${rows}</div>
-    <p class="cv-note">${data.vintage ? `資料來源：${esc(data.vintage)}。` : ""}人像數以最大餘數法取整，每一列的加總與人像總數相符；將游標移到人像上或點按一下，可看該類別的占比。▲▼ = 占比至少是全國的 ${hi} 倍，或至多是全國的 ${lo} 倍${
-      Number.isFinite(data.rule?.min_count) ? `；在本城市不足 ${int(data.rule.min_count)} 人的類別不標` : ""}。</p>`;
+    <p class="cv-note">${data.vintage ? `Fuente: ${esc(data.vintage)}. ` : ""}Las figuras se redondean con el método del mayor resto, así cada fila suma el total de figuras; pasa el cursor sobre una figura o tócala para ver la proporción de su categoría. ▲▼ = proporción de al menos ${hi} veces la regional, o de a lo sumo ${lo} veces${
+      Number.isFinite(data.rule?.min_count) ? `; no se marcan las categorías con menos de ${int(data.rule.min_count)} personas en la comuna` : ""}.</p>`;
 }
 
 /** Paint the figure canvases and wire the read-outs. */
@@ -229,7 +229,7 @@ export function mountCitizens(host, m, data) {
         return;
       }
       const sh = row.shares?.[k], us = nat[rid]?.shares?.[k];
-      out.innerHTML = `${esc(sentence(labelOf(rid, k), sh, us, m.city.name, nounOf(rd, data)))}<small>本城市 ${sh != null ? pct(sh, 1) : "–"}${us != null ? ` · 全國 ${pct(us, 1)}` : ""}${row.counts?.[k] != null ? ` · ≈${compact(row.counts[k])} 人` : ""}</small>`;
+      out.innerHTML = `${esc(sentence(labelOf(rid, k), sh, us, m.city.name, nounOf(rd, data)))}<small>Comuna ${sh != null ? pct(sh, 1) : "–"}${us != null ? ` · región ${pct(us, 1)}` : ""}${row.counts?.[k] != null ? ` · ≈${compact(row.counts[k])} personas` : ""}</small>`;
       out.classList.add("on");
     };
     let pinned = null;

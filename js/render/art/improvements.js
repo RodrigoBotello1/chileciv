@@ -488,13 +488,13 @@ function paintAirport(g, upx, tier) {
 /** Per FAF mode: line colour (saturated, to read on any terrain over a parchment halo), dash pattern (in line widths;
  * null = solid), marker kind and a label. */
 export const MODE_STYLE = {
-  truck: { color: "#ee8a1e", dash: [2.4, 1.1], marker: "cart", label: "公路貨運" },
-  rail: { color: "#d2402f", dash: [3.2, 0.9], marker: "rail", label: "鐵路" },
-  water: { color: "#1f8ad2", dash: [2.4, 1.1], marker: "boat", label: "水運" },
-  air: { color: "#18a99a", dash: [1.4, 1.2], marker: "plane", label: "空運" },
-  multiple: { color: "#9b4fd0", dash: [2.4, 1.1], marker: "cart", label: "多種運具" },
-  pipeline: { color: "#3a3430", dash: null, dots: "#f0a830", marker: "barrel", label: "管線" },
-  other: { color: "#7d7466", dash: [1.6, 1.4], marker: "cart", label: "其他／不明" },
+  truck: { color: "#ee8a1e", dash: [2.4, 1.1], marker: "cart", label: "Camión" },
+  rail: { color: "#d2402f", dash: [3.2, 0.9], marker: "rail", label: "Ferrocarril" },
+  water: { color: "#1f8ad2", dash: [2.4, 1.1], marker: "boat", label: "Agua" },
+  air: { color: "#18a99a", dash: [1.4, 1.2], marker: "plane", label: "Aire" },
+  multiple: { color: "#9b4fd0", dash: [2.4, 1.1], marker: "cart", label: "Varios modos" },
+  pipeline: { color: "#3a3430", dash: null, dots: "#f0a830", marker: "barrel", label: "Ducto" },
+  other: { color: "#7d7466", dash: [1.6, 1.4], marker: "cart", label: "Otro o sin dato" },
 };
 
 export const TOP_ROUTES = 10; // drawn wider and fully opaque; the rest thinner and lighter
@@ -539,7 +539,7 @@ export function routeArc(grid, ca, cb, bow = 0.16) {
 export function prepareRoutes(w, trade) {
   const { grid } = w;
   const zones = new Map((trade?.zones || []).map((z) => [z.id, z]));
-  // Arcs are weighted by money (value_musd), or by weight (tons_k) when the file has no money (Taiwan's truck survey).
+  // Arcs are weighted by money (value_musd), or by weight (tons_k) when the file has no money (a truck survey).
   const byValue = (trade?.routes || []).some((r) => r.value_musd != null);
   const amt = (r) => (byValue ? r.value_musd : r.tons_k) || 0;
   const list = [...(trade?.routes || [])].sort((p, q) => amt(q) - amt(p));

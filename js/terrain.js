@@ -4,37 +4,37 @@ import { parseHex } from "./color.js";
 
 // v1 terrain codes (pipeline/build/world.py before v2). Only used to derive water/relief from old files.
 export const V1_TERRAIN = [
-  { id: 0, name: "海洋", water: 1 }, { id: 1, name: "近海", water: 2 }, { id: 2, name: "湖泊", water: 3 },
-  { id: 3, name: "低地" }, { id: 4, name: "平原" }, { id: 5, name: "高平原" }, { id: 6, name: "高原" },
-  { id: 7, name: "丘陵", relief: 1 }, { id: 8, name: "山地", relief: 2 }, { id: 9, name: "高山", relief: 3 },
+  { id: 0, name: "Océano", water: 1 }, { id: 1, name: "Costa", water: 2 }, { id: 2, name: "Lago o embalse", water: 3 },
+  { id: 3, name: "Tierras bajas" }, { id: 4, name: "Llano" }, { id: 5, name: "Llano alto" }, { id: 6, name: "Altiplano" },
+  { id: 7, name: "Cerros", relief: 1 }, { id: 8, name: "Montañas", relief: 2 }, { id: 9, name: "Alta cordillera", relief: 3 },
 ];
 
 export const DEFAULT_TABLES = {
   water: [
-    { id: 0, name: "陸地" },
-    { id: 1, name: "海洋", color: "#1b4266", rule: "水深約 200 公尺以上、不與陸地相鄰的海域。" },
-    { id: 2, name: "近海", color: "#2d6d97", rule: "緊鄰陸地或水深不到 200 公尺的海域。" },
-    { id: 3, name: "湖泊", color: "#3a80b0", rule: "六角格中心落在湖泊範圍內。" },
+    { id: 0, name: "Tierra" },
+    { id: 1, name: "Océano", color: "#1b4266", rule: "Mar de más de 200 m de profundidad que no toca tierra." },
+    { id: 2, name: "Costa", color: "#2d6d97", rule: "Mar junto a tierra o de menos de 200 m de profundidad." },
+    { id: 3, name: "Lago o embalse", color: "#3a80b0", rule: "El centro del hexágono cae dentro de un lago o embalse." },
   ],
   relief: [
-    { id: 0, name: "平地", rule: "地勢平緩。" },
-    { id: 1, name: "丘陵", rule: "六角格內地勢起伏明顯。" },
-    { id: 2, name: "山地", rule: "地勢高或起伏劇烈。" },
-    { id: 3, name: "高山", rule: "高山地帶。" },
+    { id: 0, name: "Llano", rule: "Terreno plano." },
+    { id: 1, name: "Cerros", rule: "Relieve marcado dentro del hexágono." },
+    { id: 2, name: "Montañas", rule: "Terreno alto o muy quebrado." },
+    { id: 3, name: "Alta cordillera", rule: "Zona de alta montaña." },
   ],
   cover: [
-    { id: 0, key: "none", name: "不明" },
-    { id: 1, key: "forest_deciduous", name: "闊葉林", color: "#4f7a35" },
-    { id: 2, key: "forest_evergreen", name: "針葉林", color: "#2f5f3a" },
-    { id: 3, key: "forest_mixed", name: "混合林", color: "#436d36" },
-    { id: 4, key: "scrub", name: "灌叢", color: "#b8a26a" },
-    { id: 5, key: "grassland", name: "草地", color: "#9fb35a" },
-    { id: 6, key: "pasture", name: "牧草地", color: "#a8b862" },
-    { id: 7, key: "cropland", name: "農田", color: "#c2b65c" },
-    { id: 8, key: "wetland", name: "濕地", color: "#4f7f68" },
-    { id: 9, key: "urban", name: "都市", color: "#8c8780" },
-    { id: 10, key: "barren", name: "裸露地", color: "#b9ab94" },
-    { id: 11, key: "ice", name: "冰雪", color: "#e8eef2" },
+    { id: 0, key: "none", name: "Ninguna" },
+    { id: 1, key: "forest_deciduous", name: "Bosque esclerófilo", color: "#4f7a35" },
+    { id: 2, key: "forest_evergreen", name: "Bosque de coníferas", color: "#2f5f3a" },
+    { id: 3, key: "forest_mixed", name: "Bosque mixto", color: "#436d36" },
+    { id: 4, key: "scrub", name: "Matorral", color: "#b8a26a" },
+    { id: 5, key: "grassland", name: "Pastizal", color: "#9fb35a" },
+    { id: 6, key: "pasture", name: "Pradera", color: "#a8b862" },
+    { id: 7, key: "cropland", name: "Cultivos", color: "#c2b65c" },
+    { id: 8, key: "wetland", name: "Humedal", color: "#4f7f68" },
+    { id: 9, key: "urban", name: "Zona urbana", color: "#8c8780" },
+    { id: 10, key: "barren", name: "Suelo desnudo", color: "#b9ab94" },
+    { id: 11, key: "ice", name: "Hielo y nieve", color: "#e8eef2" },
   ],
 };
 
@@ -55,7 +55,7 @@ export function resolveTables(tables) {
   return out;
 }
 
-// Elevation colour ramp for land without land-cover data (Canada, Mexico, v1 files).
+// Elevation colour ramp for land without land-cover data (land outside the mapped region, v1 files).
 const ELEV_STOPS = [
   [-100, "#5d8a39"], [250, "#7c9744"], [700, "#a39c58"], [1400, "#b09366"], [2200, "#9a8068"], [3000, "#8c8078"],
   [3800, "#d8dde0"],

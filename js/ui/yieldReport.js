@@ -1,5 +1,5 @@
 // Top-bar reports: click a national stat (population, a yield, unemployment) for a Civ-style dropdown with its
-// definition, what makes it up, and state / metro leaderboards.
+// definition, what makes it up, and province / comuna leaderboards.
 //
 // The first half is pure data (statDefs, buildReport): plain objects from nation.json, states.json, cities.json and
 // lenses.json, no DOM, so it is easy to check from the console (`window.__app.reports`). The second half renders.
@@ -8,8 +8,8 @@ import { hasIcon } from "../icons.js";
 import { icon, glyph } from "./icon.js";
 import { DISTRICT_ICON, gdpLabel, goldName, growthSourceName, useSources } from "./infoPanel.js";
 
-export const METRO_MIN = 100000; // Taiwan: every 縣市 but 連江 (1.4萬人); metros in growth / specialisation / per-person rankings
-export const BIG_METRO_MIN = 100000; // Taiwan: same floor; 金門 and 連江 have no unemployment figure anyway; metros in the unemployment rankings
+export const METRO_MIN = 100000; // comunas ranked in growth / specialisation / per-person rankings: small comunas swing too much
+export const BIG_METRO_MIN = 100000; // same floor for the comunas in the unemployment rankings
 const TOP = 8;
 const GDP_ROWS = 8; // industries shown before "Show all"
 // A related map lens for some reports (shown only when lenses.json has it). These are related measures, not the
@@ -18,13 +18,13 @@ const LENS_FOR = { population: "density", gold: "income", food: "farmland", unem
 // The advisor dashboard (ext/advisors) that explores each report further; `industry` preselects the Economy
 // advisor's specialisation ranking. Buttons show only when the advisors extension is installed.
 const ADVISOR_FOR = {
-  population: [{ id: "people", label: "人口" }],
-  gold: [{ id: "economy", label: "經濟" }],
-  food: [{ id: "land", label: "土地" }, { id: "economy", label: "經濟（農業）", industry: "agriculture" }],
-  production: [{ id: "economy", label: "經濟（製造業）", industry: "manufacturing" }, { id: "energy", label: "能源與資源" }],
-  science: [{ id: "knowledge", label: "知識" }],
-  culture: [{ id: "economy", label: "經濟（藝文）", industry: "arts" }],
-  unemployment: [{ id: "prosperity", label: "所得與住房" }],
+  population: [{ id: "people", label: "Personas" }],
+  gold: [{ id: "economy", label: "Economía" }],
+  food: [{ id: "land", label: "Tierra" }, { id: "economy", label: "Economía (agricultura)", industry: "agriculture" }],
+  production: [{ id: "economy", label: "Economía (industria)", industry: "manufacturing" }, { id: "energy", label: "Energía y recursos" }],
+  science: [{ id: "knowledge", label: "Conocimiento" }],
+  culture: [{ id: "economy", label: "Economía (arte y cultura)", industry: "arts" }],
+  unemployment: [{ id: "prosperity", label: "Ingresos y vivienda" }],
 };
 const advisorApp = () => (typeof window !== "undefined" && window.__app?.hasMode?.("advisor") ? window.__app : null);
 
@@ -32,25 +32,25 @@ const fin = Number.isFinite;
 const ratio = (a, b) => (fin(a) && fin(b) && b > 0 ? a / b : null);
 export const signedPct = (g, d = 1) => (fin(g) ? `${g >= 0 ? "+" : "−"}${Math.abs(g * 100).toFixed(d)}%` : "–");
 
-// Counts to three significant figures (leaderboards: 1.12萬 vs 1.11萬 rather than 1.1萬 twice), in 萬 / 億 / 兆 like
-// format.js compact(). Up to four digits stand before a unit (2345萬); a value that rounds up to 10000 of a unit moves
-// to the next one (1.00億, never 10000萬). The same rule as ext/advisors/core/fmt.js count3.
-const BIG = [[1e12, "兆"], [1e8, "億"], [1e4, "萬"]];
+// Counts to three significant figures (leaderboards: 1.12 M vs 1.11 M rather than 1.1 M twice), in mil / M / mil M /
+// billones like format.js compact(). Up to three digits stand before a unit (345 mil); a value that rounds up to 1000
+// of a unit moves to the next one (1.00 M, never 1000 mil). The same rule as ext/advisors/core/fmt.js count3.
+const BIG = [[1e12, " billones"], [1e9, " mil M"], [1e6, " M"], [1e3, " mil"]];
 export function count3(n) {
   if (!fin(n)) return "–";
   const a = Math.abs(n);
   const sig = (i) => { const q = a / BIG[i][0]; return q.toFixed(q >= 100 ? 0 : q >= 10 ? 1 : 2); };
   let i = BIG.findIndex(([d]) => a >= d);
   if (i < 0) {
-    if (Math.round(a) < 1e4) return int(n);
+    if (Math.round(a) < 1e3) return int(n);
     i = BIG.length - 1;
   }
   let s = sig(i);
-  if (i > 0 && Number(s) >= 1e4) s = sig(--i);
+  if (i > 0 && Number(s) >= 1e3) s = sig(--i);
   return (n < 0 ? "-" : "") + s + BIG[i][1];
 }
 
-// Formats a value of a stat ("usd" → NT$, "rate" → %, anything else → compact count).
+// Formats a value of a stat ("usd" → pesos, "rate" → %, anything else → compact count).
 export function fmtStat(def, v) {
   if (!fin(v)) return "–";
   if (def.unit === "usd") return money(v);
@@ -74,33 +74,32 @@ export function statDefs(nation) {
   }));
   return [
     {
-      key: "population", label: "人口", name: "人口", color: "#e8dcc0", iconId: "pop", emoji: "👥", unit: "people",
-      description: "居住人口。", source: nation?.vintage || "", value: n.population ?? null,
+      key: "population", label: "Población", name: "Población", color: "#e8dcc0", iconId: "pop", emoji: "👥", unit: "people",
+      description: "Personas que viven en la región.", source: nation?.vintage || "", value: n.population ?? null,
     },
     ...yields,
     {
-      key: "unemployment", label: "失業率", name: "失業率", color: "#e8dcc0", iconId: "unemployment", emoji: "😐",
-      unit: "rate", description: "失業人口 ÷ 勞動力。", source: nation?.vintage || "", value: n.unemployment ?? null,
+      key: "unemployment", label: "Desempleo", name: "Desempleo", color: "#e8dcc0", iconId: "unemployment", emoji: "😐",
+      unit: "rate", description: "Personas desempleadas ÷ fuerza de trabajo.", source: nation?.vintage || "", value: n.unemployment ?? null,
     },
   ];
 }
 
 const industryLabel = (nation, k, gdp = false) => {
-  const full = (gdp ? nation.gdp_industries?.[k] : null) || nation.industries?.[k] || (k === "government" ? "政府" : k);
-  return { label: full.replace(/\s*[(（].*[)）]\s*$/, "") || full, full };
+  const full = (gdp ? nation.gdp_industries?.[k] : null) || nation.industries?.[k] || (k === "government" ? "Gobierno" : k);
+  return { label: full.replace(/\s*\(.*\)\s*$/, "") || full, full };
 };
 const industryIcon = (k) => (hasIcon(`i-${k}`) ? `i-${k}` : k === "government" && hasIcon("i-public_admin") ? "i-public_admin" : null);
 
-// Areas the leaderboards rank: states (index into states.json = world.json states) and cities. In Taiwan a city and
-// its state are the same unit (the 縣市), so a row's sub-label never repeats its own name: a state shows none (its ISO
-// code means little to a reader) and a city names its states only when they are other units.
+// Areas the leaderboards rank: provinces (index into states.json = world.json states) and comunas. A province row
+// shows no sub-label; a comuna row names its province, unless that is the comuna's own name (Santiago).
 function areas(states, cities) {
   const list = Array.isArray(states) ? states : [];
   const st = list
     .map((o, i) => (o ? { kind: "state", ref: i, name: o.name || o.abbr || "?", sub: "", o } : null))
     .filter(Boolean);
   const nameOf = new Map(list.filter(Boolean).map((o) => [o.abbr, o.name || o.abbr]));
-  const citySub = (c) => (c.states || []).map((a) => nameOf.get(a) || a).filter((nm) => nm !== c.name && nm !== c.full).join("、");
+  const citySub = (c) => (c.states || []).map((a) => nameOf.get(a) || a).filter((nm) => nm !== c.name && nm !== c.full).join(", ");
   const metros = (Array.isArray(cities) ? cities : [])
     .filter((c) => c && c.metro !== false)
     .map((c) => ({ kind: "city", ref: c.id, name: c.name, sub: citySub(c), o: c }));
@@ -119,16 +118,16 @@ function rank(list, valueOf, { asc = false, min = 0, fmt = count3, exact = int, 
     .map(({ r, v }, i) => ({ rank: i + 1, kind: r.kind, ref: r.ref, name: r.name, sub: subOf ? subOf(r.o) : r.sub, value: v, text: fmt(v), exact: exact ? exact(v) : "" }));
 }
 
-// Which states the "縣市" rankings cover. states.json holds the states drawn on the map; when the national total
-// includes people outside them, say so rather than imply the whole country is ranked.
+// Which provinces the rankings cover. states.json holds the provinces drawn on the map; when the regional total
+// includes people outside them, say so rather than imply the whole region is ranked.
 function stateScope(n, st) {
   const sum = st.reduce((a, r) => a + (fin(r.o.population) ? r.o.population : 0), 0);
   const gap = fin(n.population) && n.population > 0 ? (n.population - sum) / n.population : 0;
-  const label = "縣市";
+  const label = "Provincias";
   if (!st.length || gap < 0.001) return { label, note: "" };
   return {
-    label, inMap: "地圖上的縣市",
-    note: `排名涵蓋地圖上的 ${st.length} 個縣市；全國總數另含不在地圖上的 ${compact(n.population - sum)}人，不列入排名。`,
+    label, inMap: "las provincias del mapa",
+    note: `El ranking cubre las ${st.length} provincias del mapa; el total de la región incluye además ${compact(n.population - sum)} personas fuera del mapa, que no entran al ranking.`,
   };
 }
 
@@ -163,7 +162,7 @@ export function buildReport(key, { nation, states, cities, lenses, lensVintage }
   const lensId = LENS_FOR[key];
   const lens = lensId && Array.isArray(lenses) ? lenses.find((l) => l.id === lensId) : null;
   if (lens) {
-    // lenses.json `vintage` describes the lenses built from 鄉鎮市區 statistics, not the land-cover ones; a lens may
+    // lenses.json `vintage` describes the lenses built from comuna statistics, not the land-cover ones; a lens may
     // carry its own `vintage`.
     const vintage = typeof lens.vintage === "string" ? lens.vintage : lens.group !== "land" && typeof lensVintage === "string" ? lensVintage : "";
     rep.lens = { id: lens.id, name: lens.name || lens.id, unit: lens.unit || "", vintage };
@@ -178,32 +177,32 @@ export function buildReport(key, { nation, states, cities, lenses, lensVintage }
 
 function reportPopulation(rep, n, st, metros) {
   const yrs = Array.isArray(n.growth_years) && n.growth_years.length === 2 ? n.growth_years : null;
-  const since = yrs ? `自 ${yrs[0]} 年以來` : "";
-  if (fin(n.growth)) rep.context.push(`${since}人口變化 ${signedPct(n.growth)} · ${growthSourceName()}`);
+  const since = yrs ? ` desde ${yrs[0]}` : "";
+  if (fin(n.growth)) rep.context.push(`Cambio de población${since}: ${signedPct(n.growth)} · ${growthSourceName()}`);
   const emp = ratio(n.employed, n.population);
-  if (emp != null) rep.context.push(`就業人口 ${compact(n.employed)}，占人口 ${pct(emp)}`);
+  if (emp != null) rep.context.push(`Trabajadores informados por las empresas (SII): ${compact(n.employed)}`);
 
   const g = (o) => o.growth;
   const row = (x, prefix = "") => ({
     label: `${prefix}${x.r.name}`, sub: x.r.kind === "city" ? x.r.sub : "", value: x.v, text: signedPct(x.v), tone: x.v >= 0 ? "good" : "bad",
   });
   const groups = [];
-  if (fin(n.growth)) groups.push({ rows: [{ label: "全國", value: n.growth, text: signedPct(n.growth), tone: n.growth >= 0 ? "good" : "bad", strong: true }] });
+  if (fin(n.growth)) groups.push({ rows: [{ label: "Región", value: n.growth, text: signedPct(n.growth), tone: n.growth >= 0 ? "good" : "bad", strong: true }] });
   const extremes = (list, what) => {
     if (list.length < 2) return;
     const k = Math.min(3, Math.floor(list.length / 2));
     const top = list.slice(0, k), bottom = list.slice(-k).reverse();
-    groups.push({ title: `成長最快的${what}`, rows: top.map((x) => row(x)) });
-    groups.push({ title: bottom.every((x) => x.v < 0) ? `人口減少最多的${what}` : `成長最慢的${what}`, rows: bottom.map((x) => row(x)) });
+    groups.push({ title: `${what}: mayor crecimiento`, rows: top.map((x) => row(x)) });
+    groups.push({ title: bottom.every((x) => x.v < 0) ? `${what}: mayor pérdida de población` : `${what}: menor crecimiento`, rows: bottom.map((x) => row(x)) });
   };
-  extremes(sorted(st, g), "縣市");
-  extremes(sorted(metros, g, METRO_MIN), `城市（人口 ${compact(METRO_MIN)}以上）`);
-  if (groups.length) rep.breakdown = { title: yrs ? `人口變化 ${yrs[0]}–${yrs[1]}` : "人口變化", note: rep.scope.note, groups };
+  extremes(sorted(st, g), "Provincias");
+  extremes(sorted(metros, g, METRO_MIN), `Comunas (${compact(METRO_MIN)} hab. o más)`);
+  if (groups.length) rep.breakdown = { title: yrs ? `Cambio de población ${yrs[0]}–${yrs[1]}` : "Cambio de población", note: rep.scope.note, groups };
 
   rep.boards.modes = [
-    { id: "abs", label: "人口最多", states: rank(st, (o) => o.population), metros: rank(metros, (o) => o.population) },
+    { id: "abs", label: "Más habitantes", states: rank(st, (o) => o.population), metros: rank(metros, (o) => o.population) },
     {
-      id: "rel", label: "成長最快", hint: `${since}的人口變化；城市只列人口 ${compact(METRO_MIN)}以上者。`.replace(/^的/, ""),
+      id: "rel", label: "Mayor crecimiento", hint: `Cambio de población${since}; las comunas se listan solo con ${compact(METRO_MIN)} habitantes o más.`,
       states: rank(st, g, { fmt: signedPct, exact: (v) => signedPct(v, 2) }), metros: rank(metros, g, { fmt: signedPct, exact: (v) => signedPct(v, 2), min: METRO_MIN }),
     },
   ];
@@ -211,37 +210,37 @@ function reportPopulation(rep, n, st, metros) {
 
 function reportUnemployment(rep, n, st, metros) {
   const u = (o) => o.unemployment;
-  if (fin(n.unemployment) && n.unemployment > 0) rep.context.push(`勞動力中大約每 ${Math.round(1 / n.unemployment)} 人有 1 人失業`);
+  if (fin(n.unemployment) && n.unemployment > 0) rep.context.push(`Cerca de 1 de cada ${Math.round(1 / n.unemployment)} personas de la fuerza de trabajo está desempleada`);
   const ss = sorted(st, u);
-  if (ss.length >= 2) rep.context.push(`${rep.scope.note ? rep.scope.inMap : `各${rep.scope.label}`}介於 ${pct(ss.at(-1).v)} 與 ${pct(ss[0].v)} 之間`);
+  if (ss.length >= 2) rep.context.push(`Entre ${rep.scope.note ? rep.scope.inMap : `las ${rep.scope.label.toLowerCase()}`} va de ${pct(ss.at(-1).v)} a ${pct(ss[0].v)}`);
 
   const tone = (v) => (!fin(n.unemployment) || Math.abs(v / n.unemployment - 1) < 0.03 ? null : v > n.unemployment ? "bad" : "good");
-  const row = (label, x) => ({ label: `${label}：${x.r.name}`, sub: x.r.kind === "city" ? x.r.sub : "", value: x.v, text: pct(x.v), tone: tone(x.v) });
-  const spread = (list) => (list.length >= 3 ? [row("最高", list[0]), row("中位數", list[Math.floor(list.length / 2)]), row("最低", list.at(-1))] : []);
+  const row = (label, x) => ({ label: `${label}: ${x.r.name}`, sub: x.r.kind === "city" ? x.r.sub : "", value: x.v, text: pct(x.v), tone: tone(x.v) });
+  const spread = (list) => (list.length >= 3 ? [row("Máximo", list[0]), row("Mediana", list[Math.floor(list.length / 2)]), row("Mínimo", list.at(-1))] : []);
   const groups = [];
-  if (fin(n.unemployment)) groups.push({ rows: [{ label: "全國", value: n.unemployment, text: pct(n.unemployment), strong: true }] });
+  if (fin(n.unemployment)) groups.push({ rows: [{ label: "Región", value: n.unemployment, text: pct(n.unemployment), strong: true }] });
   const sRows = spread(ss), mRows = spread(sorted(metros, u, BIG_METRO_MIN));
   if (sRows.length) groups.push({ title: rep.scope.label, rows: sRows });
-  if (mRows.length) groups.push({ title: `大城市（人口 ${compact(BIG_METRO_MIN)}以上）`, rows: mRows });
-  if (groups.length) rep.breakdown = { title: "分布", note: rep.scope.note, groups };
+  if (mRows.length) groups.push({ title: `Comunas grandes (${compact(BIG_METRO_MIN)} hab. o más)`, rows: mRows });
+  if (groups.length) rep.breakdown = { title: "Distribución", note: rep.scope.note, groups };
 
-  const hint = `城市只列人口 ${compact(BIG_METRO_MIN)}以上者。`;
+  const hint = `Las comunas se listan solo con ${compact(BIG_METRO_MIN)} habitantes o más.`;
   const o = { fmt: pct, exact: (v) => pct(v, 2) };
   rep.boards.modes = [
-    { id: "abs", label: "最高", hint, states: rank(st, u, o), metros: rank(metros, u, { ...o, min: BIG_METRO_MIN }) },
-    { id: "rel", label: "最低", hint, states: rank(st, u, { ...o, asc: true }), metros: rank(metros, u, { ...o, asc: true, min: BIG_METRO_MIN }) },
+    { id: "abs", label: "Más alto", hint, states: rank(st, u, o), metros: rank(metros, u, { ...o, min: BIG_METRO_MIN }) },
+    { id: "rel", label: "Más bajo", hint, states: rank(st, u, { ...o, asc: true }), metros: rank(metros, u, { ...o, asc: true, min: BIG_METRO_MIN }) },
   ];
 }
 
 function reportGold(rep, nation, n, st, metros) {
   const gdp = (o) => o.gdp ?? o.yields?.gold ?? null;
   const pp = ratio(rep.total, n.population);
-  // GDP and population can come from different years (output statistics usually lag the population count): say which.
+  // Sales and population can come from different years (output statistics usually lag the population count): say which.
   const G = gdpLabel(nation);
   const popYear = fin(nation.year) ? nation.year : null;
-  const years = n.gdp_year && popYear && n.gdp_year !== popYear ? `${n.gdp_year} 年${G} ÷ ${popYear} 年人口` : `${G} ÷ 人口`;
-  if (pp != null) rep.context.push(`人均${G} ${money(pp)}（${years}）`);
-  if (n.gdp_year) rep.context.push(`${n.gdp_year} 年，當年價格`);
+  const years = n.gdp_year && popYear && n.gdp_year !== popYear ? `${G} de ${n.gdp_year} ÷ población de ${popYear}` : `${G} ÷ población`;
+  if (pp != null) rep.context.push(`${G} por habitante: ${money(pp)} (${years.toLowerCase()})`);
+  if (n.gdp_year) rep.context.push(`Año ${n.gdp_year}, a precios corrientes`);
 
   const rows = Object.entries(n.gdp_by_industry || {})
     .filter(([, v]) => fin(v))
@@ -251,13 +250,13 @@ function reportGold(rep, nation, n, st, metros) {
       const s = ratio(v, rep.total);
       return { label, full, iconId: industryIcon(k), emoji: DISTRICT_ICON[k] || "•", value: v, text: money(v), sub: s != null ? pct(s) : "" };
     });
-  if (rows.length) rep.breakdown = { title: `各產業的${G}`, groups: [{ rows }], collapseAfter: GDP_ROWS };
+  if (rows.length) rep.breakdown = { title: `${G} por rubro`, groups: [{ rows }], collapseAfter: GDP_ROWS };
 
   const perPerson = (o) => ratio(gdp(o), o.population);
   rep.boards.modes = [
-    { id: "abs", label: `${G}最高`, states: rank(st, gdp, { fmt: money, exact: dollars }), metros: rank(metros, gdp, { fmt: money, exact: dollars }) },
+    { id: "abs", label: `Más ${G.toLowerCase()}`, states: rank(st, gdp, { fmt: money, exact: dollars }), metros: rank(metros, gdp, { fmt: money, exact: dollars }) },
     {
-      id: "rel", label: "人均", hint: `${years}；城市只列人口 ${compact(METRO_MIN)}以上者。`,
+      id: "rel", label: "Por habitante", hint: `${years}; las comunas se listan solo con ${compact(METRO_MIN)} habitantes o más.`,
       states: rank(st, perPerson, { fmt: money, exact: dollars }), metros: rank(metros, perPerson, { fmt: money, exact: dollars, min: METRO_MIN }),
     },
   ];
@@ -267,19 +266,19 @@ function reportJobs(rep, def, nation, n, st, metros) {
   const key = def.key;
   const nShare = ratio(rep.total, n.employed);
   const G = gdpLabel(nation);
-  if (nShare != null) rep.context.push(`占全國就業人口（${compact(n.employed)}）的 ${pct(nShare)}`);
+  if (nShare != null) rep.context.push(`${pct(nShare)} del empleo de la región (${compact(n.employed)})`);
   const per1k = ratio(rep.total, n.population);
-  if (per1k != null) rep.context.push(`每千人口 ${Math.round(per1k * 1000)} 人`);
+  if (per1k != null) rep.context.push(`${Math.round(per1k * 1000)} por cada mil habitantes`);
 
   const inds = Array.isArray(def.yield?.industries) ? def.yield.industries : [];
   const gdpOf = inds.map((k) => n.gdp_by_industry?.[k]);
   if (inds.length && gdpOf.every(fin) && fin(n.gdp)) {
     const sum = gdpOf.reduce((a, b) => a + b, 0);
-    rep.context.push(`${inds.length > 1 ? "這些產業" : "這個產業"}創造 ${money(sum)} 的${G}（占 ${pct(sum / n.gdp)}${n.gdp_year ? `，${n.gdp_year} 年` : ""}）`);
+    rep.context.push(`${inds.length > 1 ? "Estos rubros generan" : "Este rubro genera"} ${money(sum)} en ${G.toLowerCase()} (${pct(sum / n.gdp)} del total${n.gdp_year ? `, ${n.gdp_year}` : ""})`);
   }
   // Worker counts and the GDP figures can come from different sources: credit both.
   if (inds.some((k) => fin(n.gdp_by_industry?.[k])) && nation.gdp_vintage && nation.gdp_vintage !== rep.source) {
-    rep.source = `${rep.source ? `${rep.source}（就業人口）；` : ""}${nation.gdp_vintage}（${G}）`;
+    rep.source = `${rep.source ? `${rep.source} (empleo); ` : ""}${nation.gdp_vintage} (${G.toLowerCase()})`;
   }
   const rows = inds
     .map((k) => {
@@ -288,26 +287,26 @@ function reportJobs(rep, def, nation, n, st, metros) {
       const { label, full } = industryLabel(nation, k);
       const s = ratio(v, n.employed);
       const g = n.gdp_by_industry?.[k];
-      const sub = [s != null ? `占全部就業 ${pct(s)}` : "", fin(g) ? `${G} ${money(g)}` : ""].filter(Boolean).join(" · ");
+      const sub = [s != null ? `${pct(s)} del empleo total` : "", fin(g) ? `${G} ${money(g)}` : ""].filter(Boolean).join(" · ");
       return { label, full, iconId: industryIcon(k), emoji: DISTRICT_ICON[k] || "•", value: v, text: compact(v), sub };
     })
     .filter(Boolean)
     .sort((a, b) => b.value - a.value);
-  if (rows.length) rep.breakdown = { title: "各產業的就業人口", groups: [{ rows }] };
+  if (rows.length) rep.breakdown = { title: "Empleo por rubro", groups: [{ rows }] };
 
   const y = (o) => o.yields?.[key];
   const lq = (o) => (nShare ? ratio(ratio(y(o), o.employed), nShare) : null);
   const shareSub = (o) => {
     const s = ratio(y(o), o.employed);
-    return s != null ? `占就業 ${pct(s)}` : "";
+    return s != null ? `${pct(s)} del empleo` : "";
   };
   const fmtLq = (v) => `×${v.toFixed(2)}`;
   const exactLq = (v) => `×${v.toFixed(3)}`;
   rep.boards.modes = [
-    { id: "abs", label: "就業人口最多", states: rank(st, y), metros: rank(metros, y) },
+    { id: "abs", label: "Más empleo", states: rank(st, y), metros: rank(metros, y) },
     {
-      id: "rel", label: "專業化程度",
-      hint: `當地就業人口中「${def.label}」的占比 ÷ 全國占比（${pct(nShare)}）；城市只列人口 ${compact(METRO_MIN)}以上者。`,
+      id: "rel", label: "Especialización",
+      hint: `Peso de "${def.label}" en el empleo local ÷ su peso en la región (${pct(nShare)}); las comunas se listan solo con ${compact(METRO_MIN)} habitantes o más.`,
       states: rank(st, lq, { fmt: fmtLq, exact: exactLq, subOf: shareSub }), metros: rank(metros, lq, { fmt: fmtLq, exact: exactLq, subOf: shareSub, min: METRO_MIN }),
     },
   ];
@@ -342,17 +341,17 @@ function barsHtml(bd, expanded) {
     })
     .join("");
   const more = bd.collapseAfter && all.length > bd.collapseAfter
-    ? `<button class="yr-more" data-more aria-expanded="${expanded}">${expanded ? "收合" : `顯示全部 ${all.length} 項`}</button>` : "";
+    ? `<button class="yr-more" data-more aria-expanded="${expanded}">${expanded ? "Mostrar menos" : `Mostrar los ${all.length}`}</button>` : "";
   return groups + more;
 }
 
 function boardHtml(rows) {
-  if (!rows?.length) return `<p class="muted yr-empty">無資料。</p>`;
+  if (!rows?.length) return `<p class="muted yr-empty">Sin datos.</p>`;
   const max = Math.max(0, ...rows.map((r) => Math.abs(r.value)));
   return `<ol class="yr-list">${rows
     .map((r) => {
       const w = max > 0 ? (Math.abs(r.value) / max) * 100 : 0;
-      const tip = `開啟${r.name}${r.exact && r.exact !== r.text ? `（${r.exact}）` : ""}`;
+      const tip = `Abrir ${r.name}${r.exact && r.exact !== r.text ? ` (${r.exact})` : ""}`;
       return `<li><button class="yr-row" data-kind="${r.kind}" data-ref="${esc(r.ref)}" title="${esc(tip)}">
         <span class="yr-rk">${r.rank}</span>
         <span class="yr-nm">${esc(r.name)}${r.sub ? ` <span class="muted">${esc(r.sub)}</span>` : ""}</span>
@@ -414,29 +413,29 @@ export function initYieldReports(opts) {
     pop.innerHTML = `
       <div class="yr-head">
         <span class="yr-ic" style="color:${esc(def.color)}">${defIcon(def, 26)}</span>
-        <div class="yr-titles"><div class="yr-kind">全國報告</div><h2 id="yr-title">${esc(def.name)}</h2></div>
-        <button class="icon-btn yr-close" aria-label="關閉報告（Esc）" title="關閉（Esc）">${icon("close", "✕", { size: 12 })}</button>
+        <div class="yr-titles"><div class="yr-kind">Informe de la región</div><h2 id="yr-title">${esc(def.name)}</h2></div>
+        <button class="icon-btn yr-close" aria-label="Cerrar el informe (Esc)" title="Cerrar (Esc)">${icon("close", "✕", { size: 12 })}</button>
       </div>
       <div class="yr-total"><b style="color:${esc(def.color)}">${esc(rep.totalText)}</b>
         ${rep.context.length ? `<ul class="yr-ctx">${rep.context.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}</div>
       ${rep.definition ? `<p class="yr-def">${esc(rep.definition)}</p>` : ""}
-      ${rep.source ? `<div class="yr-src">資料來源：${esc(rep.source)}</div>` : ""}
+      ${rep.source ? `<div class="yr-src">Fuente: ${esc(rep.source)}</div>` : ""}
       ${rep.breakdown ? `<section class="yr-sec"><h3>${esc(rep.breakdown.title)}</h3>
         ${rep.breakdown.note ? `<p class="yr-note">${esc(rep.breakdown.note)}</p>` : ""}
         <div class="yr-bars">${barsHtml(rep.breakdown, expanded)}</div></section>` : ""}
-      ${modes.length ? `<section class="yr-sec"><h3>排行榜</h3>
+      ${modes.length ? `<section class="yr-sec"><h3>Ranking</h3>
         <div class="yr-controls">
-          <div class="yr-tabs" role="tablist" aria-label="排名範圍">
-            <button role="tab" id="yr-tab-states" data-tab="states" aria-controls="yr-board" aria-selected="${tab === "states"}" tabindex="${tab === "states" ? 0 : -1}" ${hasStates ? "" : "disabled"}>縣市</button>
-            <button role="tab" id="yr-tab-metros" data-tab="metros" aria-controls="yr-board" aria-selected="${tab === "metros"}" tabindex="${tab === "metros" ? 0 : -1}" ${hasMetros ? "" : "disabled"}>城市</button>
+          <div class="yr-tabs" role="tablist" aria-label="Ámbito del ranking">
+            <button role="tab" id="yr-tab-states" data-tab="states" aria-controls="yr-board" aria-selected="${tab === "states"}" tabindex="${tab === "states" ? 0 : -1}" ${hasStates ? "" : "disabled"}>Provincias</button>
+            <button role="tab" id="yr-tab-metros" data-tab="metros" aria-controls="yr-board" aria-selected="${tab === "metros"}" tabindex="${tab === "metros" ? 0 : -1}" ${hasMetros ? "" : "disabled"}>Comunas</button>
           </div>
-          ${modes.length > 1 ? `<div class="yr-modes" role="group" aria-label="排名方式">${modes
+          ${modes.length > 1 ? `<div class="yr-modes" role="group" aria-label="Criterio del ranking">${modes
             .map((x) => `<button data-mode="${x.id}" aria-pressed="${x.id === mode}">${esc(x.label)}</button>`).join("")}</div>` : ""}
         </div>
         <p class="yr-note yr-hint">${esc(hintText(m))}</p>
         <div id="yr-board" role="tabpanel" aria-labelledby="yr-tab-${tab}">${boardHtml(m?.[tab])}</div></section>` : ""}
-      ${rep.lens ? `<div class="yr-foot"><p class="yr-note yr-lens-note">相關指標，不是這項總數：${esc(rep.lens.unit || rep.lens.name)}${rep.lens.vintage ? `（${esc(rep.lens.vintage)}）` : ""}。</p>
-        <button class="btn yr-lens" data-lens="${esc(rep.lens.id)}">${icon("layers", "🗺️", { size: 14 })}相關地圖：「${esc(rep.lens.name)}」濾鏡</button></div>` : ""}
+      ${rep.lens ? `<div class="yr-foot"><p class="yr-note yr-lens-note">Medida relacionada, no es este total: ${esc(rep.lens.unit || rep.lens.name)}${rep.lens.vintage ? ` (${esc(rep.lens.vintage)})` : ""}.</p>
+        <button class="btn yr-lens" data-lens="${esc(rep.lens.id)}">${icon("layers", "🗺️", { size: 14 })}Mapa relacionado: lente "${esc(rep.lens.name)}"</button></div>` : ""}
       ${advisorButtons(rep.key)}`;
   }
 
@@ -445,10 +444,10 @@ export function initYieldReports(opts) {
     const list = advisorApp() ? ADVISOR_FOR[key] || [] : [];
     if (!list.length) return "";
     return `<div class="yr-foot yr-adv">${list.map((a) => `<button class="btn yr-advisor" data-advisor="${esc(a.id)}"${a.industry ? ` data-industry="${esc(a.industry)}"` : ""}
-      title="開啟「${esc(a.label.replace(/（.*）$/, ""))}」顧問：圖表、表格與地圖彼此連動">${icon("g-people", "👥", { size: 14 })}開啟顧問：${esc(a.label)}</button>`).join("")}</div>`;
+      title="Abrir el consejero ${esc(a.label.replace(/ \(.*\)$/, ""))}: gráficos, tablas y mapa conectados entre sí">${icon("g-people", "👥", { size: 14 })}Abrir consejero: ${esc(a.label)}</button>`).join("")}</div>`;
   }
 
-  // The ranking's hint, plus (on the States tab) which states are ranked.
+  // The ranking's hint, plus (on the Provincias tab) which provinces are ranked.
   function hintText(m) {
     const parts = [m?.hint || ""];
     if (tab === "states" && current.rep.boards.statesNote) parts.push(current.rep.boards.statesNote);
@@ -479,7 +478,7 @@ export function initYieldReports(opts) {
     if (current && current.btn !== btn) current.btn.setAttribute("aria-expanded", "false");
     if (!current || current.key !== key) {
       expanded = false;
-      mode = "abs"; // each report opens on its main ranking; the States / Metros tab is remembered
+      mode = "abs"; // each report opens on its main ranking; the Provincias / Comunas tab is remembered
     }
     current = { key, btn, rep };
     for (const b of buttons()) b.classList.toggle("open", b === btn);
