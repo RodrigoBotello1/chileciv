@@ -9,16 +9,17 @@ from __future__ import annotations
 import math
 from collections import Counter
 
-from ..core.geo import AlbersEllipsoid, MapProjection, Shape, ShapeIndex
+from ..core.geo import HEX_KM, HEX_RADIUS, SCALE, MapProjection, ScaledAlbers, Shape, ShapeIndex
 from ..core.hexgrid import SQRT3, HexGrid
 from ..core.store import load_interim, save_interim, write_web
 
-REQUIRES = ["census_boundaries", "natural_earth", "etopo", "nlcd"]
+REQUIRES = ["cl_boundaries", "natural_earth", "srtm15", "worldcover", "cl_rivers"]
 PRODUCES = ["_world", "world.json"]
 
-HEX_RADIUS_KM = 25.0
-MARGIN_KM = 200.0
-CONUS_EXCLUDE = {"02", "15", "60", "66", "69", "72", "78"}  # AK, HI, territories
+# Map units, not km: the map is real km × SCALE (core/geo.py), so a 25-unit hex is HEX_KM km across its corners.
+HEX_RADIUS_KM = HEX_RADIUS
+MARGIN_KM = 300.0  # map units (12 km at 1 km hexes)
+FOREIGN_SKIP: set[str] = set()  # Natural Earth's Chile covers the region too, but the comuna outlines are tested first
 
 # Cell owner codes (besides state index >= 0)
 WATER, FOREIGN = -1, -2
@@ -26,98 +27,107 @@ WATER, FOREIGN = -1, -2
 # --- tables (written to world.json so the frontend and Almanac read one definition) ---------
 
 LAND, OCEAN, COAST, LAKE = range(4)
-TIDAL_SEA_SHARE = 0.5  # share of ETOPO samples below 0 m that keeps a sea-centred hex as water
+TIDAL_SEA_SHARE = 0.5  # share of SRTM15+ samples below 0 m that keeps a sea-centred hex as water
 COAST_DEPTH_M = -200
 WATER_TABLE = [
-    {"id": LAND, "name": "Land", "rule": "At least 4 of the hex's 7 sample points (centre + 6) fall on Census state or Natural Earth country outlines, unless the centre is sea and the ETOPO1 mean is at or below sea level, or at least half its ETOPO1 samples are (tidal bays such as the Chesapeake stay water)."},
-    {"id": OCEAN, "name": "Ocean", "color": "#1b4266", "rule": "Sea deeper than 200 m and not next to land."},
-    {"id": COAST, "name": "Coast", "color": "#2d6d97", "rule": "Sea next to a land hex, or shallower than 200 m (ETOPO1 mean)."},
-    {"id": LAKE, "name": "Lake", "color": "#3a80b0", "rule": "Water hex (most of its 7 sample points off land) with Natural Earth 1:50m lake points that outnumber sea points, or above sea level."},
+    {"id": LAND, "name": "Tierra", "rule": "Al menos 4 de los 7 puntos de muestra del hexágono (el centro y 6 alrededor) caen dentro de una comuna de la región o de un país de Natural Earth; salvo que el centro esté en el mar y la elevación media de SRTM15+ no supere el nivel del mar, o que al menos la mitad de las muestras esté bajo el nivel del mar."},
+    {"id": OCEAN, "name": "Océano", "color": "#1b4266", "rule": "Mar de más de 200 m de profundidad que no toca tierra."},
+    {"id": COAST, "name": "Costa", "color": "#2d6d97", "rule": "Mar junto a un hexágono de tierra, o de menos de 200 m de profundidad (media de SRTM15+)."},
+    {"id": LAKE, "name": "Lago o embalse", "color": "#3a80b0", "rule": "Hexágono de agua (la mayoría de sus 7 puntos fuera de la tierra) con más puntos dentro de un lago de Natural Earth 1:10m que en el mar, o sobre el nivel del mar."},
 ]
 
 WATER_NOTE = (
-    "Census 1:20M state outlines and Natural Earth 1:50m country and lake outlines don't meet exactly. A sea hex whose "
-    "ETOPO1 mean is above sea level (and under half of its samples below it) becomes land when at least 4 of its 6 neighbours are land, or when it touches both "
-    "US and foreign land; it takes the neighbours' majority owner. Narrow reservoirs that cover less than half a hex "
-    "are land, and their river is drawn through them. Tidal bays stay water when the hex centre is sea and its "
-    "ETOPO1 mean is at or below sea level or at least half of its ETOPO1 samples are. A sea hex's "
-    "elevation is the mean of its ETOPO1 samples below sea level (its water depth)."
+    "Los contornos comunales (geoBoundaries, BCN) y los países de Natural Earth 1:10m no calzan exactos. Un hexágono de "
+    "agua cuya elevación media en SRTM15+ está sobre el nivel del mar pasa a tierra si al menos 4 de sus 6 vecinos son "
+    "tierra, o si toca a la vez la región y tierra de fuera; toma la pertenencia de la mayoría de sus vecinos. Los "
+    "embalses de menos de medio hexágono de ancho cuentan como tierra. En el mar, la elevación es la media de las "
+    "muestras bajo el nivel del mar (la profundidad)."
 )
 
 FLAT, HILLS, MOUNTAINS, PEAKS = range(4)
-LAND_MIN_ALT_M = -100  # ETOPO samples below this inside a land hex are treated as sea floor
+LAND_MIN_ALT_M = -100  # SRTM15+ samples below this inside a land hex are treated as sea floor
+MOUNTAIN_MIN_M = 1800  # above the Andean foothills (precordillera)
+PEAKS_MIN_M = 3500  # alta cordillera: rock, snow and glaciers
 RELIEF_TABLE = [
-    {"id": FLAT, "name": "Flat", "rule": "Elevation standard deviation inside the hex under 85 m."},
-    {"id": HILLS, "name": "Hills", "rule": "Elevation standard deviation ≥ 85 m."},
-    {"id": MOUNTAINS, "name": "Mountains", "rule": "Elevation standard deviation ≥ 260 m, or mean elevation ≥ 2,300 m."},
-    {"id": PEAKS, "name": "Peaks", "rule": "Mean elevation ≥ 2,700 m (alpine)."},
+    {"id": FLAT, "name": "Llano", "rule": "Ni cerro ni montaña: los valles y la cuenca de Santiago, que es plana aunque esté a 500-800 m de altura."},
+    {"id": HILLS, "name": "Cerros", "rule": "Desviación estándar de la elevación dentro del hexágono ≥ 70 m: la Cordillera de la Costa, la precordillera y los cerros isla como el San Cristóbal o el Renca."},
+    {"id": MOUNTAINS, "name": "Montañas", "rule": f"Elevación media ≥ {MOUNTAIN_MIN_M:,} m, o desviación estándar ≥ 250 m."},
+    {"id": PEAKS, "name": "Alta cordillera", "rule": f"Elevación media ≥ {PEAKS_MIN_M:,} m."},
 ]
 RELIEF_NOTE = (
-    "From ETOPO1 samples (~9 km apart, about 20 per hex) with altitude ≥ -100 m, so bays and sea floor don't "
-    "count; all samples are used if none qualify. Water hexes are always flat."
+    f"Sale de las muestras de SRTM15+ (15 segundos de arco, unos 460 m entre muestras, unas {round(2.598 * HEX_KM**2 / 0.21)} "
+    "por hexágono). Solo se usan las muestras ≥ -100 m; si ninguna cumple, se usan todas. Los hexágonos de agua son "
+    "siempre llanos. Si el 60% más bajo de las muestras es un fondo de valle plano (menos de 60 m de diferencia y bajo "
+    "1,000 m), el hexágono baja una clase de relieve: es valle con un cerro en el borde."
 )
 
 URBAN_MIN_PCT = 30
-# id, key, name, colour, NLCD codes, rule. Ids are fixed by docs/DATA_CONTRACTS.md.
+SCLEROPHYLL_MAX_M = 2000  # bosque esclerófilo below; the scattered Andean forest and scrub above
+# id, key, name, colour, WorldCover codes, rule. Ids are fixed by docs/DATA_CONTRACTS.md (the frontend draws them).
 COVER = [
-    (1, "forest_deciduous", "Deciduous forest", "#4f7a35", [41], "Forest (41+42+43) is the largest group and deciduous (41) the largest forest type."),
-    (2, "forest_evergreen", "Conifer forest", "#2f5a3a", [42], "Forest is the largest group and evergreen (42) the largest forest type."),
-    (3, "forest_mixed", "Mixed forest", "#43703f", [43], "Forest is the largest group and mixed (43) the largest forest type."),
-    (4, "scrub", "Scrub & desert", "#c9b07a", [52], "Shrub/scrub (52) is the largest group: deserts, chaparral, sagebrush."),
-    (5, "grassland", "Grassland", "#a9b35a", [71, 21], "Grassland/herbaceous (71) plus developed open space (21: lawns, parks) is the largest group."),
-    (6, "pasture", "Pasture", "#8fb04e", [81], "Pasture/hay (81) is the largest group."),
-    (7, "cropland", "Cropland", "#c2b84e", [82], "Cultivated crops (82) is the largest group."),
-    (8, "wetland", "Wetland", "#4f8a6e", [90, 95], "Woody (90) plus emergent herbaceous (95) wetlands is the largest group."),
-    (9, "urban", "Urban", "#8a8378", [22, 23, 24], f"Developed low/medium/high intensity (22+23+24) is ≥ {URBAN_MIN_PCT}% of the hex's land, whatever else is there."),
-    (10, "barren", "Barren", "#bfae95", [31], "Barren land (31: rock, sand, playa) is the largest group."),
-    (11, "ice", "Ice & snow", "#e8eef2", [12], "Perennial ice/snow (12) is the largest group."),
+    (1, "forest_deciduous", "Bosque esclerófilo", "#4f7a35", [10], f"Cobertura arbórea (10) es la clase mayor y la elevación media está bajo {SCLEROPHYLL_MAX_M:,} m: peumo, litre, quillay, boldo y espino, y también plantaciones."),
+    (2, "forest_evergreen", "Bosque de coníferas", "#2f5a3a", [], "No se dibuja: la región no tiene bosques nativos de coníferas, y WorldCover no separa las plantaciones de pino."),
+    (3, "forest_mixed", "Bosque andino", "#43703f", [10], f"Cobertura arbórea es la clase mayor y la elevación media es ≥ {SCLEROPHYLL_MAX_M:,} m: roble de Santiago, olivillo de cordillera y matorral alto."),
+    (4, "scrub", "Matorral", "#c9b07a", [20], "Matorral (20) es la clase mayor: el espinal y el matorral esclerófilo de los cerros."),
+    (5, "grassland", "Pastizal", "#a9b35a", [30], "Pastizal (30) es la clase mayor: praderas, vegas de altura, parques y canchas."),
+    (6, "pasture", "Pradera", "#8fb04e", [], "No se dibuja: WorldCover no tiene clase de praderas de pastoreo (quedan en pastizal o cultivo)."),
+    (7, "cropland", "Cultivos", "#c2b84e", [40], "Cultivos (40) es la clase mayor: viñas, frutales, hortalizas y chacras."),
+    (8, "wetland", "Humedal", "#4f8a6e", [90, 95], "Humedal herbáceo (90) más manglar (95) es la clase mayor: Batuco y las vegas."),
+    (9, "urban", "Ciudad", "#8a8378", [50], f"Superficie construida (50) ≥ {URBAN_MIN_PCT}% de la tierra del hexágono, sin importar las demás clases."),
+    (10, "barren", "Roca y suelo desnudo", "#bfae95", [60, 100], "Suelo desnudo o vegetación rala (60) más musgo y líquenes (100) es la clase mayor: las laderas de la alta cordillera y los lechos de río."),
+    (11, "ice", "Nieve y glaciar", "#e8eef2", [70], "Nieve y hielo (70) es la clase mayor: glaciares como El Plomo y Echaurren."),
 ]
 COVER_NOTE = (
-    "From NLCD 2021 (~2 km pixels), sampled on a 2 km lattice inside each US hex (about 400 points). Open water (11) "
-    "and no-data pixels are ignored; shares are of the remaining land points, rounded to whole percent, and the urban "
-    "threshold is applied to the rounded developed share. NLCD covers only the lower 48, so foreign hexes (Canada, "
-    "Mexico, the Caribbean) have cover 0 (none)."
+    "Sale de ESA WorldCover 2021 (10 m, leído en su nivel de resumen 1/16: píxeles de unos 148 m), con una grilla de "
+    "puntos dentro de cada hexágono de la región. El agua permanente (80) y los píxeles sin dato no cuentan; las "
+    "proporciones son sobre el resto de los puntos de tierra, redondeadas a porcentaje entero, y el umbral de ciudad se "
+    "aplica a la proporción construida ya redondeada. WorldCover tiene una sola clase de árboles, así que el tipo de "
+    f"bosque sale de la elevación media del hexágono (esclerófilo bajo {SCLEROPHYLL_MAX_M:,} m, andino desde ahí). Sin "
+    "clase de praderas, las praderas son 0 en todas partes. Fuera de la región, la cobertura es 0 (ninguna)."
 )
 # Groups competing for the dominant cover (urban is decided by its threshold first).
 GROUPS = {
-    "forest": (41, 42, 43), "scrub": (52,), "grassland": (71, 21), "pasture": (81,), "cropland": (82,),
-    "wetland": (90, 95), "barren": (31,), "ice": (12,),
+    "forest": (10,), "scrub": (20,), "grassland": (30,), "cropland": (40,),
+    "wetland": (90, 95), "barren": (60, 100), "ice": (70,),
 }
-FOREST_ID = {41: 1, 42: 2, 43: 3}
-GROUP_ID = {"scrub": 4, "grassland": 5, "pasture": 6, "cropland": 7, "wetland": 8, "barren": 10, "ice": 11}
+GROUP_ID = {"scrub": 4, "grassland": 5, "cropland": 7, "wetland": 8, "barren": 10, "ice": 11}
 URBAN_ID = 9
 PCT = {
-    "forest": (41, 42, 43), "crop": (82,), "pasture": (81,), "grass": (71, 21), "shrub": (52,),
-    "wetland": (90, 95), "developed": (22, 23, 24),
+    "forest": (10,), "crop": (40,), "pasture": (), "grass": (30,), "shrub": (20,),
+    "wetland": (90, 95), "developed": (50,),
 }
-NLCD_STEP_KM = 2.0
+WC_STEP = 0.135 * SCALE  # lattice spacing in map units (~135 m real, a little under the 148 m pixel)
 
 
 def classify_relief(mean: float, std: float) -> int:
-    if mean >= 2700:
+    if mean >= PEAKS_MIN_M:
         return PEAKS
-    if std >= 260 or mean >= 2300:
+    if std >= 250 or mean >= MOUNTAIN_MIN_M:
         return MOUNTAINS
-    if std >= 85:
+    if std >= 70:
         return HILLS
     return FLAT
 
 
 def is_valley_floor(samples: list) -> bool:
-    """True when the lower 60% of a hex's land samples is flat lowland (within 60 m, under 400 m): the hex is mostly
-    valley floor even if a range at its edge makes the whole hex's spread look hilly or mountainous."""
+    """True when the lower 60% of a hex's land samples is a flat valley floor (within 60 m, under 1,000 m): the hex is
+    mostly valley even if a hill at its edge makes the whole hex's spread look hilly or mountainous."""
     if len(samples) < 6:
         return False
     v = sorted(samples)
     lo = v[: max(3, int(len(v) * 0.6))]
-    return lo[-1] < 400 and lo[-1] - lo[0] < 60
+    return lo[-1] < 1000 and lo[-1] - lo[0] < 60
 
 
-def dominant_cover(counts: Counter, land: int) -> int:
-    """Cover id for a hex from its NLCD class counts (land = points that are not water or no-data)."""
+def forest_id(elev_m: float) -> int:
+    return 1 if elev_m < SCLEROPHYLL_MAX_M else 3
+
+
+def dominant_cover(counts: Counter, land: int, elev_m: float = 0.0) -> int:
+    """Cover id for a hex from its WorldCover class counts (land = points that are not water or no-data)."""
     if not land:
         return 0
-    if round(100 * sum(counts[c] for c in (22, 23, 24)) / land) >= URBAN_MIN_PCT:  # same rounding as pct.developed
+    if round(100 * counts[50] / land) >= URBAN_MIN_PCT:  # same rounding as pct.developed
         return URBAN_ID
     best, best_n = None, 0
     for g, codes in GROUPS.items():  # dict order breaks ties
@@ -127,7 +137,7 @@ def dominant_cover(counts: Counter, land: int) -> int:
     if best is None:
         return 0  # only developed land below the urban threshold
     if best == "forest":
-        return FOREST_ID[max((41, 42, 43), key=lambda c: counts[c])]
+        return forest_id(elev_m)
     return GROUP_ID[best]
 
 
@@ -247,37 +257,36 @@ def majority(values: list, centre) -> object:
 
 
 def build() -> None:
-    bounds = load_interim("census_boundaries")
+    bounds = load_interim("cl_boundaries")
     ne = load_interim("natural_earth")
-    etopo = load_interim("etopo")
-    nlcd = load_interim("nlcd")
+    srtm = load_interim("srtm15")
+    wc = load_interim("worldcover")
+    cl_rivers = load_interim("cl_rivers")["rivers"]
 
-    states = [s for s in bounds["states"] if s["fips"] not in CONUS_EXCLUDE]
-    states.sort(key=lambda s: s["name"])
-    counties = [c for c in bounds["counties"] if c["state_fips"] not in CONUS_EXCLUDE]
-    counties.sort(key=lambda c: c["geoid"])
+    states = sorted(bounds["states"], key=lambda s: s["fips"])
+    counties = sorted(bounds["counties"], key=lambda c: c["geoid"])
 
-    # Projection: fit the lower-48 with a margin.
+    # Projection: fit the map window (cl_boundaries bbox) with a margin.
     probe = MapProjection(0, 0, 0)
     xs, ys = [], []
-    for s in states:
-        for ring in s["rings"]:
-            for lon, lat in ring:
-                x, y = probe._albers(lon, lat)
-                xs.append(x)
-                ys.append(y)
+    lon0, lat0, lon1, lat1 = bounds["bbox"]
+    for lon in (lon0, (lon0 + lon1) / 2, lon1):
+        for lat in (lat0, lat1):
+            x, y = probe._albers(lon, lat)
+            xs.append(x)
+            ys.append(y)
     proj = MapProjection(min(xs), max(ys), MARGIN_KM)
     width = max(xs) - min(xs) + 2 * MARGIN_KM
     height = max(ys) - min(ys) + 2 * MARGIN_KM
     grid = HexGrid.covering(width, height, HEX_RADIUS_KM)
-    print(f"    grid {grid.cols}×{grid.rows} = {grid.size} hexes of {HEX_RADIUS_KM:g} km")
+    print(f"    grid {grid.cols}×{grid.rows} = {grid.size} hexes of {HEX_KM:g} km ({HEX_RADIUS_KM:g} map units)")
 
     def shape(rings):
         return Shape([[proj(lon, lat) for lon, lat in r] for r in rings])
 
     state_idx = ShapeIndex([shape(s["rings"]) for s in states])
     county_idx = ShapeIndex([shape(c["rings"]) for c in counties], cell_km=60)
-    foreign_idx = ShapeIndex([shape(c["rings"]) for c in ne["countries"]], cell_km=200)
+    foreign_idx = ShapeIndex([shape(c["rings"]) for c in ne["countries"] if c.get("name") not in FOREIGN_SKIP], cell_km=200)
     lake_idx = ShapeIndex([shape(l["rings"]) for l in ne["lakes"]])
 
     # --- elevation statistics per hex (land samples and all samples) -----------------------------
@@ -286,7 +295,14 @@ def build() -> None:
     samples_land = [[] for _ in range(grid.size)]  # land altitudes, for the peak height and the valley-floor test
     below_sea = [0] * grid.size  # ETOPO samples below 0 m ...
     below_sum = [0.0] * grid.size  # ... and their altitude sum
-    for lat, lon, alt in zip(etopo["lat"], etopo["lon"], etopo["alt"]):
+    def srtm_points():
+        for r, row in enumerate(srtm["alt"]):
+            lat = srtm["lat0"] + r * srtm["dlat"]
+            for c, alt in enumerate(row):
+                if alt is not None:
+                    yield lat, srtm["lon0"] + c * srtm["dlon"], alt
+
+    for lat, lon, alt in srtm_points():
         i = grid.cell_at(*proj(lon, lat))
         if i < 0:
             continue
@@ -371,7 +387,7 @@ def build() -> None:
         owner[i], water[i] = o, LAND
     print(f"    {len(slivers)} sliver water hexes turned into land: {[i for i, _ in slivers]}")
 
-    # --- counties for US cells -------------------------------------------------------------------
+    # --- comunas for cells in the region -------------------------------------------------------------------
     county = [-1] * grid.size
     county_samples: list[list[int]] = [[] for _ in range(grid.size)]
     for i in range(grid.size):
@@ -401,7 +417,7 @@ def build() -> None:
         pool = same or valid
         county[i] = smp[0] if smp[0] in pool else Counter(pool).most_common(1)[0][0]
         off_state += not same
-    print(f"    {borrowed} US hexes borrowed a neighbour's county; {off_state} have no county in their own state")
+    print(f"    {borrowed} hexes borrowed a neighbour's comuna; {off_state} have no comuna in their own provincia")
 
     # --- elevation, water depth classes and relief -------------------------------------------------
     elev = [0] * grid.size
@@ -439,12 +455,10 @@ def build() -> None:
                 water[i] = COAST if near_land or elev[i] > COAST_DEPTH_M else OCEAN
     print(f"    {no_elev} hexes without elevation samples; {valley_floor} valley-floor hexes eased one relief class")
 
-    # --- land cover from NLCD --------------------------------------------------------------------
-    albers = AlbersEllipsoid()  # NLCD is in EPSG:5070
-    rows, legend = nlcd["rows"], nlcd["legend"]
-    x0, dx, y0, dy = nlcd["x0"], nlcd["dx"], nlcd["y0"], nlcd["dy"]
-    ncols, nrows = nlcd["cols"], len(rows)
-    lattice = hex_lattice(HEX_RADIUS_KM, NLCD_STEP_KM)
+    # --- land cover from WorldCover --------------------------------------------------------------
+    rows, legend = wc["rows"], wc["legend"]
+    lon0, lat0, px, ncols, nrows = wc["lon0"], wc["lat0"], wc["px"], wc["cols"], len(rows)
+    lattice = hex_lattice(HEX_RADIUS_KM, WC_STEP)
     cover = [0] * grid.size
     pct = {k: [0] * grid.size for k in PCT}
     no_cover = 0
@@ -454,19 +468,19 @@ def build() -> None:
         cx, cy = grid.center(*grid.col_row(i))
         counts: Counter = Counter()
         for ox, oy in lattice:
-            ex, ey = albers(*proj.inverse(cx + ox, cy + oy))
-            c, r = round((ex - x0) / dx), round((ey - y0) / dy)
+            lon, lat = proj.inverse(cx + ox, cy + oy)
+            c, r = round((lon - lon0) / px), round((lat0 - lat) / px)
             if 0 <= c < ncols and 0 <= r < nrows:
                 counts[rows[r][c]] += 1
         counts = Counter({legend[ch]: n for ch, n in counts.items()})
-        land = sum(n for code, n in counts.items() if code not in (0, 11))
-        cover[i] = dominant_cover(counts, land)
+        land = sum(n for code, n in counts.items() if code not in (0, 80))
+        cover[i] = dominant_cover(counts, land, elev[i])
         if not land:
             no_cover += 1
             continue
         for k, codes in PCT.items():
             pct[k][i] = round(100 * sum(counts[c] for c in codes) / land)
-    print(f"    {len(lattice)} NLCD points per hex; {no_cover} US hexes without land-cover samples")
+    print(f"    {len(lattice)} WorldCover points per hex; {no_cover} region hexes without land-cover samples")
 
     # --- rivers ----------------------------------------------------------------------------------
     # Lake centerlines are kept only where they cross land hexes (reservoirs narrower than half a hex,
@@ -476,7 +490,7 @@ def build() -> None:
         return c >= 0 and water[c] == LAND
 
     by_river: dict[tuple, list] = {}
-    for r in ne["rivers"]:
+    for r in cl_rivers:  # OpenStreetMap only: Natural Earth 1:50m rivers are too coarse at 1 km hexes
         if r["rank"] > 8:
             continue
         line = [proj(lon, lat) for lon, lat in r["line"]]
@@ -494,8 +508,8 @@ def build() -> None:
             if len(pts) >= 2:
                 rivers.append({"name": name, "rank": rank, "pts": [round(v, 1) for p in pts for v in p]})
 
-    cover_table = [{"id": 0, "key": "none", "name": "None", "rule": "Water, foreign land, or no NLCD land pixels."}] + [
-        {"id": cid, "key": key, "name": name, "color": color, "nlcd": codes, "rule": rule}
+    cover_table = [{"id": 0, "key": "none", "name": "Ninguna", "rule": "Agua, tierra fuera de la región, o sin píxeles de tierra en WorldCover."}] + [
+        {"id": cid, "key": key, "name": name, "color": color, "worldcover": codes, "rule": rule}
         for cid, key, name, color, codes, rule in COVER
     ]
     tables = {
@@ -504,7 +518,7 @@ def build() -> None:
         "cover": cover_table,
         "notes": {"water": WATER_NOTE, "relief": RELIEF_NOTE, "cover": COVER_NOTE},
     }
-    states_out = [{"fips": s["fips"], "abbr": s["abbr"], "name": s["name"]} for s in states]
+    states_out = [{"fips": s["fips"], "abbr": s["abbr"], "name": s["name"], "name_en": s["name_en"]} for s in states]
     write_web(
         "world.json",
         {
@@ -513,6 +527,7 @@ def build() -> None:
             "width": round(width, 1),
             "height": round(height, 1),
             "margin": MARGIN_KM,
+            "projection": proj.to_dict(),
             "owner": owner,
             "county": county,
             "elev": elev,
@@ -523,7 +538,7 @@ def build() -> None:
             "pct": pct,
             "tables": tables,
             "states": states_out,
-            "counties": [{"geoid": c["geoid"], "name": c["name"]} for c in counties],
+            "counties": [{"geoid": c["geoid"], "name": c["name"], "name_en": c["name_en"]} for c in counties],
             "rivers": rivers,
         },
     )

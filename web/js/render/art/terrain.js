@@ -372,22 +372,22 @@ function speckle(g, S, r, n, dark, light) {
 
 // Albers equal-area conic of the pipeline (pipeline/core/geo.py Albers + MapProjection); keep in sync.
 const RAD = Math.PI / 180;
+// Region Albers equal-area (pipeline/core/geo.py CL_ALBERS). Map units are real km × projection.scale.
 const ALBERS = (() => {
-  const RE = 6371.0088, p1 = 29.5 * RAD, p2 = 45.5 * RAD, p0 = 37.5 * RAD;
+  const RE = 6371.0088, p1 = -34.0 * RAD, p2 = -33.2 * RAD, p0 = -33.6 * RAD;
   const n = (Math.sin(p1) + Math.sin(p2)) / 2;
   const c = Math.cos(p1) ** 2 + 2 * n * Math.sin(p1);
-  return { RE, n, c, rho0: (RE * Math.sqrt(c - 2 * n * Math.sin(p0))) / n, lon0: -96 };
+  return { RE, n, c, rho0: (RE * Math.sqrt(c - 2 * n * Math.sin(p0))) / n, lon0: -70.75 };
 })();
 // The shipped grid's projection (data/interim/_world.json), used when world.json does not carry `projection`.
-const SHIPPED_PROJ = { min_x: -2350.109311515341, max_y: 1559.2228881834299, margin: 200, grid: [25, 117, 90] };
+const SHIPPED_PROJ = null; // world.json always carries its projection
 const geoTables = new WeakMap();
 
 function geoTable(w) {
   let t = geoTables.get(w);
   if (t === undefined) {
-    const raw = w.raw, g = w.grid, sp = SHIPPED_PROJ;
-    const p = raw.projection
-      || (raw.margin === sp.margin && g.R === sp.grid[0] && g.cols === sp.grid[1] && g.rows === sp.grid[2] ? sp : null);
+    const raw = w.raw, g = w.grid;
+    const p = raw.projection || null;
     t = p ? { p, lon: new Float32Array(g.size).fill(NaN), lat: new Float32Array(g.size) } : null;
     geoTables.set(w, t);
   }
@@ -399,10 +399,12 @@ function geo(w, i) {
   const t = geoTable(w);
   if (t && Number.isNaN(t.lon[i])) {
     const { RE, n, c, rho0, lon0 } = ALBERS;
-    const X = w.grid.cx(i) + t.p.min_x - t.p.margin, Y = t.p.max_y + t.p.margin - w.grid.cy(i);
-    const dy = rho0 - Y, rho = Math.hypot(X, dy);
+    const k = t.p.scale || 1; // map units per km
+    const X = (w.grid.cx(i) + t.p.min_x - t.p.margin) / k, Y = (t.p.max_y + t.p.margin - w.grid.cy(i)) / k;
+    const sg = n > 0 ? 1 : -1; // southern-hemisphere cones have n < 0 (Snyder 1987, eq. 14-10)
+    const dy = rho0 - Y, rho = sg * Math.hypot(X, dy);
     const s = (c - ((rho * n) / RE) ** 2) / (2 * n);
-    t.lon[i] = lon0 + Math.atan2(X, dy) / n / RAD;
+    t.lon[i] = lon0 + Math.atan2(sg * X, sg * dy) / n / RAD;
     t.lat[i] = Math.asin(Math.max(-1, Math.min(1, s))) / RAD;
   }
   return t;
@@ -414,16 +416,14 @@ function onPlateau(w, i) {
   if (e < 1400 || e > 2400) return false; // tablelands, not the high ranges or the low desert
   const t = geo(w, i);
   if (!t) return hash01(i, 97) < 0.5; // synthetic worlds (the dev gallery): some high desert
-  const lon = t.lon[i], lat = t.lat[i];
-  return lat > 35.8 && lat < 38.6 && lon > -112.6 && lon < -107.8;
+  return false; // no canyon country in the region (the US build drew mesas on the Colorado Plateau)
 }
 
 /** The Great Basin (Nevada, western Utah, eastern Oregon and California): basin-and-range country. */
 function inGreatBasin(w, i) {
   const t = geo(w, i);
   if (!t) return false;
-  const lon = t.lon[i], lat = t.lat[i];
-  return lat > 36.2 && lat < 43.6 && lon > -120.3 && lon < -111.8;
+  return false; // no basin-and-range country in the region
 }
 
 /** Centre-pivot irrigation belongs to the dry High Plains and the West (west of ~98°W). */

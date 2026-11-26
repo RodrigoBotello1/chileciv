@@ -1,14 +1,13 @@
-"""States: the same economic profile as a city (ACS 1-year + BEA GDP), ranks, and a label anchor.
+"""States = the 6 provincias of the Santiago Metropolitan Region: the same economic profile as a city, ranks, and a
+label anchor.
 
-Also land-cover shares over the state's hexes and the MW of the power plants mapped in resources.json
-(only the sites above each type's threshold, so not the state's total capacity).
+Also land-cover shares over the provincia's hexes and the MW of the power plants mapped in resources.json
+(only the sites above each type's threshold, so not the provincia's total capacity).
 
-Ranks are among the lower 48 + DC (1 = largest). The label anchor is the state's
-"pole of inaccessibility" on the hex map (the hex farthest from the border, by hex
-steps, or one nearly as deep that fits a bigger name), turned along the state's long axis
-when that helps, and sized to fit the run of the state's own hexes through the anchor.
-`size` assumes ~0.6 em per character; for very small states (RI, DE) the 14 km minimum
-can exceed the state, so the frontend should still clamp or hide those labels.
+Ranks are among the 6 provincias (1 = largest). The label anchor is the provincia's "pole of inaccessibility" on the
+hex map (the hex farthest from the border, by hex steps, or one nearly as deep that fits a bigger name), turned
+along its long axis when that helps, and sized to fit the run of its own hexes through the anchor. Sizes are in map
+units (a hex has radius 25). Approach borrowed from usaciv and taiwanciv.
 """
 
 from __future__ import annotations
@@ -20,13 +19,13 @@ from collections import deque
 from ..core.hexgrid import HexGrid
 from ..core.paths import WEB_DATA
 from ..core.store import load_interim, write_web
-from .growth import Growth
-from .yields import YIELDS, economy, gdp_profile
+from .cities import sii_by_code
+from .yields import YIELDS, economy, merge
 
-REQUIRES = ["_world", "census_boundaries", "acs_1yr", "bea_gdp", "pep_population", "resources.json"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "sii_empresas", "uf"]
 PRODUCES = ["states.json"]
 
-MIN_LABEL_KM, MAX_LABEL_KM = 14.0, 110.0  # suggested font height range, map km
+MIN_LABEL_KM, MAX_LABEL_KM = 14.0, 110.0  # suggested font height range, map units (hex radius = 25)
 
 
 def label_anchor(grid: HexGrid, owner: list[int], s: int, name: str) -> dict | None:
@@ -86,7 +85,7 @@ def label_anchor(grid: HexGrid, owner: list[int], s: int, name: str) -> dict | N
                 2 * min(reach(x - o * uy, y + o * ux, ux, uy), reach(x - o * uy, y + o * ux, -ux, -uy))
                 for o in offsets
             )
-            h = min(h, 0.9 * along / (0.6 * max(len(name), 4)))
+            h = min(h, 0.9 * along / (0.6 * max(len(name), 3)))  # Latin capitals are ~0.6 em wide
             offsets = [0.0, h / 2, -h / 2]
         return h
 
@@ -113,9 +112,7 @@ def label_anchor(grid: HexGrid, owner: list[int], s: int, name: str) -> dict | N
 
 
 PCT_KEYS = ["forest", "crop", "pasture", "grass", "shrub", "wetland", "developed"]
-ENERGY_NOTE = ("Only the power plants and wind/solar/battery clusters mapped as resources, each above its type's "
-               "size threshold (e.g. gas plants of 1,500 MW or more), are counted: this is not the state's total "
-               "generating capacity.")
+ENERGY_NOTE = "Solo cuenta las centrales marcadas en la capa de recursos (cada tipo tiene un umbral, ver la capa), no la capacidad instalada total de la provincia."
 
 
 def land_shares(world: dict, s: int) -> dict | None:
@@ -131,7 +128,7 @@ def land_shares(world: dict, s: int) -> dict | None:
 
 def energy_by_state() -> dict[str, dict] | None:
     """abbr → {unit, total, by_type, sites, note} summed from resources.json items of every MW type
-    (states without a mapped site get zeros under "", the default row); None if resources.json is not built."""
+    (counties without a mapped site get zeros under "", the default row); None if resources.json is not built."""
     path = WEB_DATA / "resources.json"
     if not path.exists():
         return None
@@ -153,30 +150,33 @@ def energy_by_state() -> dict[str, dict] | None:
 
 def build() -> None:
     world = load_interim("_world")
-    acs_all = load_interim("acs_1yr")
-    acs = acs_all["geos"]
-    growth = Growth(load_interim("pep_population"), acs_all["year"])  # Census estimates, see growth.py
-    bea = load_interim("bea_gdp")
+    bounds = load_interim("cl_boundaries")
+    censo = load_interim("ine_censo2024")
+    sii = load_interim("sii_empresas")
+    uf = load_interim("uf")["values"].get(str(sii["year"]))
     grid = HexGrid(**world["grid"])
     owner = world["owner"]
-    names = {s["fips"]: s for s in load_interim("census_boundaries")["states"]}
+    names = {s["fips"]: s for s in bounds["states"]}
+    sii_of = sii_by_code(sii, censo)
 
     energy = energy_by_state()
     if energy is None:
         print("    resources.json not built yet: energy left null")
     states = []
     for i, fips in enumerate(world["states"]):
-        meta = names.get(fips, {"abbr": None, "name": fips})
-        rec = acs.get("0400000US" + fips, {})
-        econ = economy(rec, gdp_profile(bea["states"].get(fips), bea["year"]))
+        meta = names[fips]
+        comunas = [c for c in censo["comunas"] if c["prov_code"] == fips]
+        econ = economy(sum(c["population"] for c in comunas), merge([sii_of[c["code"]] for c in comunas]), uf, sii["year"])
         states.append(
             {
                 "fips": fips,
                 "abbr": meta["abbr"],
                 "name": meta["name"],
+                "name_en": meta["name_en"],
                 **econ,
-                "growth": growth.state(fips),
-                "growth_years": growth.years,
+                "growth": None,
+                "growth_years": None,
+                "pop_series": None,
                 "ranks": {},
                 "label": label_anchor(grid, owner, i, meta["name"]),
                 "land": land_shares(world, i),
@@ -192,5 +192,4 @@ def build() -> None:
             s["ranks"].setdefault(key, None)
     write_web("states.json", states)
     no_label = [s["abbr"] for s in states if not s["label"]]
-    print(f"    {len(states)} states" + (f"; no hexes (no label anchor): {', '.join(no_label)}" if no_label else ""))
-
+    print(f"    {len(states)} provincias" + (f"; no hexes (no label anchor): {', '.join(no_label)}" if no_label else ""))

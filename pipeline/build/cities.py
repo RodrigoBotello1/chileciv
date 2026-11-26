@@ -1,80 +1,45 @@
-"""Cities = metro/micro areas with ACS 1-year data, placed at their principal city.
+"""Cities = the 52 comunas of the Santiago Metropolitan Region, each placed at its most built-up hex.
 
-Each city keeps its true position (x, y) and gets one land cell for its banner:
-the cell under the principal city, snapped to the nearest US land cell when that
-is water or foreign, and nudged up to 2 rings away when a bigger city already
-holds it. GDP (Gold) is the sum of the metro's counties from BEA CAGDP2.
-Population growth (2021 → the ACS year) comes from the Census population estimates, which
-cover every year on today's metro borders (see growth.py).
-For the City view each city also gets its member counties, a hex footprint (cells where most
-county samples are member counties), its yearly population series, ranks among all cities and
-its 5 nearest peers by population (see docs/DATA_CONTRACTS.md).
+The comuna plays the role of a US metro area: the census counts people by comuna and the SII counts companies by
+comuna. Each city keeps a true position (x, y): the centre of its most built-up hex (the WorldCover share of
+built-up land; ties go to the hex nearest the comuna's centroid), so rural comunas sit on their town rather than
+in the mountains. Its banner cell is that hex, nudged up to 2 rings away when a bigger comuna already holds it.
+Gold is the annual sales of the companies headquartered in the comuna (see yields.py). For the City view each city
+also gets its member comuna (itself), a hex footprint, ranks and its 5 nearest peers by population.
 """
 
 from __future__ import annotations
 
 import math
-import re
 
 from ..core.geo import MapProjection
 from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, load_interim_payload, write_web
-from .growth import Growth
-from .yields import GDP_INDUSTRIES, INDUSTRY_LINES, YIELDS, bea_combos, economy, gdp_profile, sum_counties
+import unicodedata
 
-REQUIRES = ["_world", "census_gazetteer", "acs_1yr", "acs_5yr", "cbsa_delineation", "bea_gdp", "pep_population"]
+from .yields import INDUSTRIES, YIELDS, economy, merge
+
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "sii_empresas", "uf"]
 PRODUCES = ["cities.json", "nation.json"]
 
-NON_CONUS = {"AK", "HI", "PR"}
-CAPITAL_CBSA = "47900"  # Washington-Arlington-Alexandria, DC-VA-MD-WV
-DISPLAY_NAME = {"Boise City": "Boise"}  # official CBSA names that read oddly on a map
-HYPHENATED = {"Winston-Salem", "Wilkes-Barre", "Sedro-Woolley", "Lee's Summit", "Coeur d'Alene"}
-PLACE_SUFFIX = re.compile(
-    r" (city|town|village|borough|municipality|CDP|city and borough|urban county|"
-    r"metropolitan government|consolidated government|unified government)\b.*$"
-)
+CAPITAL = "13101"  # Santiago, seat of the national government
+SII_ALIAS = {"titil": "tiltil"}  # the SII spells Tiltil "Titil"
 
 
-def parse_cbsa_name(full: str) -> tuple[str, list[str]]:
-    """'Dallas-Fort Worth-Arlington, TX Metro Area' → ('Dallas', ['TX'])."""
-    base = re.sub(r" (Metro|Micro) Area$", "", full)
-    cities, _, states = base.rpartition(", ")
-    first = cities
-    for h in HYPHENATED:
-        if cities.startswith(h):
-            first = h
-            break
-    else:
-        first = re.split(r"--|-|/", cities)[0]
-    return first.strip(), states.split("-")
+def name_key(name: str) -> str:
+    s = unicodedata.normalize("NFD", name.lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn").replace(" ", "")
+    return SII_ALIAS.get(s, s)
 
 
-def name_matches(pname: str, name: str) -> bool:
-    return pname == name or pname.startswith((name + " ", name + "-", name + "/"))
-
-
-def principal_place(places_by_state: dict, name: str, state: str):
-    """Fallback: the Gazetteer place best matching `name` in `state` (exact name first, then largest)."""
-    best = None
-    for p in places_by_state.get(state, ()):
-        pname = p["name"]
-        if not name_matches(pname, name):
-            continue
-        rest = PLACE_SUFFIX.sub("", pname)
-        exact = rest == name or rest.startswith(name + "-")
-        score = (exact, p["aland_km2"])
-        if best is None or score > best[0]:
-            best = (score, p)
-    return best[1] if best else None
-
-
-def delineated_place(principals: list[dict], places_by_geoid: dict, name: str, states: list[str]):
-    """The OMB principal city that the CBSA title names first, as a Gazetteer place."""
-    for p in principals:
-        place = places_by_geoid.get(p["place_geoid"])
-        if place and name_matches(PLACE_SUFFIX.sub("", p["name"]), name) and place["usps"] in states:
-            return place
-    return None
+def sii_by_code(sii: dict, censo: dict) -> dict[str, dict]:
+    """INE comuna code → sii_empresas comuna record (the SII file has names only)."""
+    by_name = {name_key(n): rec for n, rec in sii["comunas"].items()}
+    out = {c["code"]: by_name.get(name_key(c["name"])) for c in censo["comunas"]}
+    missing = [c["name"] for c in censo["comunas"] if out[c["code"]] is None]
+    if missing:
+        print(f"    no SII record for: {', '.join(missing)}")
+    return out
 
 
 def ring_search(grid: HexGrid, start: int, max_rings: int):
@@ -94,7 +59,7 @@ def ring_search(grid: HexGrid, start: int, max_rings: int):
 
 
 def nearest_land(grid: HexGrid, owner: list[int], cell: int, x: float, y: float, state: int, max_rings=8):
-    """Nearest US land cell to (x, y), preferring `state`: the first ring with land, plus one more."""
+    """Nearest Taiwan land cell to (x, y), preferring `state`: the first ring with land, plus one more."""
     found_ring = None
     best = None
     for ring, c in ring_search(grid, cell, max_rings):
@@ -123,15 +88,32 @@ def free_cell(grid: HexGrid, owner, taken: set, cell: int, x: float, y: float, s
     return best[1] if best else None
 
 
-FOOTPRINT_MAJORITY = 4  # of a cell's 7 county samples
+def ring_centroid(rings: list[list[tuple[float, float]]]) -> tuple[float, float]:
+    """Area-weighted centroid (lon, lat) of a township's largest ring (its main island or main piece)."""
+    def area_c(r):
+        a = cx = cy = 0.0
+        for (x0, y0), (x1, y1) in zip(r, r[1:] + r[:1]):
+            f = x0 * y1 - x1 * y0
+            a += f
+            cx += (x0 + x1) * f
+            cy += (y0 + y1) * f
+        return a / 2, cx, cy
+    best = max(rings, key=lambda r: abs(area_c(r)[0]))
+    a, cx, cy = area_c(best)
+    if a == 0:
+        return best[0]
+    return cx / (6 * a), cy / (6 * a)
+
+
+FOOTPRINT_MAJORITY = 4  # of a cell's 7 township samples
 PEERS = 5
 RANK_KEYS = ["population", "gdp", "gdp_per_capita", "growth"] + [y["key"] for y in YIELDS]
 
 
 def footprints(world: dict, members: dict[str, list[str]]) -> dict[str, set[int]]:
-    """CBSA code → US land cells where at least FOOTPRINT_MAJORITY of the 7 county samples are member counties."""
-    cbsa_of = {g: code for code, geoids in members.items() for g in geoids}
-    by_index = [cbsa_of.get(g) for g in world["counties"]]
+    """City id → land cells where at least FOOTPRINT_MAJORITY of the 7 township samples are member townships."""
+    city_of = {g: code for code, geoids in members.items() for g in geoids}
+    by_index = [city_of.get(g) for g in world["counties"]]
     out: dict[str, set[int]] = {}
     for cell, s in enumerate(world["county_samples"]):
         if not s or world["owner"][cell] < 0:
@@ -145,14 +127,6 @@ def footprints(world: dict, members: dict[str, list[str]]) -> dict[str, set[int]
             if n >= FOOTPRINT_MAJORITY:
                 out.setdefault(code, set()).add(cell)
     return out
-
-
-def pop_series(pep: dict | None, code: str, members: list[str] | None) -> dict | None:
-    """{year: population} from the PEP metro file, or None (missing, or a different county list, as for growth)."""
-    rec = pep["cbsa"].get(code) if pep else None
-    if not rec or not rec.get("pop") or (members is not None and set(members) != set(rec["counties"])):
-        return None
-    return {str(y): (round(v) if v is not None else None) for y, v in zip(pep["years"], rec["pop"])}
 
 
 def add_ranks(cities: list[dict]) -> None:
@@ -169,7 +143,7 @@ def add_ranks(cities: list[dict]) -> None:
         c["ranks"] = {}
     for key in RANK_KEYS:
         have = [c for c in cities if value(c, key) is not None]
-        have.sort(key=lambda c: -value(c, key))  # stable: ties stay in population order
+        have.sort(key=lambda c: -value(c, key))
         for r, c in enumerate(have, 1):
             c["ranks"][key] = r
         for c in cities:
@@ -182,105 +156,65 @@ def add_ranks(cities: list[dict]) -> None:
 
 def build() -> None:
     world = load_interim("_world")
-    gaz = load_interim("census_gazetteer")
-    acs_payload = load_interim_payload("acs_1yr")
-    acs = acs_payload["data"]
-    acs5 = load_interim("acs_5yr")["geos"]
-    deline = load_interim("cbsa_delineation")
-    bea_payload = load_interim_payload("bea_gdp")
-    bea = bea_payload["data"]
+    bounds = load_interim("cl_boundaries")
+    censo = load_interim("ine_censo2024")
+    sii = load_interim("sii_empresas")
+    uf = load_interim("uf")["values"].get(str(sii["year"]))
     proj = MapProjection(**world["projection"])
     grid = HexGrid(**world["grid"])
     owner = world["owner"]
-
+    developed = world["pct"]["developed"]
+    county_of = world["county"]
+    pop = {c["code"]: c["population"] for c in censo["comunas"]}
+    sii_of = sii_by_code(sii, censo)
     state_index = {fips: i for i, fips in enumerate(world["states"])}
-    fips_of_usps = {g["usps"]: geoid[:2] for geoid, g in gaz["counties"].items()}
-    places_by_state: dict[str, list] = {}
-    for p in gaz["places"]:
-        places_by_state.setdefault(p["usps"], []).append(p)
-    places_by_geoid = {p["geoid"]: p for p in gaz["places"]}
-    county_pop = {k[9:]: r.get("B01003_001") for k, r in acs5.items()}
-    combos = bea_combos(bea, gaz["counties"])
-    pep = load_interim("pep_population")
-    growth = Growth(pep, acs["year"])
-    no_growth: dict[str, list[str]] = {}
+    abbr = {s["fips"]: s["abbr"] for s in bounds["states"]}
+    county_index = {g: k for k, g in enumerate(world["counties"])}
 
     cities = []
-    fallbacks, centroid, split_gdp, no_gdp = [], [], [], []
-    for cbsa_id, rec in acs["cbsa"].items():
-        meta = gaz["cbsa"].get(cbsa_id)
-        if not meta:
-            continue
-        short, states = parse_cbsa_name(meta["name"])
-        if states[0] in NON_CONUS:
-            continue
-        econ_pop = rec.get("B01003_001")
-        if not econ_pop:
-            continue
-        place = delineated_place(deline["principal_cities"].get(cbsa_id, []), places_by_geoid, short, states)
-        if not place:
-            place = principal_place(places_by_state, short, states[0])
-            fallbacks.append(meta["name"])
-        if place:
-            lon, lat = place["lon"], place["lat"]
+    for t in bounds["counties"]:
+        code = t["geoid"]
+        lon, lat = ring_centroid(t["rings"])
+        gx, gy = proj(lon, lat)
+        own = [i for i, k in enumerate(county_of) if k == county_index[code] and owner[i] >= 0]
+        if own:
+            def score(i):
+                cx, cy = grid.center(*grid.col_row(i))
+                return (-developed[i], math.hypot(cx - gx, cy - gy))
+            best = min(own, key=score)
+            x, y = grid.center(*grid.col_row(best))
         else:
-            lon, lat = meta["lon"], meta["lat"]
-            centroid.append(meta["name"])
-        x, y = proj(lon, lat)
-
-        members = deline["counties"].get(cbsa_id)
-        est: set = set()
-        if members:
-            lines, split = sum_counties(members, bea, combos, county_pop, est)
-            if split:
-                split_gdp.append(meta["name"])
-        else:
-            lines = None
-        gdp = gdp_profile(lines, bea["year"], est)
-        if gdp["total"] is None:
-            no_gdp.append(meta["name"])
-
-        g, why = growth.cbsa(cbsa_id, members)
-        if why:
-            no_growth.setdefault(why, []).append(meta["name"])
-
-        cities.append(
-            {
-                "id": cbsa_id,
-                "name": DISPLAY_NAME.get(short, short),
-                "full": meta["name"],
-                "states": states,
-                "metro": meta["metro"],
-                "capital": cbsa_id == CAPITAL_CBSA,
-                "x": round(x, 1),
-                "y": round(y, 1),
-                "cell": grid.cell_at(x, y),
-                **economy(rec, gdp),
-                "growth": g,
-                "growth_years": growth.years,
-                "counties": sorted(members or []),
-                "pop_series": pop_series(pep, cbsa_id, members),
-            }
-        )
+            x, y = gx, gy
+        econ = economy(pop[code], sii_of[code], uf, sii["year"])
+        cities.append({
+            "id": code,
+            "name": t["name"],
+            "full": f"{t['name']}, Región Metropolitana",
+            "name_en": t["name"],
+            "seat": t["name"],
+            "states": [abbr[t["state_fips"]]],
+            "metro": True,
+            "capital": code == CAPITAL,
+            "x": round(x, 1),
+            "y": round(y, 1),
+            "cell": grid.cell_at(x, y),
+            **econ,
+            "growth": None,
+            "growth_years": None,
+            "counties": [code],
+            "pop_series": None,
+        })
     cities.sort(key=lambda c: -c["population"])
+    state_of = {t["geoid"]: t["state_fips"] for t in bounds["counties"]}
 
-    # Banner cells: on US land, one city per cell where possible (bigger cities choose first).
     taken: set[int] = set()
-    snapped, pulled, moved, shared = [], [], [], []
+    snapped, moved, shared = [], [], []
     for c in cities:
-        own = {state_index.get(fips_of_usps.get(u), -1) for u in c["states"]}
-        state = state_index.get(fips_of_usps.get(c["states"][0]), -1)
+        state = state_index[state_of[c["id"]]]
         cell = c["cell"]
-        if cell < 0 or owner[cell] < 0:
+        if cell < 0 or owner[cell] != state:
             cell = nearest_land(grid, owner, max(cell, 0), c["x"], c["y"], state)
             snapped.append(c["name"])
-        elif owner[cell] not in own:
-            # A border city whose point falls just across the line: pull it back into its
-            # first state if that state has a free cell within 2 rings (the same reach as below).
-            alt = free_cell(grid, owner, taken, cell, c["x"], c["y"], state)
-            if alt is not None and owner[alt] == state:
-                cell = alt
-                pulled.append(c["name"])
         if cell in taken:
             alt = free_cell(grid, owner, taken, cell, c["x"], c["y"], state)
             if alt is None:
@@ -291,7 +225,7 @@ def build() -> None:
         taken.add(cell)
         c["cell"] = cell
 
-    feet = footprints(world, deline["counties"])
+    feet = footprints(world, {c["id"]: c["counties"] for c in cities})
     own_only = []
     for c in cities:
         cells = feet.get(c["id"], set())
@@ -301,39 +235,34 @@ def build() -> None:
             cells = cells | {c["cell"]}
         c["footprint"] = sorted(cells)
     add_ranks(cities)
-    no_series = [c["name"] for c in cities if c["pop_series"] is None]
 
-    print(f"    {len(cities)} cities; principal city from OMB list 2 for {len(cities) - len(fallbacks)}")
+    print(f"    {len(cities)} comunas, placed at their most built-up hex")
     for label, items in (
-        ("placed by name heuristic (no OMB principal-city match)", fallbacks),
-        ("placed at area centroid", centroid),
-        ("snapped off water/foreign cells", snapped),
-        ("pulled back across a state line into their own state", pulled),
+        ("snapped onto their own land", snapped),
         ("moved to a free neighbouring cell", moved),
         ("still sharing a cell", shared),
-        ("GDP uses a population split of a BEA combined area", split_gdp),
-        ("without GDP", no_gdp),
-        ("with a one-hex footprint (no cell with a county-sample majority)", own_only),
-        ("without a population series", no_series),
-        *((f"without growth: {why}", names) for why, names in sorted(no_growth.items())),
+        ("with a one-hex footprint", own_only),
     ):
         if items:
-            print(f"    {len(items)} {label}: {', '.join(items[:8])}{' …' if len(items) > 8 else ''}")
+            print(f"    {len(items)} {label}: {', '.join(items)}")
 
-    nat_rec = acs["geos"].get("0100000US", {})
-    nation = economy(nat_rec, gdp_profile(bea["nation"], bea["year"]))
-    nation["growth"] = growth.nation()
-    nation["growth_years"] = growth.years
+    region = economy(sum(pop.values()), merge(list(sii_of.values())), uf, sii["year"])
+    region["growth"] = None
+    region["growth_years"] = None
+    region["pop_series"] = None
     write_web("cities.json", cities)
     write_web(
         "nation.json",
         {
-            "vintage": acs_payload["vintage"],
-            "year": acs["year"],
-            "gdp_vintage": bea_payload["vintage"],
-            "nation": nation,
+            "vintage": f"Censo 2024 (INE); empresas del SII, año comercial {sii['year']}",
+            "year": censo["year"],
+            "gdp_vintage": f"Ventas anuales del SII, año comercial {sii['year']}, en pesos (UF al 31-12-{sii['year']})",
+            "nation": region,
             "yields": YIELDS,
-            "industries": {k: label for k, (_, label) in INDUSTRY_LINES.items()},
-            "gdp_industries": GDP_INDUSTRIES,
+            "industries": {k: label for k, (_, label) in INDUSTRIES.items()},
+            "gdp_industries": {},
+            "income_year": None,
+            "currency": "CLP",
+            "country": {"name": "Región Metropolitana", "name_en": "Santiago Metropolitan Region", "abbr": "RM"},
         },
     )
