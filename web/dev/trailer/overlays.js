@@ -1,5 +1,5 @@
 // Trailer overlays, drawn in output pixels (1920×1080) on top of the rendered map: title and end cards, captions,
-// chips, the lens legend, the City View panel and the moving caravans on trade routes. Canvas 2D only, using the
+// chips, the lens legend, the City View panel and the moving caravans on routes (unused when the build has no trade file). Canvas 2D only, using the
 // app's own icon and citizen painters.
 import { drawIcon, hasIcon } from "../../js/icons.js";
 import { drawCitizen } from "../../js/render/art/people.js";
@@ -338,7 +338,7 @@ export function pulseRing(ctx, x, y, r, alpha, t) {
 /**
  * The city "screen": a right-hand panel in the style of the app's City View dock.
  * P = {name, full, badge: {label, color, icon}, stats: [[value, label]], rows: [{label, figs: [kind…], hi: kind,
- *      ratio}], highlight (what the glowing figures are), districts: [{icon, name, line}], source}
+ *      ratio}], highlight (what the glowing figures are), districts: [{icon, name, line}] (a second list under the heading P.extraTitle; left out when empty), rowsTitle, source}
  * slide: 0..1 (slides in from the right).
  */
 export function cityPanel(ctx, W, H, P, alpha, slide, tt) {
@@ -414,7 +414,7 @@ export function cityPanel(ctx, W, H, P, alpha, slide, tt) {
   ctx.font = `600 24px ${SANS}`;
   spacing(ctx, 4);
   ctx.fillStyle = GOLD_HI;
-  ctx.fillText("市民 · 就業", px, cy);
+  ctx.fillText(P.rowsTitle || "Habitantes", px, cy);
   if (P.highlight) {
     cy += 42;
     ctx.font = `600 30px ${SANS}`;
@@ -461,14 +461,15 @@ export function cityPanel(ctx, W, H, P, alpha, slide, tt) {
     });
   });
   cy += 40 + P.rows.length * 112 - 26;
+  // districts (districts.json has none in this build: the block is left out, rule and heading included)
+  if (P.districts.length) {
   ctx.fillStyle = "rgba(201,164,92,.5)";
   ctx.fillRect(px, cy, pw - 88, 1.5);
-  // districts
   cy += 54;
   ctx.font = `600 24px ${SANS}`;
   spacing(ctx, 4);
   ctx.fillStyle = GOLD_HI;
-  ctx.fillText("特色區域", px, cy);
+  ctx.fillText(P.extraTitle || "Zonas destacadas", px, cy);
   cy += 26;
   P.districts.forEach((d, i) => {
     const a = smooth((tt - 1.2 - i * 0.25) / 0.3);
@@ -487,6 +488,7 @@ export function cityPanel(ctx, W, H, P, alpha, slide, tt) {
     ctx.fillText(d.line, px + 82, dy + 62, pw - 170);
     ctx.restore();
   });
+  }
   // source line
   ctx.font = `500 19px ${SANS}`;
   spacing(ctx, 0.5);

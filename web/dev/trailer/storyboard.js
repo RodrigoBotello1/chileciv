@@ -3,42 +3,36 @@
 //
 // To re-render with the site's name, edit CONFIG and press Render again.
 export const CONFIG = {
-  title: "臺灣",
-  subtitle: "畫成策略遊戲地圖，全部取自真實公開資料",
-  url: "i-am-alvin.github.io/taiwanciv", // shown big on the end card ("" shows the cta line instead)
-  cta: "開放原始碼 · 連結在下方", // shown on the end card instead while url is empty ("" hides the line)
+  title: "chileciv",
+  subtitle: "La Región Metropolitana como mapa de estrategia",
+  url: "", // shown big on the end card ("" shows the cta line instead; there is no public site yet)
+  cta: "Sobre usaciv de Andrej Karpathy", // shown on the end card instead while url is empty ("" hides the line)
+  credit: "Datos públicos: INE, SII, ESA, OpenStreetMap, Wikidata", // the end card's line above the url/cta
 };
 
 import {
-  titleCard, endCard, caption, chip, lensLegend, cityPanel, caravans, routeGlow, pulseRing, vignette, darken,
+  titleCard, endCard, caption, chip, lensLegend, cityPanel, pulseRing, vignette, darken,
   win, smooth, easeInOut, lerp, clamp01,
 } from "./overlays.js";
-import { badgeOf, cityDistricts } from "../../js/ext/cityView/districts.js";
+import { badgeOf } from "../../js/ext/cityView/districts.js";
+import { compact, int, money, pct } from "../../js/format.js";
 
 export const FPS = 30;
 export const W = 1920, H = 1080;
 const FADE = 0.45; // crossfade between shots, s
 
 // --- number formatting ------------------------------------------------------------------------------------------
-// Money is New Taiwan dollars, counted in 萬 / 億 / 兆 (1e4 / 1e8 / 1e12) as Taiwanese statistics are.
-const int = (v) => Math.round(v).toLocaleString("zh-TW");
-const money = (v) => {
-  if (v >= 1e12) return `新臺幣 ${(v / 1e12).toFixed(2)} 兆元`;
-  if (v >= 1e8) return `新臺幣 ${int(v / 1e8)} 億元`;
-  return `新臺幣 ${int(v / 1e4)} 萬元`;
-};
-const moneyShort = (v) => (v >= 1e12 ? `${(v / 1e12).toFixed(2)} 兆` : v >= 1e8 ? `${int(v / 1e8)} 億` : `${int(v / 1e4)} 萬`);
-const people = (v) => (v >= 1e4 ? `${int(v / 1e4)} 萬` : int(v));
-const peopleShort = (v) => (v >= 1e4 ? `${(v / 1e4).toFixed(1)} 萬` : int(v));
-/** Freight in thousand tonnes (trade.json tons_k) → 萬公噸. */
-const tons = (k) => `${int(k / 10)} 萬公噸`;
+// Money is Chilean pesos and counts follow the site's own helpers (js/format.js): "mil", "M", "mil M", "billones".
+const people = (v) => (v >= 1e3 ? compact(v) : int(v));
+const signedPct = (x) => `${x >= 0 ? "+" : "-"}${Math.abs(x * 100).toFixed(0)}%`;
+/** "1 de cada 4 personas" from a share. */
 function oneIn(share) {
-  if (!(share > 0)) return "無";
-  if (share >= 0.3) return `每 10 人有 ${Math.round(share * 10)} 人`;
-  return `每 ${Math.round(1 / share)} 人有 1 人`;
+  if (!(share > 0)) return "nadie";
+  if (share >= 0.3) return `${Math.round(share * 10)} de cada 10 personas`;
+  return `1 de cada ${Math.round(1 / share)} personas`;
 }
-// drops asides in ASCII or full-width parentheses: "人力資源調查 2025 年平均（主計總處，職業）" → "人力資源調查 2025 年平均"
-const stripParen = (s) => String(s || "").replace(/（.*?）/g, "").replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
+// drops asides in parentheses: "Censo 2024 (INE)" → "Censo 2024"
+const stripParen = (s) => String(s || "").replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
 // Short on-screen names for a few sources (the full titles are in sources.json and the app's Almanac); the year,
 // when the title has one, is read from the title.
 const SHORT = { srtm15: "SRTM15+", worldcover: "ESA WorldCover" };
@@ -95,6 +89,11 @@ function gatherFacts(stage) {
 /**
  * Build the shot list. Each shot: {id, t0, t1, render(sec) → [{view, alpha}] (map layers to blend, in order),
  * overlay(ctx, sec, frame)} where sec is the shot's local time and frame = {toScreen(x, y) → output px}.
+ *
+ * The story (ids are what score.js looks for, so they stay): title (the whole region, the Andes to the east) →
+ * terrain (the Andes front above Peñalolén) → cities (Santiago and La Moneda) → lenses (density, growth,
+ * foreign-born) → improvements (Las Condes and the Gran Torre Costanera, wonders layer) → city (across the Maipo
+ * valley farmland into Melipilla's City View) → trade (the high Andes, El Morado; no trade data in this build) → end.
  */
 export function buildStoryboard(stage, cfg = CONFIG) {
   const { data } = stage;
@@ -102,14 +101,22 @@ export function buildStoryboard(stage, cfg = CONFIG) {
   const { land, homeRpx, src } = F;
   const shots = [];
   const shot = (s) => { shots.push(s); return s; };
-  const WIDE = { banners: false, resources: false, labels: false }; // whole-map look: no banners or state names
+  const WIDE = { banners: false, resources: false, labels: false }; // whole-map look: no banners or province names
 
   // Transitions (`trans` on the incoming shot): "dip" = through dark (only out of the title), "punch" = a quick
   // zoom-through cut between places far apart, "cut" = the camera carries on from the previous shot's last frame
   // (one continuous move across the shot boundary). Times are absolute seconds.
-  const T_TERRAIN = 3.1, T_TPE = 5.8, T_LENS = 9.8, T_IMP = 15.3, T_CITY = 19.9, T_TRADE = 24.6, T_END = 27.4, T_OUT = 30;
+  const T_TERRAIN = 3.1, T_STGO = 5.8, T_LENS = 9.8, T_IMP = 15.3, T_CITY = 19.9, T_AND = 24.6, T_END = 27.4, T_OUT = 30;
 
-  // 1. Title over the whole map, slow push-in. The map is already half lit on frame 0. --------------------------
+  // Real places, looked up by name in the data so the camera follows the data if it is rebuilt.
+  const wonderByName = (name) => data.wonders.wonders.find((w) => w.name === name);
+  const moneda = wonderByName("Palacio de La Moneda");
+  const costanera = wonderByName("Gran Torre Costanera");
+  const morado = wonderByName("El Morado");
+  const need = { moneda, costanera, morado };
+  for (const [k, v] of Object.entries(need)) if (!v) throw new Error(`storyboard: wonders.json has no ${k}`);
+
+  // 1. Title over the whole region, slow push-in. The map is already half lit on frame 0. ------------------------
   shot({
     id: "title", t0: 0, t1: T_TERRAIN + 0.2,
     render: (t) => [{ view: { ...camAt({ x: land.cx, y: land.cy, rpx: homeRpx * 0.98 }, { x: land.cx + 40, y: land.cy - 10, rpx: homeRpx * 1.1 }, t / 3.3), ...WIDE } }],
@@ -120,59 +127,67 @@ export function buildStoryboard(stage, cfg = CONFIG) {
     },
   });
 
-  // 2. Terrain: south along the Central Mountain Range, from 合歡山 toward 玉山 (a slow drift and push, ~150-200 px/s).
+  // 2. Terrain: the front of the Andes east of Santiago (Peñalolén and Las Condes at their foot), a slow drift and
+  // push, ~150-200 px/s.
   const dem = src.get("srtm15"), cover = src.get("worldcover");
-  const TERRAIN_T = T_TPE - T_TERRAIN;
+  const TERRAIN_T = T_STGO - T_TERRAIN;
   shot({
-    id: "terrain", t0: T_TERRAIN, trans: "dip", t1: T_TPE,
-    render: (t) => [{ view: camAt({ x: 3990, y: 3350, rpx: 30 }, { x: 3860, y: 3560, rpx: 37 }, glide(t / (TERRAIN_T + 0.2))) }],
+    id: "terrain", t0: T_TERRAIN, trans: "dip", t1: T_STGO,
+    render: (t) => [{ view: camAt({ x: 3800, y: 2330, rpx: 30 }, { x: 3690, y: 2500, rpx: 37 }, glide(t / (TERRAIN_T + 0.2))) }],
     overlay(ctx, t) {
       caption(ctx, W, H, {
-        kicker: "地形",
-        title: "每一格都來自真實資料",
-        sub: "高程與地表覆蓋畫出整張地圖",
+        kicker: "Terreno",
+        title: "Cada hexágono viene de datos reales",
+        sub: "Altura y cobertura del suelo dibujan todo el mapa",
         source: [dem, cover].filter(Boolean).map(srcLabel).join(" · "),
       }, win(t, 0.45, TERRAIN_T + 0.05, 0.45, 0.3), clamp01((t - 0.45) / 0.6));
     },
   });
 
-  // 3. Cities: up the northwest coast from 桃園 into 臺北市, which ends on the right third, vertically centred. ---------
-  const tpe = F.city("臺北市");
-  const TPE_T = T_LENS - T_TPE;
-  const tpeEnd = { x: tpe.x - 60, y: tpe.y + 10, rpx: 62 };
-  // a slow westward drift (km/s) under the whole 臺北市 move, so the camera never parks before the pull-out
-  const TPE_DRIFT = -24;
-  const tpeCam = (t) => { const c = camAt({ x: tpe.x - 380, y: tpe.y + 300, rpx: 28 }, tpeEnd, smooth(t / TPE_T)); return { ...c, x: c.x + TPE_DRIFT * (t - TPE_T) }; };
+  // 3. Cities: in from the southwest into central Santiago, ending on La Moneda right of centre. -----------------
+  const stgo = F.city("Santiago");
+  const STGO_T = T_LENS - T_STGO;
+  const stgoEnd = { x: moneda.x - 60, y: moneda.y + 10, rpx: 62 };
+  // a slow westward drift (map units/s) under the whole Santiago move, so the camera never parks before the pull-out
+  const STGO_DRIFT = -24;
+  const stgoCam = (t) => { const c = camAt({ x: stgo.x - 380, y: stgo.y + 300, rpx: 28 }, stgoEnd, smooth(t / STGO_T)); return { ...c, x: c.x + STGO_DRIFT * (t - STGO_T) }; };
   shot({
-    id: "cities", t0: T_TPE, trans: "punch", t1: T_LENS,
-    render: (t) => [{ view: tpeCam(t) }],
+    id: "cities", t0: T_STGO, trans: "punch", t1: T_LENS,
+    render: (t) => [{ view: stgoCam(t) }],
     overlay(ctx, t, frame) {
-      const a = win(t, 1.3, TPE_T - 0.05, 0.5, 0.4);
-      const [sx, sy] = frame.toScreen(tpe.x, tpe.y);
+      const a = win(t, 1.3, STGO_T - 0.05, 0.5, 0.4);
+      const [sx, sy] = frame.toScreen(moneda.x, moneda.y);
       pulseRing(ctx, sx, sy, frame.cam.scale * stage.R * 1.5 * 2.2, a, t);
       caption(ctx, W, H, {
-        kicker: "城市",
-        title: tpe.name,
-        sub: `生產毛額 ${money(tpe.gdp)} · 人口 ${people(tpe.population)}`,
-        source: `生產毛額：${stripParen(data.nation.gdp_vintage)} · 人口：${String(data.nation.vintage).split("；")[0]}`,
+        kicker: "Comuna",
+        title: stgo.name,
+        sub: `La Moneda, ${people(stgo.population)} habitantes · ventas ${money(stgo.gdp)}`,
+        source: `Población: ${stripParen(String(data.nation.vintage).split(";")[0])} · ${stripParen(data.nation.gdp_vintage)}`,
       }, a, clamp01((t - 1.3) / 0.6));
     },
   });
 
-  // 4. Lenses: pull out of 臺北市 to the whole map as the income lens washes in, then two more lenses while the
-  // camera drifts west to east. ------------------------------------------------------------------------------------
-  const LENSES = ["income", "bachelors", "density"].map((id) => stage.lensById.get(id)).filter(Boolean);
+  // 4. Lenses: pull out of Santiago to the whole region as the density lens washes in, then two more lenses while
+  // the camera drifts west to east. ----------------------------------------------------------------------------
+  const LENSES = ["density", "growth", "foreign_born"].map((id) => stage.lensById.get(id)).filter(Boolean);
   const nLens = data.lenses.lenses.length;
   const lensFmt = stage.formatLensTick;
   const legendOf = (l) => ({ name: l.name, unit: l.unit, icon: l.icon, ramp: l.ramp, lo: lensFmt(l, 0, 0), hi: lensFmt(l, 1, 4) });
+  // the two big comunas (100,000+ people) that grew most, read from the data for the growth lens's caption
+  const [y0, y1] = (data.cities.find((c) => c.growth_years)?.growth_years) || [2017, 2024];
+  const growers = data.cities.filter((c) => c.population >= 1e5 && Number.isFinite(c.growth)).sort((a, b) => b.growth - a.growth).slice(0, 2);
+  const growthSub = growers.length === 2
+    ? `${growers[0].name} (${signedPct(growers[0].growth)}) y ${growers[1].name} (${signedPct(growers[1].growth)}) crecieron más entre ${y0} y ${y1}`
+    : `Cambio de población entre ${y0} y ${y1}`;
+  const lensSub = (l) => (l.id === "growth" ? growthSub : l.id === "density" ? "Habitantes por km² en cada hexágono" : l.id === "foreign_born" ? "Nacidos fuera de Chile, por comuna" : l.unit);
   const LENS_T = T_IMP - T_LENS, ZO = 1.0, LD = (LENS_T - ZO) / LENSES.length, LK = 0.4;
   const lensA = { x: land.cx - 150, y: land.cy + 20, rpx: homeRpx * 1.04 };
   const lensB = { x: land.cx + 150, y: land.cy, rpx: homeRpx * 1.14 };
-  // the pull-out starts with 臺北市's drift and hands it over to the zoom
+  // the pull-out starts with Santiago's drift and hands it over to the zoom
   const lensCam = (t) => {
     if (t >= ZO) return camAt(lensA, lensB, clamp01((t - ZO) / (LENS_T - ZO)));
-    const c = camZoom(tpeEnd, lensA, smooth(t / ZO));
-    return { ...c, x: c.x + TPE_DRIFT * t * (1 - smooth(t / ZO)) };
+    const c = camZoom(stgoEnd, lensA, smooth(t / ZO));
+    return { ...c, x: c.x + STGO_DRIFT * t * (1 - smooth(t / ZO)) };
   };
   // which lens is up at shot time t, and how far the change to the next one has got (0..1)
   const lensAt = (t) => {
@@ -206,29 +221,30 @@ export function buildStoryboard(stage, cfg = CONFIG) {
       const cur = LENSES[k > 0.5 ? i + 1 : i];
       const s = src.get(cur.source);
       caption(ctx, W, H, {
-        kicker: "濾鏡",
-        title: `${nLens} 種濾鏡`,
-        sub: "依所得、學歷、網速、信仰……為地圖著色",
-        source: `${cur.name}：${s ? srcLabel(s) : cur.source}`,
+        kicker: "Lentes",
+        title: `${nLens} lentes`,
+        sub: lensSub(cur),
+        source: `${cur.name}: ${s ? srcLabel(s) : cur.source}`,
       }, whole, clamp01((t - 0.55) / 0.6));
     },
   });
 
-  // 5. Tile improvements: dive from the whole map into the Port of Kaohsiung, then the layers come in one by one. ----
-  // (The Taiwan build has no military layer: docs/PORTING.md.)
-  const khh = F.city("高雄市");
-  const infra = data.infrastructure, won = data.wonders;
+  // 5. Map layers: dive from the whole region into Las Condes and the Gran Torre Costanera; the wonders layer comes
+  // in, then two chips. (This build has no roads, rail, ports or military layers: infrastructure.json is not built.)
+  const lasCondes = F.city("Las Condes");
+  const won = data.wonders.wonders;
+  const nOf = (kind) => won.filter((x) => x.kind === kind).length;
   const IMP_T = T_CITY - T_IMP, ZI = 1.0;
   const STAGES = [
-    { at: 1.05, on: { roads: true, rail: true }, chip: { icon: "t-road", label: "國道、公路與鐵路", sub: stripParen(infra.vintage.roads) } },
-    { at: 1.9, on: { hubs: true }, chip: { icon: "d-harbor", label: `全臺 ${infra.ports.length} 個國際商港 · ${infra.airports.length} 座機場`, sub: "依貨物吞吐量與旅客人次排名" } },
-    { at: 2.75, on: { wonders: true }, chip: { icon: "w-landmark", label: `全臺 ${won.wonders.length} 處奇觀`, sub: "國家公園、承接計畫經費最多的大學、國定古蹟" } },
+    { at: 1.05, on: { wonders: true }, chip: { icon: "w-landmark", label: `${won.length} maravillas en la región`, sub: "Parques, monumentos, universidades e hitos" } },
+    { at: 1.9, on: {}, chip: { icon: "w-landmark", label: lasCondes.name, sub: `${people(lasCondes.population)} habitantes · ${costanera.name}` } },
+    { at: 2.75, on: {}, chip: { icon: "w-university", label: `${nOf("university")} universidades · ${nOf("monument")} monumentos`, sub: "Según Wikidata, por número de artículos" } },
   ];
   const layersAt = (n) => Object.assign({}, ...STAGES.slice(0, n).map((s) => s.on));
-  // 高雄市's anchor is its seat (鳳山區); the harbour lies ~8 km west of it
-  const harA = { x: khh.x - 95, y: khh.y + 5, rpx: 62 };
-  const harB = { x: khh.x - 85, y: khh.y - 5, rpx: 72 };
-  const lensV = { x: (lensB.x - lensA.x) / (LENS_T - ZO), y: (lensB.y - lensA.y) / (LENS_T - ZO) }; // the lens drift, km/s
+  // the Costanera tower stands 9 km west of Las Condes' seat
+  const harA = { x: costanera.x + 60, y: costanera.y - 25, rpx: 50 };
+  const harB = { x: costanera.x + 10, y: costanera.y - 5, rpx: 66 };
+  const lensV = { x: (lensB.x - lensA.x) / (LENS_T - ZO), y: (lensB.y - lensA.y) / (LENS_T - ZO) }; // the lens drift, units/s
   const impCam = (t) => {
     if (t >= ZI) return camAt(harA, harB, glide((t - ZI) / (IMP_T - ZI + 0.35)));
     const c = camZoom(lensB, harA, smooth(t / ZI)), d = t * (1 - smooth(t / ZI));
@@ -236,7 +252,7 @@ export function buildStoryboard(stage, cfg = CONFIG) {
   };
   shot({
     id: "improvements", t0: T_IMP, trans: "cut", t1: T_CITY,
-    cues: STAGES.map((s) => s.at + 0.1), // each map layer appearing (score.js rings a bell)
+    cues: STAGES.map((s) => s.at + 0.1), // each chip appearing (score.js rings a bell)
     render(t) {
       const cam = impCam(t);
       if (t < ZI) {
@@ -262,40 +278,38 @@ export function buildStoryboard(stage, cfg = CONFIG) {
     },
   });
 
-  // 6. A city screen: fly up the island to 新竹市 and open its City View. ------------------------------------------
-  const hc = F.city("新竹市");
+  // 6. A city screen: fly south-west over the Maipo valley farmland to Melipilla and open its City View. ---------
+  const hc = F.city("Melipilla");
   const cv = stage.cityView(hc.id);
   const bb = cv.model.bbox;
   const cit = data.citizens.cities[hc.id];
-  const natW = data.citizens.national.workforce;
-  const groups = data.citizens.groups.workforce;
+  const nat = data.citizens.national;
+  const groups = data.citizens.groups.age;
   const figs = (fig) => groups.flatMap((g) => Array(fig[g.key] || 0).fill(g.key));
-  const spec = (cit.specialists || []).find((s) => s.row === "workforce" && s.ratio > 1) || null;
-  const specLabel = spec ? groups.find((g) => g.key === spec.key)?.label : null;
+  const HI = "elder";
+  const hiGroup = groups.find((g) => g.key === HI);
   const badge = badgeOf(data.districts, hc.id);
-  const dists = cityDistricts(data.districts, data.military, hc.id).slice(0, 2);
-  // The district's own location quotient: the same number its map plaque shows (≥ when suppressed counties make
-  // it a lower bound), and the leading industry inside it by name.
-  const lqLine = (d) => {
-    if (d.lq == null) return d.subName || "";
-    const lead = d.subName ? ` · 以${d.subName}為首` : "";
-    return `就業占比為全國的 ${d.lower_bound ? "≥" : ""}${d.lq.toFixed(1)} 倍${lead}`;
-  };
+  const foreign = (c) => 1 - c.nativity.shares.born_in_chile;
   const panel = {
     name: hc.name,
     full: hc.full,
     badge: badge && badge.district ? { label: badge.label, color: badge.color, icon: badge.icon } : null,
-    stats: [[peopleShort(hc.population), "人口"], [moneyShort(hc.gdp), `生產毛額 ${hc.gdp_year}`], [int(hc.median_income), "每戶所得中位數（元）"]],
-    highlight: spec ? `亮起：${specLabel}` : "",
+    stats: [[people(hc.population), "Habitantes"], [`${(hc.gdp / 1e12).toFixed(1)} bill.`, `Ventas ${hc.gdp_year}`], [signedPct(hc.growth), `Crecimiento ${y0}-${y1}`]],
+    rowsTitle: "Habitantes · edades",
+    highlight: hiGroup ? `Resaltado: ${hiGroup.label}` : "",
     rows: [
-      { label: hc.name, figs: figs(cit.workforce.figures), hi: spec?.key, ratio: spec ? oneIn(spec.share) : "" },
-      { label: "全國", figs: figs(natW.figures), hi: spec?.key, ratio: spec ? oneIn(spec.national) : "" },
+      { label: hc.name, figs: figs(cit.age.figures), hi: HI, ratio: oneIn(cit.age.shares[HI]) },
+      { label: "Región", figs: figs(nat.age.figures), hi: HI, ratio: oneIn(nat.age.shares[HI]) },
     ],
-    districts: dists.map((d) => ({ icon: d.icon, name: d.name, line: lqLine(d) })),
+    extraTitle: "Censo 2024",
+    districts: [
+      { icon: "l-age", name: `${cit.age.median} años`, line: `Edad mediana (región: ${nat.age.median} años)` },
+      { icon: "l-foreign-born", name: pct(foreign(cit)), line: `Nacidos fuera de Chile (región: ${pct(foreign(nat))})` },
+    ],
     source: `${stripParen(data.citizens.vintage)} · ${stripParen(data.nation.gdp_vintage)}`,
   };
-  const CITY_T = T_TRADE - T_CITY, FLY = 1.7, CITY_IN = 0.6;
-  // frame: the metro in the left part of the frame (the panel covers the right 45%)
+  const CITY_T = T_AND - T_CITY, FLY = 1.7, CITY_IN = 0.6;
+  // frame: the comuna in the left part of the frame (the panel covers the right 45%)
   const mapW = (W - 820 - 56) / stage.dpr; // css px of open map on the left
   const fitRpx = Math.min((mapW * 0.8) / (bb.x1 - bb.x0), (F.css.h * 0.7) / (bb.y1 - bb.y0)) * stage.R;
   const cityCam = (rpx) => {
@@ -304,21 +318,22 @@ export function buildStoryboard(stage, cfg = CONFIG) {
     return { x: cx + (F.css.w / 2 - mapW / 2) / s, y: cy + 10 / s, rpx };
   };
   const hcA = cityCam(fitRpx * 0.95), hcB = cityCam(fitRpx * 1.07);
-  // the flight bows inland (map units east at mid-way), so the western foothills fill the frame rather than the strait
-  const inland = (c, k) => ({ ...c, x: c.x + 400 * Math.sin(Math.PI * k) });
+  // the flight bows south (map units at mid-way) so it crosses the farmland of the Maipo valley (Talagante, Isla de
+  // Maipo) rather than the built-up west of Santiago
+  const south = (c, k) => ({ ...c, y: c.y + 350 * Math.sin(Math.PI * k) });
   shot({
-    id: "city", t0: T_CITY, trans: "cut", t1: T_TRADE,
+    id: "city", t0: T_CITY, trans: "cut", t1: T_AND,
     cues: [FLY - CITY_IN, 1.3], // the city screen opening, the panel coming up
     render(t) {
       // after the flight the camera keeps pushing in, gathering speed into the cut
-      const cam = t < FLY ? inland(camFly(impCam(IMP_T), hcA, smoother(t / FLY), 4), smoother(t / FLY)) : camAt(hcA, hcB, ((u) => 0.5 * u + 0.5 * u * u)(clamp01((t - FLY) / (CITY_T - FLY))));
+      const cam = t < FLY ? south(camFly(impCam(IMP_T), hcA, smoother(t / FLY), 4), smoother(t / FLY)) : camAt(hcA, hcB, ((u) => 0.5 * u + 0.5 * u * u)(clamp01((t - FLY) / (CITY_T - FLY))));
       const on = smooth((t - (FLY - CITY_IN)) / CITY_IN);
       const cityAnimMs = Math.max(0, t - (FLY - CITY_IN)) * 1000;
       if (on >= 1) return [{ view: { ...cam, city: hc.id, cityAnimMs } }];
-      // the Kaohsiung layers (roads, ports, …) carry over the cut and fade during the climb
-      // (state names stay off during the climb: at mid-height they would fill the frame)
+      // the wonders layer carries over the cut and fades during the climb
+      // (province names stay off during the climb: at mid-height they would fill the frame)
       const out = [{ view: { ...cam, layers: layersAt(STAGES.length) } }];
-      const noNames = smooth(t / 0.35); // the state names fade out over the first frames (no pop at the cut)
+      const noNames = smooth(t / 0.35); // the province names fade out over the first frames (no pop at the cut)
       if (noNames < 1) out.push({ view: { ...cam, labels: false, layers: layersAt(STAGES.length) }, alpha: noNames });
       else out[0].view.labels = false;
       const plain = smooth((t - 0.1) / 0.6);
@@ -331,60 +346,55 @@ export function buildStoryboard(stage, cfg = CONFIG) {
     },
   });
 
-  // 7. Trade routes: start on the #1 flow (高雄市 ↔ 臺南市 in the 2024 survey), pull out to all of them. ---------------
-  const trade = data.trade;
-  const zone = new Map(trade.zones.map((z) => [z.id, z]));
-  const top = trade.routes[0];
-  const topRt = stage.model.routes.find((r) => r.route === top);
-  const TRADE_T = T_END - T_TRADE;
-  const za = zone.get(top.a), zb = zone.get(top.b);
-  const topMid = topRt ? { x: (topRt.pts[0] + topRt.pts[topRt.pts.length - 2]) / 2, y: (topRt.pts[1] + topRt.pts[topRt.pts.length - 1]) / 2 } : { x: tpe.x, y: tpe.y };
-  const trA = { x: topMid.x - 40, y: topMid.y + 25, rpx: 30 };
+  // 7. The high Andes: start on El Morado, pull out to the whole region. (Id "trade" is what score.js looks for.) ---
+  const AND_T = T_END - T_AND;
+  const elevAt = (wd) => data.world.elev_max?.[wd.cell] ?? data.world.elev[wd.cell];
+  const maxElev = Math.max(...data.world.elev_max.filter(Number.isFinite));
+  const andA = { x: morado.x - 20, y: morado.y + 15, rpx: 30 };
   const endB = { x: land.cx + 10, y: land.cy + 5, rpx: homeRpx * 0.98 };
-  // one pull-out from the #1 route to the whole map, decelerating all the way through the end card (no stop at the cut)
-  const tradeCam = (t) => {
-    const k = easeOutQ(t / (T_OUT - T_TRADE)), z = camZoom(trA, endB, k), l = camAt(trA, endB, k);
-    return { x: (z.x + l.x) / 2, y: (z.y + l.y) / 2, rpx: z.rpx }; // half anchored on the route, half straight to the centre
+  // one pull-out from El Morado to the whole region, decelerating all the way through the end card (no stop at the cut)
+  const andCam = (t) => {
+    const k = easeOutQ(t / (T_OUT - T_AND)), z = camZoom(andA, endB, k), l = camAt(andA, endB, k);
+    return { x: (z.x + l.x) / 2, y: (z.y + l.y) / 2, rpx: z.rpx }; // half anchored on El Morado, half straight to the centre
   };
   shot({
-    id: "trade", t0: T_TRADE, trans: "punch", t1: T_END,
+    id: "trade", t0: T_AND, trans: "punch", t1: T_END,
     render(t) {
-      const cam = tradeCam(t);
+      const cam = andCam(t);
       return [
         { view: { ...cam, resources: false } },
-        { view: { ...cam, resources: false, layers: { trade: true } }, alpha: smooth((t - 0.1) / 0.4) },
-        { view: { ...cam, ...WIDE, layers: { trade: true } }, alpha: smooth((t - 0.6) / 0.45) },
+        { view: { ...cam, resources: false, layers: { wonders: true } }, alpha: smooth((t - 0.1) / 0.4) },
+        { view: { ...cam, ...WIDE, layers: { wonders: true } }, alpha: smooth((t - 0.6) / 0.45) },
       ];
     },
     overlay(ctx, t, frame) {
-      caravans(ctx, stage.model.routes, frame.toScreen, t, smooth((t - 0.4) / 0.5), 1.3);
-      routeGlow(ctx, topRt, frame.toScreen, t, win(t, 0.25, TRADE_T, 0.4, 0.4), 7);
+      const a = win(t, 0.25, AND_T, 0.4, 0.4);
+      const [sx, sy] = frame.toScreen(morado.x, morado.y);
+      pulseRing(ctx, sx, sy, frame.cam.scale * stage.R * 1.5 * 2.2, a, t);
       caption(ctx, W, H, {
-        kicker: "貿易路線",
-        title: `${trade.routes.length} 條最大的縣市間公路貨運`,
-        // the survey has tonnage but no value (trade.json units.value_musd is null)
-        sub: `第 1 名：${za?.short} ↔ ${zb?.short}（${int(top.dist_km)} 公里），每年 ${top.value_musd != null ? money(top.value_musd * 1e6) : tons(top.tons_k)}`,
-        source: `貨車貨運噸數，雙向合計 · ${stripParen(src.get("motc_freight")?.title?.split("：")[0] || "汽車貨運調查")} ${trade.year} 年`,
-      }, win(t, 0.45, TRADE_T - 0.05, 0.45, 0.3), clamp01((t - 0.45) / 0.6));
+        kicker: "Cordillera de los Andes",
+        title: morado.name,
+        sub: `Hexágono a ${int(elevAt(morado))} m · la cota máxima de la región es ${int(maxElev)} m`,
+        source: srcLabel(dem),
+      }, win(t, 0.45, AND_T - 0.05, 0.45, 0.3), clamp01((t - 0.45) / 0.6));
     },
   });
 
-  // 8. End card: the camera keeps settling on the whole map as the trade arcs fade and the card comes up. ---------
-    shot({
+  // 8. End card: the camera keeps settling on the whole region as the wonders fade and the card comes up. ---------
+  shot({
     id: "end", t0: T_END, trans: "cut", t1: T_OUT,
     render(t) {
-      const cam = tradeCam(TRADE_T + t);
+      const cam = andCam(AND_T + t);
       return [
         { view: { ...cam, ...WIDE } },
-        // the routes stay faintly lit under the card
-        { view: { ...cam, ...WIDE, layers: { trade: true } }, alpha: 1 - 0.6 * smooth(t / 0.9) },
+        // the wonders stay faintly lit under the card
+        { view: { ...cam, ...WIDE, layers: { wonders: true } }, alpha: 1 - 0.6 * smooth(t / 0.9) },
       ];
     },
-    overlay(ctx, t, frame) {
-      caravans(ctx, stage.model.routes, frame.toScreen, t + TRADE_T, 1 - 0.7 * smooth(t / 0.7), 1.3);
+    overlay(ctx, t) {
       darken(ctx, W, H, 0.55 * smooth(t / 0.5));
       vignette(ctx, W, H, 0.9 * smooth(t / 0.5));
-      endCard(ctx, W, H, cfg, { facts: `${data.sources.length} 個公開資料來源 · 每個數字都查得到出處`, fallback: cfg.cta },
+      endCard(ctx, W, H, cfg, { facts: cfg.credit ?? `${data.sources.length} fuentes de datos públicas`, fallback: cfg.cta },
         smooth((t - 0.1) / 0.5), clamp01((t - 0.15) / 0.6));
     },
   });

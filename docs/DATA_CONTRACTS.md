@@ -5,6 +5,13 @@ both sides. All coordinates are **map km**: Albers equal-area, origin top-left, 
 Per-cell arrays have length `grid.cols * grid.rows`, with index `row * cols + col` (pointy-top, odd-r layout, see
 `pipeline/core/hexgrid.py` ⇄ `web/js/hex.js`). `null` always means "no data". Never write `0` as a stand-in for "unknown".
 
+> **chileciv.** This contract came from usaciv and taiwanciv; the field names are kept. In chileciv: **state = provincia**
+> (6; `fips` is the 3-digit INE code, e.g. `"131"`), **county = comuna** (52; `geoid` is the 5-digit INE code, e.g. `"13101"`),
+> **city = comuna** (one city per comuna; `id` is the same 5-digit code), **nation = the Región Metropolitana**
+> (`nation.json` `year` is 2024, growth window 2017 to 2024), and money is in **CLP** (pesos; `gdp` and the `gold` yield are
+> SII sales, not value added). Where the text below says "US", "Taiwanese" or "county" it means the region, its
+> cells and its comunas. `pipeline/check.py` enforces these codes.
+
 ## Pipeline conventions
 
 * **Sources** (`pipeline/sources/*.py`) are discovered automatically: any `Source` subclass with `info = SourceInfo(...)`.

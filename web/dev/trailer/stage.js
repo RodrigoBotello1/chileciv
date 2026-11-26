@@ -1,6 +1,6 @@
 // The trailer's "stage": the app's real data and renderer, loaded headlessly (no app shell, no DOM UI), the same way
 // web/dev/gallery.js reuses the art modules. Every frame is drawn by render/snapshot.js renderToCanvas() with the
-// app's own static layers (ext/layers: roads, rail, ports & airports, military, wonders, trade) and, for the city
+// app's own static layers (ext/layers: roads, rail, ports & airports, military, wonders, trade; the last three are empty in this build) and, for the city
 // shot, the City View's own map layer (ext/cityView/mapLayer.js) and highlight.
 //
 //   loadStage(dataUrl) → stage
@@ -23,20 +23,27 @@ import { formatLensTick } from "../../js/ui/lenses.js";
 
 const LAYER_KEYS = ["roads", "rail", "hubs", "military", "wonders", "trade"];
 
-async function json(base, name) {
-  const r = await fetch(`${base}${name}.json`);
-  if (!r.ok) throw new Error(`${name}.json: HTTP ${r.status}`);
-  return r.json();
+async function json(base, name, optional = false) {
+  try {
+    const r = await fetch(`${base}${name}.json`);
+    if (!r.ok) throw new Error(`${name}.json: HTTP ${r.status}`);
+    return await r.json();
+  } catch (err) {
+    if (optional) return null;
+    throw err;
+  }
 }
 
-// Files this build leaves out on purpose (docs/PORTING.md: no military layer for Taiwan), as web/js/main.js
-// OMITTED_DATA: they load as null without a request, and every consumer takes its "no data" path.
-const OMITTED = ["military"];
+// Files this build leaves out on purpose, as web/js/main.js OMITTED_DATA: they load as null without a request, and
+// every consumer takes its "no data" path. "infrastructure" is not built yet either, so it is optional: a missing
+// file (HTTP 404) is also null, as the app's loadJSON(name, true) does.
+const OMITTED = ["military", "trade", "resources", "counties", "disasters"];
+const OPTIONAL = ["infrastructure"];
 
 export async function loadStage(base = "../data/") {
-  const names = ["world", "cities", "nation", "lenses", "sources", "resources", "states", "infrastructure",
-    "wonders", "trade", "districts", "citizens"];
-  const vals = await Promise.all(names.map((n) => json(base, n)));
+  const names = ["world", "cities", "nation", "lenses", "sources", "states", "infrastructure",
+    "wonders", "districts", "citizens"];
+  const vals = await Promise.all(names.map((n) => json(base, n, OPTIONAL.includes(n))));
   const data = Object.fromEntries([...names.map((n, i) => [n, vals[i]]), ...OMITTED.map((n) => [n, null])]);
   const w = prepareWorld(data.world, data.cities, { resources: data.resources });
   const cityById = new Map(data.cities.map((c) => [c.id, c]));

@@ -33,6 +33,18 @@ QUERIES = {
         "?item wdt:P31/wdt:P279? ?cls . VALUES ?cls { wd:Q3918 wd:Q902104 } "
         f"OPTIONAL {{ ?item wdt:P2196 ?students }} {_COMMON}}}"
     ),
+    "plants.json": (
+        f"SELECT DISTINCT ?item ?es ?en ?coord ?links ?mw ?clsEs WHERE {{ {BOX}"
+        "?item wdt:P31 ?cls . ?cls wdt:P279* wd:Q159719 . "
+        'OPTIONAL { ?cls rdfs:label ?clsEs . FILTER(LANG(?clsEs) = "es") } '
+        f"OPTIONAL {{ ?item p:P2109/psn:P2109/wikibase:quantityAmount ?mw }} {_COMMON}}}"
+    ),
+    "mines.json": (
+        f"SELECT DISTINCT ?item ?es ?en ?coord ?links ?productEs WHERE {{ {BOX}"
+        "?item wdt:P31 ?cls . ?cls wdt:P279* wd:Q820477 . "
+        'OPTIONAL { ?item wdt:P1056 ?product . ?product rdfs:label ?productEs . FILTER(LANG(?productEs) = "es") } '
+        f"{_COMMON}}}"
+    ),
     "towers.json": (
         f"SELECT DISTINCT ?item ?es ?en ?coord ?links ?height WHERE {{ {BOX}"
         "?item wdt:P31/wdt:P279? ?cls . VALUES ?cls { wd:Q41176 wd:Q11303 wd:Q18142 } "
@@ -58,10 +70,10 @@ class WikidataRm(Source):
         homepage="https://www.wikidata.org/",
         license="CC0 1.0 (dominio público)",
         description="Elementos de Wikidata con coordenadas dentro de la región (búsqueda por rectángulo; el mapa deja solo los que caen en sus hexágonos): los Monumentos "
-        "Históricos de Chile (P1435), las áreas protegidas y Santuarios de la Naturaleza, las universidades y los "
-        "edificios con altura (P2048). Cada uno trae su número de artículos en Wikipedia, que ordena las maravillas "
+        "Históricos de Chile (P1435), las áreas protegidas y Santuarios de la Naturaleza, las universidades, los "
+        "edificios, las centrales eléctricas con su potencia (P2109) y las minas con su producto (P1056). Cada uno trae su número de artículos en Wikipedia, que ordena las maravillas "
         "por lo conocidas que son.",
-        used_for=["Maravillas: monumentos, naturaleza, universidades y rascacielos"],
+        used_for=["Maravillas: monumentos, naturaleza, universidades y rascacielos", "Recursos: centrales eléctricas y minas"],
     )
 
     def fetch(self, force=False):
@@ -82,7 +94,12 @@ class WikidataRm(Source):
                     continue
                 rec = items.setdefault(qid, {"qid": qid, "name": name, "name_en": (b.get("en") or {}).get("value"),
                                              "lon": pt[0], "lat": pt[1], "links": int(b["links"]["value"])})
-                for k in ("area", "students", "height"):
+                for k in ("clsEs", "productEs"):
+                    if k in b:
+                        rec.setdefault(k.removesuffix("Es") + "s", [])
+                        if b[k]["value"] not in rec[k.removesuffix("Es") + "s"]:
+                            rec[k.removesuffix("Es") + "s"].append(b[k]["value"])
+                for k in ("area", "students", "height", "mw"):
                     if k in b:
                         try:
                             v = float(b[k]["value"])

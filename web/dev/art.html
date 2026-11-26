@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="zh-Hant-TW">
+<html lang="es-CL">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>美術館 — 臺灣文明地圖（開發用）</title>
+  <title>Galería de arte | chileciv (desarrollo)</title>
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:,">
   <style>
     :root {
       --ink: #efe4c6; --ink-dim: #b9ab88; --gold: #c9a45c; --gold-bright: #ecd08e; --bg: #0b1520; --card: #121d29;
-      --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Songti TC", "Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PingFang TC", "Microsoft JhengHei", serif;
-      --sans: "Helvetica Neue", "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", "Microsoft JhengHei", system-ui, sans-serif;
+      --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      --sans: "Helvetica Neue", "Segoe UI", Roboto, system-ui, sans-serif;
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 var(--sans); }
@@ -43,20 +43,20 @@
 </head>
 <body>
   <header>
-    <h1>美術館</h1>
+    <h1>Galería de arte</h1>
     <nav>
-      <a href="#terrain">地形</a><a href="#scene">地景</a><a href="#cities">城市</a><a href="#water">水域</a>
-      <a href="#layers">地圖圖層</a><a href="#sites">地點圖示</a><a href="#citizens">市民</a>
-      <a href="#icons">圖示</a><a href="#banners">城市旗幟</a><a href="trailer.html">預告片</a>
+      <a href="#terrain">Terreno</a><a href="#scene">Paisaje</a><a href="#cities">Comunas</a><a href="#water">Agua</a>
+      <a href="#layers">Capas del mapa</a><a href="#sites">Íconos de lugares</a><a href="#citizens">Habitantes</a>
+      <a href="#icons">Íconos</a><a href="#banners">Banderas de comuna</a><a href="trailer.html">Tráiler</a>
     </nav>
     <span class="spacer"></span>
-    <label><input type="checkbox" id="opt-outline"> 六角格框線</label>
-    <label><input type="checkbox" id="opt-light"> 淺色頁面</label>
-    <label><input type="checkbox" id="opt-lod" checked> 細節層級標籤</label>
-    <button id="btn-reload" title="重新載入頁面（重新匯入美術模組）">重新載入美術</button>
+    <label><input type="checkbox" id="opt-outline"> Bordes de hexágonos</label>
+    <label><input type="checkbox" id="opt-light"> Página clara</label>
+    <label><input type="checkbox" id="opt-lod" checked> Etiquetas de nivel de detalle</label>
+    <button id="btn-reload" title="Recarga la página (vuelve a importar los módulos de arte)">Recargar arte</button>
   </header>
   <main id="gallery">
-    <p class="muted" id="status">繪製中…</p>
+    <p class="muted" id="status">Dibujando…</p>
   </main>
   <script type="module" src="gallery.js"></script>
 </body>
