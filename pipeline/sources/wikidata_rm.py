@@ -12,9 +12,12 @@ ENDPOINT = "https://query.wikidata.org/sparql"
 # Each query returns items inside the region's bounding box (the wonders builder keeps those on the region's hexes),
 # with coordinates and their number of Wikipedia articles (sitelinks), which ranks them. A box search is used instead
 # of "located in" (P131+) because the latter times out on the public endpoint. Only the choice of class is fixed here.
+from ..core.mapcfg import CFG
+
+_B = CFG["bbox"]
 BOX = ('SERVICE wikibase:box { ?item wdt:P625 ?coord . '
-       'bd:serviceParam wikibase:cornerSouthWest "Point(-71.85 -34.40)"^^geo:wktLiteral . '
-       'bd:serviceParam wikibase:cornerNorthEast "Point(-69.65 -32.80)"^^geo:wktLiteral . } ')
+       f'bd:serviceParam wikibase:cornerSouthWest "Point({_B[0]} {_B[1]})"^^geo:wktLiteral . '
+       f'bd:serviceParam wikibase:cornerNorthEast "Point({_B[2]} {_B[3]})"^^geo:wktLiteral . }} ')
 _COMMON = (
     "?item wikibase:sitelinks ?links . "
     'OPTIONAL { ?item rdfs:label ?es . FILTER(LANG(?es) = "es") } '

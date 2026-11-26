@@ -8,6 +8,7 @@ import { createScatter } from "../core/scatter.js";
 import { section, tiles, segmented, mapPicker, frameBtn, sourcesHtml, topBy } from "../core/view.js";
 import { rowsHighlight } from "../core/data.js";
 import { growthLens } from "../core/lenses.js";
+import { T } from "../../../terms.js";
 
 const METRO_MIN = 100000; // comunas of 100 mil residents or more
 
@@ -28,7 +29,7 @@ export function mount(ctx) {
   el.insertAdjacentHTML("beforeend", tiles([
     { label: "Población", value: count3(n.population), sub: data.vintage },
     { label: `Crecimiento de la población ${yrs.join("–")}`.trim(), value: signedPct(n.growth, 2), sub: "Población a fin de año según registros oficiales" },
-    { label: "Divisiones administrativas", value: `${int(states.rows.length || metros.rows.length)} provincias`, sub: counties ? `${int(counties.rows.length)} comunas (detalle)` : "" },
+    { label: "Divisiones administrativas", value: `${int(states.rows.length || metros.rows.length)} ${T.states}`, sub: counties ? `${int(counties.rows.length)} comunas (detalle)` : "" },
   ]));
 
   // --- the map: growth by default, so the map tells the same story as the first chart ---------------------------
@@ -50,7 +51,7 @@ export function mount(ctx) {
   // --- growth ---------------------------------------------------------------------------------------------------
   const gBody = section(el, { title: "Quién crece y quién pierde población", note: `${yrs.length ? `Cambio de la población entre ${yrs.join("–")}` : "Cambio de la población"} (registros oficiales), con las mismas divisiones administrativas en ambos años. Las comunas solo entran con ${minPop} habitantes o más.` });
   const gHost = document.createElement("div");
-  segmented(gBody, { label: "Unidad", value: gLevel, options: [{ value: "metros", label: "Comunas" }, { value: "states", label: "Provincias" }], onChange: (v) => { gLevel = v; drawGrowth(); if (picker.value === "growth") picker.refresh(); } });
+  segmented(gBody, { label: "Unidad", value: gLevel, options: [{ value: "metros", label: "Comunas" }, { value: "states", label: `${T.States}` }], onChange: (v) => { gLevel = v; drawGrowth(); if (picker.value === "growth") picker.refresh(); } });
   gBody.appendChild(gHost);
   function drawGrowth() {
     gHost.innerHTML = "";
@@ -119,7 +120,7 @@ export function mount(ctx) {
         fmt: (v) => fmtShort("float", v), unitLabel: "comunas", weightFmt: (w) => `Población ${count3(w)}`,
         label: "Histograma de densidad de población por comuna",
         colorOf: (_, t) => colorScale({ type: "seq", domain: [0, 1], ramp: densRamp })(t),
-        markers: fin(avgDensity) ? [{ v: avgDensity, label: "Promedio regional" }] : [],
+        markers: fin(avgDensity) ? [{ v: avgDensity, label: `Promedio ${T.regional}` }] : [],
         onHover: (bin) => link.hover(bin ? rowsHighlight(counties, bin.keys.map((k) => cByKey.get(k)), { dim: true }) : null),
         onClick: (bin) => {
           pinnedBin = pinnedBin === bin.i ? null : bin.i;
@@ -179,14 +180,14 @@ export function mount(ctx) {
   function selSummary(sel) {
     const pop = sel.reduce((a, r) => a + (r.v.population || 0), 0);
     const top = [...sel].sort((a, b) => (b.v.population || 0) - (a.v.population || 0)).slice(0, 5);
-    return `<b>${int(sel.length)}</b> comunas · población ${count3(pop)}${fin(n.population) && n.population > 0 ? ` (${pct(pop / n.population)} de la región)` : ""}<br><span class="sub">Más pobladas: ${top.map((r) => `${esc(r.name)}${parentOf(r) ? ` (${esc(parentOf(r))})` : ""}`).join(" · ")}</span> ${frameBtn()}<button type="button" class="adv-mini" data-clear>Limpiar</button>`;
+    return `<b>${int(sel.length)}</b> comunas · población ${count3(pop)}${fin(n.population) && n.population > 0 ? ` (${pct(pop / n.population)} ${T.ofNation})` : ""}<br><span class="sub">Más pobladas: ${top.map((r) => `${esc(r.name)}${parentOf(r) ? ` (${esc(parentOf(r))})` : ""}`).join(" · ")}</span> ${frameBtn()}<button type="button" class="adv-mini" data-clear>Limpiar</button>`;
   }
 
   const countySrc = ["population", "land_km2", "density", "median_age", "foreign_born"].map((k) => counties.field(k)?.source);
   el.insertAdjacentHTML("beforeend", sourcesHtml(data, [...baseSrc, ...countySrc], [
-    "El mapa de crecimiento colorea cada comuna por su propio cambio de población; los hexágonos grises no pertenecen a ninguna. Cambia el gráfico a \"Provincias\" y cada hexágono toma el color de su provincia.",
+    `El mapa de crecimiento colorea cada comuna por su propio cambio de población; los hexágonos grises no pertenecen a ninguna. Cambia el gráfico a "${T.States}" y cada hexágono toma el color de su ${T.state}.`,
     "El crecimiento se calcula con la población de registros oficiales, con las mismas divisiones administrativas en los dos años.",
-    `Las cifras de las comunas en detalle son de "${esc(data.countyVintage)}", y su año puede ser distinto al de las provincias y comunas-ciudad.`,
+    `Las cifras de las comunas en detalle son de "${esc(data.countyVintage)}", y su año puede ser distinto al de las ${T.states} y comunas-ciudad.`,
     ...(hasAge ? ["Cada punto es la mediana de edad de esa comuna; la mediana de un grupo de comunas no es el promedio de sus medianas."] : []),
     ...(data.countiesOffMap ? [`Las ${int(data.countiesOffMap)} comunas más pequeñas no llegan a un hexágono: al seleccionarlas no se marca nada en el mapa.`] : []),
   ]));

@@ -12,6 +12,7 @@ import { sparkline, meter, bar } from "./charts.js";
 import { popSeries, rankCount, resourceValue, LAND } from "./model.js";
 import { citizensHtml, mountCitizens } from "./citizens.js";
 import { badgeHtml, cityDistricts, districtsHtml } from "./districts.js";
+import { T } from "../../terms.js";
 
 const TABS = [
   ["citizens", "Habitantes", "pop"],
@@ -42,7 +43,7 @@ function rankBadge(rank, of, label, tip) {
 
 function lqBadge(lq) {
   if (lq == null) return "";
-  const tip = `Cociente de localización: esta proporción es ${lq.toFixed(2)} veces la regional`;
+  const tip = `Cociente de localización: esta proporción es ${lq.toFixed(2)} veces la ${T.regional}`;
   const cls = lq >= 1.25 ? "hi" : lq <= 0.75 ? "lo" : "mid";
   return `<span class="cv-lq ${cls}" title="${esc(tip)}">×${lq.toFixed(1)}</span>`;
 }
@@ -73,14 +74,14 @@ function header(m) {
   // The chip opens the provincia panel. A comuna that is its own provincia gets a plain "Datos de la provincia" chip
   // (its name is already the title); another provincia is named in full (codes mean little to readers).
   const chips = m.states.map((s) => {
-    const label = s.self ? "Datos de la provincia" : s.name;
+    const label = s.self ? `Datos de la ${T.state}` : s.name;
     return s.index >= 0
-      ? `<button class="chip" data-state="${s.index}" title="${esc(`Abrir el panel de la provincia: ${s.name}`)}">${esc(label)}</button>`
+      ? `<button class="chip" data-state="${s.index}" title="${esc(`Abrir el panel de la ${T.state}: ${s.name}`)}">${esc(label)}</button>`
       : s.self ? "" : `<span class="chip">${esc(label)}</span>`;
   }).join("");
   const g = Number.isFinite(c.growth) ? c.growth : null;
   const yrs = Array.isArray(c.growth_years) ? c.growth_years : null;
-  const growth = g == null ? "" : `<span class="cv-growth ${g >= 0 ? "good" : "bad"}" title="Variación de la población${yrs ? ` ${yrs[0]}–${yrs[1]}` : ""}${n.growth != null ? `. Región: ${signed(n.growth)}` : ""}">${g >= 0 ? "▲" : "▼"} ${Math.abs(g * 100).toFixed(1)}%${yrs ? ` <small>desde ${yrs[0]}</small>` : ""}</span>`;
+  const growth = g == null ? "" : `<span class="cv-growth ${g >= 0 ? "good" : "bad"}" title="Variación de la población${yrs ? ` ${yrs[0]}–${yrs[1]}` : ""}${n.growth != null ? `. ${T.NationShort}: ${signed(n.growth)}` : ""}">${g >= 0 ? "▲" : "▼"} ${Math.abs(g * 100).toFixed(1)}%${yrs ? ` <small>desde ${yrs[0]}</small>` : ""}</span>`;
   const perCap = c.gdp != null && c.population ? c.gdp / c.population : null;
   const r = c.ranks || {};
   const N = (k) => countOf(cities, k);
@@ -96,7 +97,7 @@ function header(m) {
     <div class="cv-title">
       <div class="cv-crest" aria-hidden="true"><span>${esc(popShort(c.population))}</span></div>
       <div class="cv-tt">
-        <h2 class="cv-name" tabindex="-1">${isCapital(c) ? `<span class="cv-cap" title="Capital de la región">★</span> ` : ""}${esc(c.name)}</h2>
+        <h2 class="cv-name" tabindex="-1">${isCapital(c) ? `<span class="cv-cap" title="Capital ${T.ofNation}">★</span> ` : ""}${esc(c.name)}</h2>
         ${full ? `<div class="cv-full">${esc(full)}</div>` : ""}
         <div class="cv-typeslot" data-ctype></div>
         ${chips ? `<div class="chips">${chips}</div>` : ""}
@@ -126,7 +127,7 @@ function citizens(m) {
   const ch = series.length >= 2 ? series.at(-1).value / series[0].value - 1 : null;
   // sub: the small line beside the value; by default the national value, left out when there is none. A measure
   // the city has no value for (the build does not carry it, or not for this city) gets no row at all.
-  const row = (ic, fb, label, v, us, fmt, better, max, sub = us != null ? `región ${fmt(us)}` : "", tick = us) => (v == null ? "" : `
+  const row = (ic, fb, label, v, us, fmt, better, max, sub = us != null ? `${T.nationShort} ${fmt(us)}` : "", tick = us) => (v == null ? "" : `
     <div class="cv-stat">
       <div class="cv-stat-top"><span class="sl">${icon(ic, fb, { size: 14 })}${esc(label)}</span>
         <span class="sv"><b>${v == null ? "–" : fmt(v)}</b>${sub ? `<small>${sub}</small>` : ""}</span></div>
@@ -136,7 +137,7 @@ function citizens(m) {
   const empShare = c.employed != null && c.population > 0 ? c.employed / c.population : null;
   const usEmpShare = n.employed != null && n.population > 0 ? n.employed / n.population : null;
   const empSub = empShare == null ? ""
-    : `${pct(empShare)} de los habitantes${usEmpShare != null ? ` · región ${pct(usEmpShare)}` : ""}`;
+    : `${pct(empShare)} de los habitantes${usEmpShare != null ? ` · ${T.nationShort} ${pct(usEmpShare)}` : ""}`;
   const multi = m.tiles.length > 1;
   // Residents per hex need the population-density lens; without it the hexes show their land use only.
   const hasRes = m.tiles.some((t) => t.residents != null);
@@ -263,7 +264,7 @@ function economy(m) {
       <span class="cv-ind-v">${money(d.value)} <small>${pct(d.share, 0)}</small></span>
       ${bar(d.share / maxShare, "#7c8494", 0)}
     </div>`
-    : `<div class="cv-ind" title="${esc(d.label)}: ${money(d.value)} (${pct(d.share)} de las ${GDP.toLowerCase()} de la comuna; región ${pct(d.natShare)})${d.estimated ? ". Incluye una estimación de valores no publicados." : ""}">
+    : `<div class="cv-ind" title="${esc(d.label)}: ${money(d.value)} (${pct(d.share)} de las ${GDP.toLowerCase()} de la comuna; ${T.nationShort} ${pct(d.natShare)})${d.estimated ? ". Incluye una estimación de valores no publicados." : ""}">
       <span class="cv-ind-ic" style="--bg:${esc(d.color)}">${icon(d.icon, "•", { size: 13 })}</span>
       <span class="cv-ind-n">${esc(d.short)}${lqBadge(d.lq)}</span>
       <span class="cv-ind-v">${d.estimated ? "≈" : ""}${money(d.value)} <small>${pct(d.share, 0)}</small></span>
@@ -275,17 +276,17 @@ function economy(m) {
     <div class="cv-gdp">
       <div><span class="lbl">${GDP}${c.gdp_year ? ` (${c.gdp_year})` : ""}</span><b>${money(c.gdp)}</b>${r.gdp != null ? `<small>Lugar ${r.gdp} de ${countOf(cities, "gdp")}</small>` : ""}</div>
       <div><span class="lbl">${GDP_PC}</span><b>${money(perCap)}</b>${
-        usPerCap && perCap != null ? `<small class="${perCap >= usPerCap ? "good" : "bad"}">región ${money(usPerCap)}</small>` : ""}</div>
-      <div><span class="lbl">Parte de las ${GDP.toLowerCase()} de la región</span><b>${c.gdp != null && n.gdp ? pct(c.gdp / n.gdp, 2) : "–"}</b>${
+        usPerCap && perCap != null ? `<small class="${perCap >= usPerCap ? "good" : "bad"}">${T.nationShort} ${money(usPerCap)}</small>` : ""}</div>
+      <div><span class="lbl">Parte de las ${GDP.toLowerCase()} ${T.ofNation}</span><b>${c.gdp != null && n.gdp ? pct(c.gdp / n.gdp, 2) : "–"}</b>${
         c.population && n.population ? `<small>${pct(c.population / n.population, 2)} de la población</small>` : ""}</div>
     </div>
     <h4 class="cv-h4">Rendimientos <span class="muted">lugar entre las comunas</span></h4>
     <div class="cv-yields">${yields}</div>
-    ${gi.length ? `<h4 class="cv-h4">${GDP} por industria <span class="muted">marca = proporción regional</span></h4>
+    ${gi.length ? `<h4 class="cv-h4">${GDP} por industria <span class="muted">marca = proporción ${T.regional}</span></h4>
       <div class="cv-inds">${gi.slice(0, 8).map(gdpRow).join("")}</div>
       ${gi.length > 8 ? `<details class="cv-more"><summary>Las ${gi.length} industrias</summary><div class="cv-inds">${gi.slice(8).map(gdpRow).join("")}</div></details>` : ""}`
       : ""}
-    <p class="cv-note">${GDP}: ${nat.gdp_vintage ? `${esc(nat.gdp_vintage)}, ` : ""}en pesos corrientes${gi.length ? `; las proporciones usan el total de las ${GDP.toLowerCase()} de la comuna. ×N = proporción de la industria en las ${GDP.toLowerCase()} de la comuna frente a su proporción regional` : ""}.${
+    <p class="cv-note">${GDP}: ${nat.gdp_vintage ? `${esc(nat.gdp_vintage)}, ` : ""}en pesos corrientes${gi.length ? `; las proporciones usan el total de las ${GDP.toLowerCase()} de la comuna. ×N = proporción de la industria en las ${GDP.toLowerCase()} de la comuna frente a su proporción ${T.regional}` : ""}.${
       gi.some((d) => d.estimated) ? " ≈ indica una estimación que incluye valores no publicados." : ""}${
       gi.some((d) => d.undisclosed) ? ` "No publicado" = ${GDP.toLowerCase()} que no se publican por reserva estadística.` : ""}</p>
   </section>`;
@@ -295,7 +296,7 @@ function economy(m) {
 function workforce(m) {
   const cards = m.inds.map((d) => {
     const spec = d.lq != null && d.lq >= 1.25;
-    return `<div class="cv-bld${spec ? " spec" : ""}" title="${esc(d.label)}: ${int(d.jobs)} personas (${pct(d.share)}; región ${pct(d.natShare)})">
+    return `<div class="cv-bld${spec ? " spec" : ""}" title="${esc(d.label)}: ${int(d.jobs)} personas (${pct(d.share)}; ${T.nationShort} ${pct(d.natShare)})">
       ${medallion(d.icon, "•", d.color, 17)}
       <div class="cv-bld-t"><span class="cv-bld-n">${esc(d.short)}</span>
         <span class="cv-bld-v">${compact(d.jobs)} <small>${pct(d.share, 1)}</small></span></div>
@@ -305,7 +306,7 @@ function workforce(m) {
   return `
   <section class="cv-sec" id="cv-workforce" data-sec="workforce" aria-labelledby="cv-h-workforce">
     <h3 id="cv-h-workforce">${icon("y-production", "⚙️", { size: 15 })}Empleo</h3>
-    ${cards ? `<p class="cv-lead">Industrias en que trabajan ${m.city.employed != null ? `los ${int(m.city.employed)} ocupados` : "los ocupados"} de la comuna. <span class="cv-lq hi">×N</span> compara la proporción del empleo de una industria con la regional.</p>
+    ${cards ? `<p class="cv-lead">Industrias en que trabajan ${m.city.employed != null ? `los ${int(m.city.employed)} ocupados` : "los ocupados"} de la comuna. <span class="cv-lq hi">×N</span> compara la proporción del empleo de una industria con la ${T.regional}.</p>
     <div class="cv-blds">${cards}</div>` : `<p class="muted cv-note">No hay datos de empleo por industria para esta comuna.</p>`}
     <p class="cv-note">Fuente: ${esc(m.nation.vintage || "ver el Almanaque")}. <span data-dnote>Los distritos del mapa se definen aparte, con el cociente de localización de cada industria: ver "Distritos".</span></p>
   </section>`;

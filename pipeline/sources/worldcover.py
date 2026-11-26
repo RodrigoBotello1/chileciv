@@ -16,10 +16,23 @@ from ..core.source import Source, SourceInfo
 
 BUCKET = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map"
 # 3° tiles named by their south-west corner; these two cover the Santiago Metropolitan Region window.
-TILES = ["S36W072", "S33W072"]
-LEVEL = 4  # IFD index: 0 = full 10 m, 4 = 1/16 (2250 px per 3°)
+from ..core.mapcfg import CFG
+
+
+def _tiles(window) -> list[str]:
+    """The 3-degree tiles (named by their south-west corner) that touch the window."""
+    lon0, lat0, lon1, lat1 = window
+    out = []
+    for s in range(math.floor(lat0 / 3) * 3, math.ceil(lat1 / 3) * 3, 3):
+        for w in range(math.floor(lon0 / 3) * 3, math.ceil(lon1 / 3) * 3, 3):
+            out.append(f"{'S' if s < 0 else 'N'}{abs(s):02d}{'W' if w < 0 else 'E'}{abs(w):03d}")
+    return out
+
+
+TILES = _tiles(CFG["window"])
+LEVEL = CFG["worldcover_level"]  # IFD index: 0 = full 10 m, 4 = 1/16 (2250 px per 3°), 5 = 1/32
 HEADER_BYTES = 65536
-WINDOW = (-72.00, -34.60, -69.45, -32.60)  # cl_boundaries.BBOX plus the map margin  # lon0, lat0, lon1, lat1 kept in the interim
+WINDOW = CFG["window"]  # lon0, lat0, lon1, lat1 kept in the interim (the map bbox plus its margin)
 
 # WorldCover class code → one character, so the interim stores each raster row as a string.
 LEGEND = {0: ".", 10: "t", 20: "s", 30: "g", 40: "c", 50: "b", 60: "r", 70: "i", 80: "w", 90: "f", 95: "v", 100: "m"}
@@ -79,7 +92,12 @@ class WorldCover(Source):
 
     def fetch(self, force=False):
         for tile in TILES:
-            ifd = self._header(tile, force)[LEVEL]
+            try:
+                ifd = self._header(tile, force)[LEVEL]
+            except Exception as exc:  # open-ocean tiles do not exist (HTTP 404)
+                print(f"      {tile}: no tile ({exc.__class__.__name__})")
+                self.discard(f"{tile}_header.bin")
+                continue
             offs, counts = ifd[324], ifd[325]
             offs = offs if isinstance(offs, list) else [offs]
             counts = counts if isinstance(counts, list) else [counts]
@@ -93,6 +111,8 @@ class WorldCover(Source):
         files = []
         mosaic: dict[tuple[int, int], bytes] = {}  # (tile row from north, tile col) → full-level raster rows
         for tile in TILES:
+            if not (self.raw_dir / f"{tile}_header.bin").exists():
+                continue  # open ocean: no WorldCover tile
             ifds = read_ifds((self.raw_dir / f"{tile}_header.bin").read_bytes())
             files.append(f"{tile}_header.bin")
             ifd = ifds[LEVEL]
@@ -132,7 +152,8 @@ class WorldCover(Source):
                 lon = lon0 + (c + 0.5) * px
                 west = math.floor(lon / 3) * 3
                 tx = int((lon - west) / px)
-                code = mosaic[(south, west)][min(ty, size - 1) * size + min(tx, size - 1)]
+                tile_px = mosaic.get((south, west))
+                code = tile_px[min(ty, size - 1) * size + min(tx, size - 1)] if tile_px else 0
                 line.append(LEGEND.get(code, "."))
             rows.append("".join(line))
         return {

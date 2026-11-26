@@ -19,6 +19,7 @@ from collections import deque
 from ..core.hexgrid import HexGrid
 from ..core.paths import WEB_DATA
 from ..core.store import load_interim, write_web
+from ..core.mapcfg import CFG
 from .cities import GROWTH_YEARS, growth_of, sii_by_code
 from .yields import YIELDS, economy, merge
 
@@ -158,7 +159,7 @@ def build() -> None:
     owner = world["owner"]
     names = {s["fips"]: s for s in bounds["states"]}
     sii_of = sii_by_code(sii, censo)
-    pop17 = {code: rec["pop"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
+    pop17 = {code: rec["residentes"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
 
     energy = energy_by_state()
     if energy is None:
@@ -166,7 +167,8 @@ def build() -> None:
     states = []
     for i, fips in enumerate(world["states"]):
         meta = names[fips]
-        comunas = [c for c in censo["comunas"] if c["prov_code"] == fips]
+        level_key = "reg_code" if CFG["state_level"] == "region" else "prov_code"
+        comunas = [c for c in censo["comunas"] if c[level_key] == fips]
         econ = economy(sum(c["population"] for c in comunas), merge([sii_of[c["code"]] for c in comunas]), uf, sii["year"])
         states.append(
             {

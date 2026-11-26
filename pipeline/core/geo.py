@@ -22,9 +22,11 @@ R_EARTH_KM = 6371.0088
 
 # Albers equal-area for the Santiago Metropolitan Region: standard parallels bracket the region
 # (32.9S to 34.3S), centred on its middle meridian. Southern hemisphere: n < 0 (see Albers.inverse).
-CL_ALBERS = {"lat1": -34.0, "lat2": -33.2, "lat0": -33.6, "lon0": -70.75}
+from .mapcfg import CFG
+
+CL_ALBERS = CFG["albers"]
 HEX_RADIUS = 25.0  # map units; the frontend's zoom limits, margins and art are tuned for this
-HEX_KM = float(os.environ.get("CHILECIV_HEX_KM", "1.0"))  # real circumradius of a hex in km: ~5,900 land hexes for the region
+HEX_KM = float(os.environ.get("CHILECIV_HEX_KM", CFG["hex_km"]))  # real circumradius of a hex in km (core/mapcfg.py)
 SCALE = HEX_RADIUS / HEX_KM  # map units per real km
 
 

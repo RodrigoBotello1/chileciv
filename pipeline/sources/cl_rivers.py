@@ -9,7 +9,10 @@ import urllib.parse
 from ..core.source import Source, SourceInfo
 
 ENDPOINT = "https://overpass.private.coffee/api/interpreter"
-BBOX = (-34.60, -72.00, -32.60, -69.45)  # south, west, north, east (cl_boundaries.BBOX plus the map margin)
+from ..core.mapcfg import CFG
+
+_W = CFG["window"]
+BBOX = (_W[1], _W[0], _W[3], _W[2])  # south, west, north, east: the map bbox plus its margin
 QUERY = (
     "[out:json][timeout:300];"
     f'relation["waterway"="river"]["name"]({BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]});'

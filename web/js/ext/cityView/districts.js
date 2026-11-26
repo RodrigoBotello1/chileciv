@@ -11,6 +11,7 @@ import { esc, int, pct } from "../../format.js";
 import { compact, money } from "./fmt.js";
 import { icon } from "../../ui/icon.js";
 import { hasIcon } from "../../icons.js";
+import { T } from "../../terms.js";
 
 // Icons the district catalog names (d-*) are not drawn yet; until they are, a near icon from the set stands in,
 // and canvas plaques without any icon get the letter in `mark`.
@@ -106,7 +107,7 @@ const signed = (x) => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x 
 function lqTag(lq, lb, tip) {
   if (lq == null) return "";
   const cls = lq >= 1.25 ? "hi" : lq <= 0.75 ? "lo" : "mid";
-  return `<span class="cv-lq ${cls}" title="${esc(tip || `Cociente de localización: ${lq.toFixed(2)} veces la proporción regional del empleo`)}">×${ge(lb)}${lq.toFixed(1)}</span>`;
+  return `<span class="cv-lq ${cls}" title="${esc(tip || `Cociente de localización: ${lq.toFixed(2)} veces la proporción ${T.regional} del empleo`)}">×${ge(lb)}${lq.toFixed(1)}</span>`;
 }
 // "El valor no se publicó en N comunas": the note for a value some members withheld.
 const withheld = (n) => `El valor no se publicó en ${n} ${n === 1 ? "comuna" : "comunas"}`;
@@ -124,15 +125,15 @@ function districtCard(d, row, ddata, mil) {
     facts.push(`<div><span>Sueldo medio</span><b>${money(d.avg_pay)}</b><small>${row?.avg_pay != null ? `comuna ${money(row.avg_pay)}` : ""}</small></div>`);
   }
   if (d.strength != null) {
-    facts.push(`<div title="Empleos sobre la norma regional: empleo − empleo ÷ cociente de localización (así se ordenan los distritos)"><span>Sobre la norma</span><b>${ge(lb)}${compact(Math.max(0, d.strength))}</b><small>empleos</small></div>`);
+    facts.push(`<div title="Empleos sobre la norma ${T.regional}: empleo − empleo ÷ cociente de localización (así se ordenan los distritos)"><span>Sobre la norma</span><b>${ge(lb)}${compact(Math.max(0, d.strength))}</b><small>empleos</small></div>`);
   }
   let spec = "";
   if (d.sub && d.subName) {
     // the speciality's own withheld flag (districts.json sub_lower_bound; older files: the top-industries row)
     const slb = d.sub_lower_bound ?? !!(row?.top || []).find((t) => t.naics === d.sub)?.lower_bound;
-    spec = `<p class="cv-dc-sub">${d.via === "specialty" ? "Califica por" : "Mayor especialidad"}: <b>${esc(d.subName)}</b> ${lqTag(d.sub_lq, slb, slb && d.sub_lq != null ? `Cociente de localización: al menos ${d.sub_lq.toFixed(2)} veces la proporción regional (parte de los valores no se publicó, por eso es un límite inferior)` : undefined)}${
+    spec = `<p class="cv-dc-sub">${d.via === "specialty" ? "Califica por" : "Mayor especialidad"}: <b>${esc(d.subName)}</b> ${lqTag(d.sub_lq, slb, slb && d.sub_lq != null ? `Cociente de localización: al menos ${d.sub_lq.toFixed(2)} veces la proporción ${T.regional} (parte de los valores no se publicó, por eso es un límite inferior)` : undefined)}${
       d.sub_emp != null ? ` <small>${ge(slb)}${compact(d.sub_emp)} empleos</small>` : ""}${
-      d.via === "specialty" && d.lq != null ? `<br><small>Las industrias del distrito en conjunto son ${d.lq.toFixed(2)} veces la proporción regional; solo esta especialidad supera el umbral.</small>` : ""}</p>`;
+      d.via === "specialty" && d.lq != null ? `<br><small>Las industrias del distrito en conjunto son ${d.lq.toFixed(2)} veces la proporción ${T.regional}; solo esta especialidad supera el umbral.</small>` : ""}</p>`;
   }
   let milHtml = "";
   if (d.military) {
@@ -150,7 +151,7 @@ function districtCard(d, row, ddata, mil) {
   return `<div class="cv-dc" style="--dc:${esc(d.color)}" title="${esc(c.description || "")}${c.description && supTip ? " " : ""}${esc(supTip)}">
     <div class="cv-dc-h"><span class="cv-dc-hex">${icon(d.icon, d.emoji, { size: 18 })}</span>
       <div class="cv-dc-t"><b>${title}</b><small>${esc(c.description || "")}</small></div>
-      ${d.lq != null ? lqTag(d.lq, lb, `Cociente de localización: la proporción de empleo de la comuna en estas industrias es ${d.lq.toFixed(2)} veces la regional.${supTip}`) : ""}</div>
+      ${d.lq != null ? lqTag(d.lq, lb, `Cociente de localización: la proporción de empleo de la comuna en estas industrias es ${d.lq.toFixed(2)} veces la ${T.regional}.${supTip}`) : ""}</div>
     ${facts.length ? `<div class="cv-dc-f">${facts.join("")}</div>` : ""}
     ${spec}${milHtml}${caveat}
   </div>`;
@@ -169,7 +170,7 @@ function topTable(row, ddata) {
   // The pay column drops the $ prefix (the header carries it) so the values fit the narrow column.
   return `<h4 class="cv-h4">Industrias más especializadas <span class="muted">por cociente de localización</span></h4>
   <div class="cv-top" role="table" aria-label="Industrias más especializadas">
-    <div class="cv-top-r cv-top-hd" role="row"${grid}><span role="columnheader">Industria</span><span role="columnheader">Empleo</span><span role="columnheader">×región</span>${
+    <div class="cv-top-r cv-top-hd" role="row"${grid}><span role="columnheader">Industria</span><span role="columnheader">Empleo</span><span role="columnheader">×${T.nationShort}</span>${
       hasPay ? `<span role="columnheader">Sueldo ($)</span>` : ""}${hasOty ? `<span role="columnheader">1 año</span>` : ""}</div>
     ${top.map((t) => {
       const named = ddata.industries?.[t.naics]?.title;
@@ -201,7 +202,7 @@ export function districtsHtml(m, ddata, mil) {
   } else {
     const cnt = row.counties ? ` (de ${row.counties[0]} de ${row.counties[1]} comunas)` : "";
     const pay = row.avg_pay != null
-      ? `, sueldo medio ${money(row.avg_pay)}${ddata.national?.avg_pay != null ? ` (región ${money(ddata.national.avg_pay)})` : ""}` : "";
+      ? `, sueldo medio ${money(row.avg_pay)}${ddata.national?.avg_pay != null ? ` (${T.nationShort} ${money(ddata.national.avg_pay)})` : ""}` : "";
     const text = String(b?.text || "").replace(/\.\s*$/, "");
     lead = `<p class="cv-lead">${b?.district ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${text ? ` · ${esc(text)}` : ""}.` : ""}${
       row.emp != null ? `${int(row.emp)} empleos contados${cnt}${pay}.` : ""}</p>`;

@@ -14,6 +14,7 @@
 import { esc, int, pct } from "../../format.js";
 import { compact } from "./fmt.js";
 import { CATEGORY_COLOR, artKey, figureCanvas, loadPainter } from "./figures.js";
+import { T } from "../../terms.js";
 
 /** groups → (row, key) → the key of the figure and colour that category uses (its own, or the one its icon names). */
 function artOf(groups) {
@@ -71,7 +72,7 @@ function sentence(label, share, natShare, cityName, noun) {
   const a = oneIn(share);
   if (!a) return "";
   const us = oneIn(natShare);
-  return `Entre ${noun} de ${cityName}, ${a.text} ${a.pl ? "pertenecen" : "pertenece"} a "${label}"${us ? ` (región: ${us.text})` : ""}`;
+  return `Entre ${noun} de ${cityName}, ${a.text} ${a.pl ? "pertenecen" : "pertenece"} a "${label}"${us ? ` (${T.nationShort}: ${us.text})` : ""}`;
 }
 
 function rowModel(rowDef, row, nat, groups, figuresN) {
@@ -113,13 +114,13 @@ export function citizensHtml(m, data) {
   const ba = row0.education?.bachelors_plus, usBa = nat.education?.bachelors_plus;
   const fb = row0.nativity?.foreign_born ?? row0.nativity?.shares?.foreign_born;
   const usFb = nat.nativity?.foreign_born ?? nat.nativity?.shares?.foreign_born;
-  const chip = (v, us, fmt, lbl, tip) => (v == null ? "" : `<div class="cv-cz-chip" title="${esc(tip)}"><b>${fmt(v)}</b><span>${esc(lbl)}</span>${us != null ? `<small>región ${fmt(us)}</small>` : ""}</div>`);
+  const chip = (v, us, fmt, lbl, tip) => (v == null ? "" : `<div class="cv-cz-chip" title="${esc(tip)}"><b>${fmt(v)}</b><span>${esc(lbl)}</span>${us != null ? `<small>${T.nationShort} ${fmt(us)}</small>` : ""}</div>`);
   const top = (row0.specialists || []).find((s) => s.ratio >= hi);
   const topRow = ROWS.find((r) => r.id === top?.row);
   const great = top && topRow ? `<div class="cv-great" style="--fc:${esc(colorOf(top.row, top.key, "#c9a45c"))}">
       <span class="cv-great-fig" data-great="${esc(top.row)}|${esc(top.key)}" aria-hidden="true"></span>
       <div><small>Habitante representativo</small><b>${esc(label[top.row]?.[top.key] || top.key)}</b>
-      <span>Representa el ${pct(top.share, 1)} de ${esc(nounOf(topRow, data))} de la comuna, frente al ${pct(top.national, 1)} en la región: ${top.ratio.toFixed(1)} veces la proporción regional.</span></div></div>` : "";
+      <span>Representa el ${pct(top.share, 1)} de ${esc(nounOf(topRow, data))} de la comuna, frente al ${pct(top.national, 1)} ${T.inNation}: ${top.ratio.toFixed(1)} veces la proporción ${T.regional}.</span></div></div>` : "";
 
   // Only the row types this build has (a `groups` entry); the others are not part of the data at all.
   const rows = ROWS.filter((rd) => Array.isArray(groups[rd.id]) && groups[rd.id].length).map((rd) => {
@@ -146,16 +147,16 @@ export function citizensHtml(m, data) {
     const legend = keys.map((k) => {
       const sh = row.shares?.[k], us = nat[rd.id]?.shares?.[k];
       const sp = specs.get(`${rd.id}|${k}`);
-      const chev = sp ? `<em class="${sp.ratio >= 1 ? "up" : "down"}" title="${sp.ratio.toFixed(1)} veces la proporción regional">${sp.ratio >= 1 ? "▲" : "▼"}</em>` : "";
-      return `<span class="cv-cz-k${figs[k] ? "" : " zero"}" data-k="${esc(k)}" title="${esc(label[rd.id]?.[k] || k)}: ${sh != null ? pct(sh, 1) : "–"}${us != null ? ` (región ${pct(us, 1)})` : ""}${figs[k] ? "" : ". Al redondear no alcanza una figura."}"><i style="background:${esc(colorOf(rd.id, k, "#888"))}"></i>${esc(short[rd.id]?.[k] || k)} <small>${sh != null ? pct(sh, 0) : "–"}</small>${chev}</span>`;
+      const chev = sp ? `<em class="${sp.ratio >= 1 ? "up" : "down"}" title="${sp.ratio.toFixed(1)} veces la proporción ${T.regional}">${sp.ratio >= 1 ? "▲" : "▼"}</em>` : "";
+      return `<span class="cv-cz-k${figs[k] ? "" : " zero"}" data-k="${esc(k)}" title="${esc(label[rd.id]?.[k] || k)}: ${sh != null ? pct(sh, 1) : "–"}${us != null ? ` (${T.nationShort} ${pct(us, 1)})` : ""}${figs[k] ? "" : ". Al redondear no alcanza una figura."}"><i style="background:${esc(colorOf(rd.id, k, "#888"))}"></i>${esc(short[rd.id]?.[k] || k)} <small>${sh != null ? pct(sh, 0) : "–"}</small>${chev}</span>`;
     }).join("");
     // National comparison bar (shares), aligned with the figures' order.
-    const usBar = nat[rd.id]?.shares ? `<div class="cv-cz-us" title="Composición regional (mismo orden)"><span>Región</span><div>${keys.map((k) => {
+    const usBar = nat[rd.id]?.shares ? `<div class="cv-cz-us" title="Composición ${T.regional} (mismo orden)"><span>${T.NationShort}</span><div>${keys.map((k) => {
       const s = nat[rd.id].shares[k] || 0;
-      return s > 0 ? `<i style="flex:${s};background:${esc(colorOf(rd.id, k, "#888"))}" title="${esc(short[rd.id]?.[k] || k)}: región ${pct(s, 1)}"></i>` : "";
+      return s > 0 ? `<i style="flex:${s};background:${esc(colorOf(rd.id, k, "#888"))}" title="${esc(short[rd.id]?.[k] || k)}: ${T.nationShort} ${pct(s, 1)}"></i>` : "";
     }).join("")}</div></div>` : "";
     const cap = `Cada figura ≈ ${compact(per)} personas · ${compact(row.total)} en total (${bare(nounOf(rd, data))})${rd.n && !row.figures ? " · redondeado aquí" : ""}`;
-    const extra = rd.id === "age" && med != null ? ` · edad mediana ${med.toFixed(1)} años${usMed != null ? ` (región ${usMed.toFixed(1)} años)` : ""}` : "";
+    const extra = rd.id === "age" && med != null ? ` · edad mediana ${med.toFixed(1)} años${usMed != null ? ` (${T.nationShort} ${usMed.toFixed(1)} años)` : ""}` : "";
     return `<div class="cv-cz-row" data-row="${rd.id}" style="--n:${n}">${head}
       <div class="cv-figs" role="group" aria-label="${esc(rd.title)}: ${esc(keys.filter((k) => figs[k]).map((k) => `${short[rd.id]?.[k] || k} ${figs[k]}/${n}`).join(", "))}">${cells.join("")}</div>
       ${usBar}
@@ -175,7 +176,7 @@ export function citizensHtml(m, data) {
     ${great}
     ${unreliable}
     <div class="cv-cz${row0.reliable === false ? " unreliable" : ""}">${rows}</div>
-    <p class="cv-note">${data.vintage ? `Fuente: ${esc(data.vintage)}. ` : ""}Las figuras se redondean con el método del mayor resto, así cada fila suma el total de figuras; pasa el cursor sobre una figura o tócala para ver la proporción de su categoría. ▲▼ = proporción de al menos ${hi} veces la regional, o de a lo sumo ${lo} veces${
+    <p class="cv-note">${data.vintage ? `Fuente: ${esc(data.vintage)}. ` : ""}Las figuras se redondean con el método del mayor resto, así cada fila suma el total de figuras; pasa el cursor sobre una figura o tócala para ver la proporción de su categoría. ▲▼ = proporción de al menos ${hi} veces la ${T.regional}, o de a lo sumo ${lo} veces${
       Number.isFinite(data.rule?.min_count) ? `; no se marcan las categorías con menos de ${int(data.rule.min_count)} personas en la comuna` : ""}.</p>`;
 }
 
@@ -229,7 +230,7 @@ export function mountCitizens(host, m, data) {
         return;
       }
       const sh = row.shares?.[k], us = nat[rid]?.shares?.[k];
-      out.innerHTML = `${esc(sentence(labelOf(rid, k), sh, us, m.city.name, nounOf(rd, data)))}<small>Comuna ${sh != null ? pct(sh, 1) : "–"}${us != null ? ` · región ${pct(us, 1)}` : ""}${row.counts?.[k] != null ? ` · ≈${compact(row.counts[k])} personas` : ""}</small>`;
+      out.innerHTML = `${esc(sentence(labelOf(rid, k), sh, us, m.city.name, nounOf(rd, data)))}<small>Comuna ${sh != null ? pct(sh, 1) : "–"}${us != null ? ` · ${T.nationShort} ${pct(us, 1)}` : ""}${row.counts?.[k] != null ? ` · ≈${compact(row.counts[k])} personas` : ""}</small>`;
       out.classList.add("on");
     };
     let pinned = null;

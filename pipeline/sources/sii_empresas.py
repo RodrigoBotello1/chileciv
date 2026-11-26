@@ -5,12 +5,13 @@ from __future__ import annotations
 import io
 import zipfile
 
+from ..core.mapcfg import CFG
 from ..core.source import Source, SourceInfo
 
 URL = "https://www.sii.cl/sobre_el_sii/empresas/EMPRESAS.zip"
 FILE = "EMPRESAS.zip"
 MEMBER = "PUB_COMURUBR.txt"
-REGION = "Región Metropolitana de Santiago"
+REGION = "Región Metropolitana de Santiago" if CFG["regions"] == {"13"} else None  # None = every region
 
 
 def _num(v: str) -> float | None:
@@ -53,11 +54,11 @@ class SiiEmpresas(Source):
         # at least 90% of the year before (a complete year), so a partial year never shows up.
         def rm_total(y):
             return sum(_num(r[col["Número de empresas"]]) or 0 for r in rows
-                       if r[year_col] == str(y) and r[col["Región del domicilio o casa matriz"]] == REGION)
+                       if r[year_col] == str(y) and (REGION is None or r[col["Región del domicilio o casa matriz"]] == REGION))
         year = next(y for y in reversed(years) if rm_total(y) >= 0.9 * rm_total(y - 1))
         comunas: dict[str, dict] = {}
         for r in rows:
-            if r[year_col] != str(year) or r[col["Región del domicilio o casa matriz"]] != REGION:
+            if r[year_col] != str(year) or (REGION is not None and r[col["Región del domicilio o casa matriz"]] != REGION):
                 continue
             name = r[col["Comuna del domicilio o casa matriz"]]
             rubro = r[col["Rubro económico"]]
@@ -69,7 +70,7 @@ class SiiEmpresas(Source):
                 "trabajadores": _num(r[col["Trabajadores ponderados por meses trabajados"]]),
                 "renta_uf": _num(r[col["Renta neta informada en UF"]]),
             }
-        print(f"    {len(comunas)} comunas de la RM, año comercial {year}")
+        print(f"    {len(comunas)} comunas, año comercial {year}")
         return {
             "vintage": f"SII, estadísticas de empresas, año comercial {year}",
             "year": year,

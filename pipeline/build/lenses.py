@@ -116,7 +116,7 @@ def comuna_values(codes: list[str], censo: dict, tablas: dict, sii_of: dict, uf:
     def col(fn):
         return [fn(g) for g in codes]
 
-    out["growth"] = col(lambda g: _div(pop[g], t["censo2017"][g]["pop"]) - 1 if t["censo2017"][g]["pop"] else None)
+    out["growth"] = col(lambda g: _div(pop[g], t["censo2017"][g]["residentes"]) - 1 if t["censo2017"][g].get("residentes") else None)
     out["age"] = col(lambda g: median_age(ages[g]))
     out["aging"] = col(lambda g: t["edad"][g]["indice_envejecimiento"])
     out["foreign_born"] = col(lambda g: _div(t["inmigracion"][g]["total"], pop[g]))
@@ -169,7 +169,7 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
         "divide por la superficie del hexágono.",
         "Reparto aproximado: el Censo cuenta personas por comuna, no por hexágono.")
     add("growth", "people", "Crecimiento 2017-2024", "📈", "cambio de población", "pct", "linear", "neutral", "ine_censo_tablas",
-        "Población censada 2024 ÷ población censada 2017 − 1, por comuna (INE)." + SPREAD)
+        "Población censada 2024 ÷ residentes habituales del Censo 2017 − 1, por comuna (INE). Se compara con los residentes habituales de 2017 porque el Censo 2024 cuenta a las personas donde viven habitualmente (nota técnica N3 del INE)." + SPREAD)
     add("age", "people", "Edad mediana", "🎂", "años", "years", "linear", "neutral", "ine_censo2024",
         f"Edad que divide a la población de la comuna en dos mitades, interpolada dentro de los grupos quinquenales de edad del {CENSO}." + SPREAD)
     add("aging", "people", "Envejecimiento", "👵", "personas de 65 o más por cada 100 menores de 15", "float", "linear", "neutral",

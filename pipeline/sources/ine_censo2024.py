@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from ..core.source import Source, SourceInfo
+from ..core.mapcfg import CFG, keep_region
 from ._xlsx import sheet_rows
 
 URL = "https://censo2024.ine.gob.cl/wp-content/uploads/2025/03/D1_Poblacion-censada-por-sexo-y-edad-en-grupos-quinquenales.xlsx"
 FILE = "D1_Poblacion-censada-por-sexo-y-edad-en-grupos-quinquenales.xlsx"
-REGION = "13"  # Región Metropolitana de Santiago
 
 
 def _int(v: str) -> int | None:
@@ -37,9 +37,10 @@ class IneCenso2024(Source):
         path = self.raw_dir / FILE
         comunas = {}
         for r in sheet_rows(path, "2"):
-            if len(r) >= 9 and r[0] == REGION:
-                comunas[r[4]] = {
-                    "code": r[4], "name": r[5], "prov_code": r[2], "prov_name": r[3],
+            if len(r) >= 9 and r[4].isdigit() and len(r[4]) >= 4 and r[4] != "0" and keep_region(r[0]):
+                comunas[r[4].zfill(5)] = {
+                    "code": r[4].zfill(5), "name": r[5], "prov_code": r[2].zfill(3), "prov_name": r[3],
+                    "reg_code": r[0].zfill(2), "reg_name": r[1],
                     "population": _int(r[6]), "men": _int(r[7]), "women": _int(r[8]), "ages": {},
                 }
         header = None
@@ -47,13 +48,14 @@ class IneCenso2024(Source):
             if header is None and "Código comuna" in r:
                 header = r
                 continue
-            if header and len(r) > 6 and r[0] == REGION and r[4] in comunas:
+            if header and len(r) > 6 and r[4].zfill(5) in comunas:
                 age = r[header.index("Grupos de edad")]
                 if age.startswith("Total"):
                     continue
-                comunas[r[4]]["ages"][age] = _int(r[header.index("Población censada")])
-        if len(comunas) != 52:
-            raise ValueError(f"expected 52 comunas in region 13, got {len(comunas)}")
+                comunas[r[4].zfill(5)]["ages"][age] = _int(r[header.index("Población censada")])
+        expected = 52 if CFG["regions"] == {"13"} else 346
+        if len(comunas) != expected:
+            raise ValueError(f"expected {expected} comunas, got {len(comunas)}")
         return {
             "vintage": "Censo 2024, primeros resultados (INE, marzo 2025)",
             "year": 2024,

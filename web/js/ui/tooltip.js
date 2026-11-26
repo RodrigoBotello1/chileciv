@@ -2,6 +2,7 @@ import { esc, int, popShort, compact } from "../format.js";
 import { formatLensValue } from "./lenses.js";
 import { glyph } from "./icon.js";
 import { FOREIGN } from "../world.js";
+import { T } from "../terms.js";
 
 const el = () => document.getElementById("tooltip");
 
@@ -35,7 +36,7 @@ export function showCellTooltip(mx, my, w, i, lens, showResources = true) {
     if (place) lines.push(esc(place));
     if (lens) lines.push(`${glyph(lens, 13)} ${esc(lens.name)}: <b>${esc(formatLensValue(lens, lens.values[i]))}</b>`);
   } else if (o === FOREIGN) {
-    lines.push(`<span class="muted">Fuera de la región (sin datos)</span>`);
+    lines.push(`<span class="muted">Fuera ${T.ofNation} (sin datos)</span>`);
   }
   const res = showResources && w.resources?.byCell.get(i);
   if (res) {

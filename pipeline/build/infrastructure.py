@@ -28,7 +28,10 @@ from ..core.geo import SCALE, MapProjection, Shape, ShapeIndex
 from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, load_interim_payload, write_web
 
-REQUIRES = ["_world", "cl_boundaries", "osm_rm_transport"]
+from ..core.mapcfg import MAP
+
+TRANSPORT = "osm_rm_transport" if MAP == "rm" else "ne_roads_cl"  # OSM for the RM; Natural Earth for Chile
+REQUIRES = ["_world", "cl_boundaries", TRANSPORT]
 PRODUCES = ["infrastructure.json"]
 
 SAMPLE_KM = 0.25  # real km between samples along a line (a hex is about 1.7 km across)
@@ -36,6 +39,8 @@ SAMPLE = SAMPLE_KM * SCALE  # the same in map units
 SITE_RINGS = 2
 ROAD_CLASSES = [{"id": "interstate", "name": "Autopistas"}, {"id": "major", "name": "Rutas principales"}]
 RAIL_TIERS = [{"id": "main", "name": "Metro de Santiago"}, {"id": "secondary", "name": "Ferrocarril"}]
+SAMPLE_KM = SAMPLE_KM if MAP == "rm" else 1.0
+SAMPLE = SAMPLE_KM * SCALE
 ROAD_CLASS_OF = {"motorway": 0, "trunk": 0, "primary": 1}  # OSM highway tag → class index
 RAIL_TIER_OF = {"metro": 0, "rail": 1}  # osm_rm_transport kind → tier index
 
@@ -333,7 +338,7 @@ def _int(v):
 def build() -> None:
     world = load_interim("_world")
     grid, proj, owner = HexGrid(**world["grid"]), MapProjection(**world["projection"]), world["owner"]
-    osm_payload = load_interim_payload("osm_rm_transport")
+    osm_payload = load_interim_payload(TRANSPORT)
     osm = osm_payload["data"]
     roads = build_roads(grid, proj, owner, osm)
     rail = build_rail(grid, proj, owner, osm)
@@ -346,7 +351,7 @@ def build() -> None:
         "version": 1,
         "vintage": {"roads": osm_payload["vintage"], "rail": osm_payload["vintage"], "ports": None,
                     "airports": osm_payload["vintage"]},
-        "sources": ["osm_rm_transport"],
+        "sources": [TRANSPORT],
         "rules": RULES,
         "units": UNITS,
         "road_classes": ROAD_CLASSES,

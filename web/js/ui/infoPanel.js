@@ -1,6 +1,7 @@
 // Shared building blocks for the city and state panels (both render into #city-panel).
 import { compact, dollars, esc, int, money, pct, yieldValue } from "../format.js";
 import { icon, glyph } from "./icon.js";
+import { T } from "../terms.js";
 
 // Industry → a "district" glyph: SVG icons i-<key> from icons.js; these emoji are only the fallback.
 export const DISTRICT_ICON = {
@@ -33,7 +34,7 @@ export function yieldGrid(nation, yields, ranks = null, rankOf = 0) {
         <div class="ico" style="color:${esc(y.color)}">${glyph(y, 20)}</div>
         <div class="val" style="color:${esc(y.color)}">${yieldValue(y, v)}</div>
         <div class="lbl">${esc(label)}</div>
-        ${r ? `<div class="rank" title="Lugar ${r} entre las ${rankOf} provincias del mapa (1 = la mayor)">${r}.º de ${rankOf}</div>` : ""}</div>`;
+        ${r ? `<div class="rank" title="Lugar ${r} entre las ${rankOf} ${T.states} del mapa (1 = la mayor)">${r}.º de ${rankOf}</div>` : ""}</div>`;
     })
     .join("");
 }
@@ -46,7 +47,7 @@ export function statRow(ic, fallback, label, v, nv, fmt, higherIsGood) {
     const cls = Math.abs(ratio - 1) < 0.03 || higherIsGood == null ? "" : (higherIsGood ? ratio >= 1 : ratio <= 1) ? "good" : "bad";
     // Within 3% of the regional value reads as level: no arrow, no colour (the colour uses the same band).
     const arrow = Math.abs(ratio - 1) < 0.03 ? "≈" : ratio > 1 ? "▲" : "▼";
-    cmp = `<span class="cmp ${cls}">${arrow} Región ${fmt(nv)}</span>`;
+    cmp = `<span class="cmp ${cls}">${arrow} ${T.NationShort} ${fmt(nv)}</span>`;
   }
   return `<div class="stat-row"><span class="sl">${icon(ic, fallback, { size: 14 })}${esc(label)}</span><span><b>${fmt(v)}</b>${cmp}</span></div>`;
 }
@@ -83,7 +84,7 @@ export function industries(o, nation, limit = 0) {
       const share = v / total;
       const nShare = (n.jobs?.[k] || 0) / nTotal;
       const lq = nShare > 0 ? share / nShare : 1;
-      const tip = `El rubro pesa ${lq.toFixed(1)} veces más en el empleo que en el total de la región`;
+      const tip = `El rubro pesa ${lq.toFixed(1)} veces más en el empleo que en el total ${T.ofNation}`;
       const badge = lq >= 1.3 ? `<span class="lq hi" title="${tip}">×${lq.toFixed(1)}</span>`
         : lq <= 0.6 ? `<span class="lq lo" title="${tip}">×${lq.toFixed(1)}</span>` : "";
       return `<div class="ind"><span aria-hidden="true">${icon(`i-${k}`, DISTRICT_ICON[k] || "•")}</span>
@@ -115,7 +116,7 @@ export function growthSpan(o, n = null) {
   const yrs = Array.isArray(o.growth_years) && o.growth_years.length === 2 ? o.growth_years : null;
   const p = (g) => `${g >= 0 ? "+" : "−"}${Math.abs(g * 100).toFixed(1)}%`;
   const period = yrs ? `${yrs[0]}–${yrs[1]}` : "los últimos años";
-  const nat = Number.isFinite(n?.growth) ? ` (región ${p(n.growth)})` : "";
+  const nat = Number.isFinite(n?.growth) ? ` (${T.nationShort} ${p(n.growth)})` : "";
   const tip = `Cambio de población ${period}: ${p(o.growth)}${nat} · ${growthSource}`;
   const cls = o.growth >= 0 ? "good" : "bad";
   return ` · <span class="growth ${cls}" title="${esc(tip)}">${o.growth >= 0 ? "▲" : "▼"} ${Math.abs(o.growth * 100).toFixed(1)}%${
@@ -132,13 +133,13 @@ export const popLine = (o, extra = "") =>
 export function showPanel(spec) {
   const panel = panelEl();
   panel.dataset.kind = spec.kind;
-  panel.setAttribute("aria-label", `${spec.kind === "state" ? "Provincia" : "Comuna"}: ${spec.title}`);
+  panel.setAttribute("aria-label", `${spec.kind === "state" ? `${T.State}` : "Comuna"}: ${spec.title}`);
   panel.innerHTML = `
     <div class="sheet-grip" aria-hidden="true"></div>
     <div class="cp-head">
       <div class="stripe" style="background:${spec.stripe}"></div>
       <button class="icon-btn cp-close" aria-label="Cerrar el panel (Esc)" title="Cerrar (Esc)">${icon("close", "✕", { size: 13 })}</button>
-      <div class="cp-kind">${spec.kind === "state" ? "Provincia" : "Comuna"}</div>
+      <div class="cp-kind">${spec.kind === "state" ? `${T.State}` : "Comuna"}</div>
       <h2 class="cp-name">${spec.titleHtml ?? esc(spec.title)}</h2>
       ${spec.sub ? `<div class="cp-full">${spec.sub}</div>` : ""}
       ${spec.headExtra || ""}

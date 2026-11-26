@@ -7,6 +7,7 @@ import { createTable } from "../core/table.js";
 import { createScatter } from "../core/scatter.js";
 import { section, segmented, selectBox, sourcesHtml, frameBtn } from "../core/view.js";
 import { rowsHighlight, extendData } from "../core/data.js";
+import { T } from "../../../terms.js";
 
 // Preferred columns and axes, in order: the first ones the level really has data for are used (a field with no
 // value in any row, e.g. incomes in this build, is skipped), topped up with the level's other numeric columns.
@@ -385,7 +386,7 @@ export async function mount(ctx) {
     const gdpVintage = data.nation?.gdp_vintage;
     srcEl.innerHTML = sourcesHtml(data, srcIds, [
       ...(lv.fields.some((f) => !f.empty && f.label.endsWith("≈")) ? ["Las columnas marcadas con ≈ son promedios de las comunas ponderados por población: sirven de referencia, pero no son la estadística de esa unidad."] : []),
-      ...(data.vintage || data.countyVintage ? [`${data.vintage ? `Datos de comunas y provincias: ${esc(data.vintage)}. ` : ""}${data.countyVintage ? `Datos de comunas (detalle): ${esc(data.countyVintage)}.` : ""}`.trim()] : []),
+      ...(data.vintage || data.countyVintage ? [`${data.vintage ? `Datos de comunas y ${T.states}: ${esc(data.vintage)}. ` : ""}${data.countyVintage ? `Datos de comunas (detalle): ${esc(data.countyVintage)}.` : ""}`.trim()] : []),
       ...(gdpVintage && live(lv, "gdp") ? [`Ventas: ${esc(gdpVintage)}, de un año distinto al de la población.`] : []),
       ...(st.level === "counties" && data.countiesOffMap ? [`${int(data.countiesOffMap)} comunas son más chicas que un hexágono: siguen en la tabla y los gráficos, pero no se pueden delinear en el mapa.`] : []),
     ]);

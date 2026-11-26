@@ -4,7 +4,10 @@ from ..core.source import Source, SourceInfo
 # Pinned to a release tag so the content (and sha256) cannot change under the same URL.
 TAG = "v5.1.2"
 BASE = f"https://raw.githubusercontent.com/nvkelso/natural-earth-vector/{TAG}/geojson"
-BBOX = (-72.5, -35.0, -69.0, -32.2)  # lon0, lat0, lon1, lat1: the map window plus a margin
+from ..core.mapcfg import CFG
+
+_W = CFG["window"]
+BBOX = (_W[0] - 0.5, _W[1] - 0.5, _W[2] + 0.5, _W[3] + 0.5)  # lon0, lat0, lon1, lat1: the map window plus a margin
 
 
 class NaturalEarth(Source):
@@ -19,7 +22,7 @@ class NaturalEarth(Source):
         used_for=["Tierra fuera de la región (resto de Chile y Argentina)", "Costa", "Lagos"],
     )
 
-    FILES = ["ne_10m_admin_0_countries", "ne_10m_lakes", "ne_50m_rivers_lake_centerlines"]
+    FILES = ["ne_10m_admin_0_countries", "ne_10m_lakes", "ne_10m_rivers_lake_centerlines"]
 
     def _path(self, name):
         return f"{TAG}/{name}.geojson"

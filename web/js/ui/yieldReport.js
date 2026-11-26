@@ -7,6 +7,7 @@ import { compact, dollars, esc, int, money, pct } from "../format.js";
 import { hasIcon } from "../icons.js";
 import { icon, glyph } from "./icon.js";
 import { DISTRICT_ICON, gdpLabel, goldName, growthSourceName, useSources } from "./infoPanel.js";
+import { T } from "../terms.js";
 
 export const METRO_MIN = 100000; // comunas ranked in growth / specialisation / per-person rankings: small comunas swing too much
 export const BIG_METRO_MIN = 100000; // same floor for the comunas in the unemployment rankings
@@ -75,7 +76,7 @@ export function statDefs(nation) {
   return [
     {
       key: "population", label: "Población", name: "Población", color: "#e8dcc0", iconId: "pop", emoji: "👥", unit: "people",
-      description: "Personas que viven en la región.", source: nation?.vintage || "", value: n.population ?? null,
+      description: `Personas que viven ${T.inNation}.`, source: nation?.vintage || "", value: n.population ?? null,
     },
     ...yields,
     {
@@ -123,11 +124,11 @@ function rank(list, valueOf, { asc = false, min = 0, fmt = count3, exact = int, 
 function stateScope(n, st) {
   const sum = st.reduce((a, r) => a + (fin(r.o.population) ? r.o.population : 0), 0);
   const gap = fin(n.population) && n.population > 0 ? (n.population - sum) / n.population : 0;
-  const label = "Provincias";
+  const label = `${T.States}`;
   if (!st.length || gap < 0.001) return { label, note: "" };
   return {
-    label, inMap: "las provincias del mapa",
-    note: `El ranking cubre las ${st.length} provincias del mapa; el total de la región incluye además ${compact(n.population - sum)} personas fuera del mapa, que no entran al ranking.`,
+    label, inMap: `las ${T.states} del mapa`,
+    note: `El ranking cubre las ${st.length} ${T.states} del mapa; el total ${T.ofNation} incluye además ${compact(n.population - sum)} personas fuera del mapa, que no entran al ranking.`,
   };
 }
 
@@ -187,7 +188,7 @@ function reportPopulation(rep, n, st, metros) {
     label: `${prefix}${x.r.name}`, sub: x.r.kind === "city" ? x.r.sub : "", value: x.v, text: signedPct(x.v), tone: x.v >= 0 ? "good" : "bad",
   });
   const groups = [];
-  if (fin(n.growth)) groups.push({ rows: [{ label: "Región", value: n.growth, text: signedPct(n.growth), tone: n.growth >= 0 ? "good" : "bad", strong: true }] });
+  if (fin(n.growth)) groups.push({ rows: [{ label: `${T.NationShort}`, value: n.growth, text: signedPct(n.growth), tone: n.growth >= 0 ? "good" : "bad", strong: true }] });
   const extremes = (list, what) => {
     if (list.length < 2) return;
     const k = Math.min(3, Math.floor(list.length / 2));
@@ -195,7 +196,7 @@ function reportPopulation(rep, n, st, metros) {
     groups.push({ title: `${what}: mayor crecimiento`, rows: top.map((x) => row(x)) });
     groups.push({ title: bottom.every((x) => x.v < 0) ? `${what}: mayor pérdida de población` : `${what}: menor crecimiento`, rows: bottom.map((x) => row(x)) });
   };
-  extremes(sorted(st, g), "Provincias");
+  extremes(sorted(st, g), `${T.States}`);
   extremes(sorted(metros, g, METRO_MIN), `Comunas (${compact(METRO_MIN)} hab. o más)`);
   if (groups.length) rep.breakdown = { title: yrs ? `Cambio de población ${yrs[0]}–${yrs[1]}` : "Cambio de población", note: rep.scope.note, groups };
 
@@ -218,7 +219,7 @@ function reportUnemployment(rep, n, st, metros) {
   const row = (label, x) => ({ label: `${label}: ${x.r.name}`, sub: x.r.kind === "city" ? x.r.sub : "", value: x.v, text: pct(x.v), tone: tone(x.v) });
   const spread = (list) => (list.length >= 3 ? [row("Máximo", list[0]), row("Mediana", list[Math.floor(list.length / 2)]), row("Mínimo", list.at(-1))] : []);
   const groups = [];
-  if (fin(n.unemployment)) groups.push({ rows: [{ label: "Región", value: n.unemployment, text: pct(n.unemployment), strong: true }] });
+  if (fin(n.unemployment)) groups.push({ rows: [{ label: `${T.NationShort}`, value: n.unemployment, text: pct(n.unemployment), strong: true }] });
   const sRows = spread(ss), mRows = spread(sorted(metros, u, BIG_METRO_MIN));
   if (sRows.length) groups.push({ title: rep.scope.label, rows: sRows });
   if (mRows.length) groups.push({ title: `Comunas grandes (${compact(BIG_METRO_MIN)} hab. o más)`, rows: mRows });
@@ -266,7 +267,7 @@ function reportJobs(rep, def, nation, n, st, metros) {
   const key = def.key;
   const nShare = ratio(rep.total, n.employed);
   const G = gdpLabel(nation);
-  if (nShare != null) rep.context.push(`${pct(nShare)} del empleo de la región (${compact(n.employed)})`);
+  if (nShare != null) rep.context.push(`${pct(nShare)} del empleo ${T.ofNation} (${compact(n.employed)})`);
   const per1k = ratio(rep.total, n.population);
   if (per1k != null) rep.context.push(`${Math.round(per1k * 1000)} por cada mil habitantes`);
 
@@ -306,7 +307,7 @@ function reportJobs(rep, def, nation, n, st, metros) {
     { id: "abs", label: "Más empleo", states: rank(st, y), metros: rank(metros, y) },
     {
       id: "rel", label: "Especialización",
-      hint: `Peso de "${def.label}" en el empleo local ÷ su peso en la región (${pct(nShare)}); las comunas se listan solo con ${compact(METRO_MIN)} habitantes o más.`,
+      hint: `Peso de "${def.label}" en el empleo local ÷ su peso ${T.inNation} (${pct(nShare)}); las comunas se listan solo con ${compact(METRO_MIN)} habitantes o más.`,
       states: rank(st, lq, { fmt: fmtLq, exact: exactLq, subOf: shareSub }), metros: rank(metros, lq, { fmt: fmtLq, exact: exactLq, subOf: shareSub, min: METRO_MIN }),
     },
   ];
@@ -413,7 +414,7 @@ export function initYieldReports(opts) {
     pop.innerHTML = `
       <div class="yr-head">
         <span class="yr-ic" style="color:${esc(def.color)}">${defIcon(def, 26)}</span>
-        <div class="yr-titles"><div class="yr-kind">Informe de la región</div><h2 id="yr-title">${esc(def.name)}</h2></div>
+        <div class="yr-titles"><div class="yr-kind">Informe ${T.ofNation}</div><h2 id="yr-title">${esc(def.name)}</h2></div>
         <button class="icon-btn yr-close" aria-label="Cerrar el informe (Esc)" title="Cerrar (Esc)">${icon("close", "✕", { size: 12 })}</button>
       </div>
       <div class="yr-total"><b style="color:${esc(def.color)}">${esc(rep.totalText)}</b>
@@ -426,7 +427,7 @@ export function initYieldReports(opts) {
       ${modes.length ? `<section class="yr-sec"><h3>Ranking</h3>
         <div class="yr-controls">
           <div class="yr-tabs" role="tablist" aria-label="Ámbito del ranking">
-            <button role="tab" id="yr-tab-states" data-tab="states" aria-controls="yr-board" aria-selected="${tab === "states"}" tabindex="${tab === "states" ? 0 : -1}" ${hasStates ? "" : "disabled"}>Provincias</button>
+            <button role="tab" id="yr-tab-states" data-tab="states" aria-controls="yr-board" aria-selected="${tab === "states"}" tabindex="${tab === "states" ? 0 : -1}" ${hasStates ? "" : "disabled"}>${T.States}</button>
             <button role="tab" id="yr-tab-metros" data-tab="metros" aria-controls="yr-board" aria-selected="${tab === "metros"}" tabindex="${tab === "metros" ? 0 : -1}" ${hasMetros ? "" : "disabled"}>Comunas</button>
           </div>
           ${modes.length > 1 ? `<div class="yr-modes" role="group" aria-label="Criterio del ranking">${modes

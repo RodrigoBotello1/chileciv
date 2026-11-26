@@ -17,7 +17,10 @@ from collections import Counter, defaultdict
 from ..core import fetch
 from ..core.source import Source, SourceInfo
 
-BBOX = "-34.60,-72.00,-32.60,-69.45"  # south, west, north, east: the map window plus its margin
+from ..core.mapcfg import CFG
+
+_W = CFG["window"]
+BBOX = f"{_W[1]},{_W[0]},{_W[3]},{_W[2]}"  # south, west, north, east: the map bbox plus its margin
 MIRRORS = [
     "https://maps.mail.ru/osm/tools/overpass/api",
     "https://overpass.private.coffee/api",

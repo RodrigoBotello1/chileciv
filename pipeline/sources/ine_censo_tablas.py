@@ -8,6 +8,7 @@ INE with the 2024 results), for the 2017-2024 growth.
 from __future__ import annotations
 
 from ..core.source import Source, SourceInfo
+from ..core.mapcfg import CFG, keep_region
 from ._xlsx import sheet_rows
 
 BASE = "https://censo2024.ine.gob.cl/wp-content/uploads"
@@ -23,7 +24,6 @@ FILES = {
     "hogar": "2025/05/H1_Servicios-basicos-hogar-y-tenencia-vivienda.xlsx",
     "censo2017": "2025/04/Poblacion-censada-y-residentes-habituales-Censo-2017.xlsx",
 }
-REGION = "13"
 
 # (output key, file, sheet, row filter {column: value} or None, {output field: column name})
 TABLES = [
@@ -65,7 +65,7 @@ TABLES = [
     ("tenencia", "hogar", "8", None,
      {"hogares": "Hogares censados", "propia_pagada": "Propia pagada", "propia_pagandose": "Propia pagándose",
       "arrendada_con": "Arrendada con contrato", "arrendada_sin": "Arrendada sin contrato"}),
-    ("censo2017", "censo2017", "2", None, {"pop": "Población censada"}),
+    ("censo2017", "censo2017", "2", None, {"pop": "Población censada", "residentes": "Residentes habituales"}),
 ]
 
 
@@ -112,14 +112,15 @@ class IneCensoTablas(Source):
             cc = _code_col(header)
             table = {}
             for r in rows:
-                if len(r) <= cc or r[0] != REGION or len(r[cc]) != 5:
+                if len(r) <= cc or not r[cc].isdigit() or len(r[cc]) < 4 or not keep_region(r[0]):
                     continue
                 if flt and any(r[idx[c]] != v for c, v in flt.items()):
                     continue
-                table[r[cc]] = {k: _num(r[idx[c]]) if idx.get(c) is not None and idx[c] < len(r) else None
+                table[r[cc].zfill(5)] = {k: _num(r[idx[c]]) if idx.get(c) is not None and idx[c] < len(r) else None
                                 for k, c in cols.items()}
-            if len(table) != 52:
-                raise ValueError(f"{key}: expected 52 comunas, got {len(table)}")
+            expected = 52 if CFG["regions"] == {"13"} else 346
+            if len(table) < expected - 1:  # a table may leave out the Antarctic comuna
+                raise ValueError(f"{key}: expected {expected} comunas, got {len(table)}")
             out[key] = table
         # Immigrants by country of birth (long format): total and the countries, per comuna.
         header, rows = self._rows("inmigracion", "4")
@@ -127,9 +128,9 @@ class IneCensoTablas(Source):
         cc, pc, vc = _code_col(header), idx["País o continente de nacimiento"], idx["Inmigrantes internacionales"]
         imm: dict[str, dict] = {}
         for r in rows:
-            if len(r) <= vc or r[0] != REGION or len(r[cc]) != 5:
+            if len(r) <= vc or not r[cc].isdigit() or len(r[cc]) < 4 or not keep_region(r[0]):
                 continue
-            rec = imm.setdefault(r[cc], {"total": None, "paises": {}})
+            rec = imm.setdefault(r[cc].zfill(5), {"total": None, "paises": {}})
             if r[pc].startswith("Total"):
                 rec["total"] = _num(r[vc])
             else:

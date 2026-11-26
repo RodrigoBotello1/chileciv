@@ -5,6 +5,7 @@ import { shareBar, barList, donut, smallMultiples } from "../core/charts.js";
 import { createTable } from "../core/table.js";
 import { section, tiles, segmented, lensButton, sourcesHtml, topBy, frameBtn } from "../core/view.js";
 import { LAND_KEYS, LAND_LABEL, LAND_COLOR, rowsHighlight } from "../core/data.js";
+import { T } from "../../../terms.js";
 
 const LENS_OF = { forest: "forest", crop: "farmland", pasture: "farmland", developed: "developed" };
 const FOOD_MIN = 100000; // cities in the farm-worker ranking
@@ -45,13 +46,13 @@ export function mount(ctx) {
   const other = Math.max(0, 1 - LAND_KEYS.reduce((a, k) => a + share[k], 0));
 
   el.insertAdjacentHTML("beforeend", tiles([
-    { label: LAND_LABEL.forest, value: pct(share.forest, 0), sub: "De la tierra de la región", color: LAND_COLOR.forest },
+    { label: LAND_LABEL.forest, value: pct(share.forest, 0), sub: `De la tierra ${T.ofNation}`, color: LAND_COLOR.forest },
     { label: "Tierra agropecuaria", value: pct(share.crop + share.pasture, 0), sub: `${LAND_LABEL.crop}＋${LAND_LABEL.pasture}`, color: LAND_COLOR.crop },
     { label: LAND_LABEL.developed, value: pct(share.developed, 1), sub: "Tierra construida", color: LAND_COLOR.developed },
   ]));
 
   // --- composition ----------------------------------------------------------------------------------------------
-  const cBody = section(el, { title: "Qué hay en esta tierra", kicker: "Región Metropolitana", note: `Proporción de la tierra que ocupa cada cobertura (${landSrcText ? `${esc(landSrcText)}; ` : ""}promedio de todos los hexágonos). Pasa el cursor sobre una clase para iluminar los hexágonos donde predomina; haz clic para dejarla fija.` });
+  const cBody = section(el, { title: "Qué hay en esta tierra", kicker: `${T.nationName}`, note: `Proporción de la tierra que ocupa cada cobertura (${landSrcText ? `${esc(landSrcText)}; ` : ""}promedio de todos los hexágonos). Pasa el cursor sobre una clase para iluminar los hexágonos donde predomina; haz clic para dejarla fija.` });
   let pinned = null;
   const parts = [...LAND_KEYS.map((k) => ({ key: k, label: LAND_LABEL[k], value: share[k], color: LAND_COLOR[k], text: pct(share[k]) })), { key: "other", label: "Otros (suelo desnudo, etc.)", value: other, color: "#6c6358", text: pct(other) }].sort((a, b) => (a.key === "other") - (b.key === "other") || b.value - a.value);
   const domHighlight = (k, dim = true) => (dominant.has(k) ? { cells: new Set(dominant.get(k)), dimOthers: dim, color: LAND_COLOR[k] } : null);
@@ -90,7 +91,7 @@ export function mount(ctx) {
   });
 
   // --- per state ------------------------------------------------------------------------------------------------
-  const sBody = section(el, { title: "Composición de la tierra por provincia", note: "La tierra de cada provincia repartida por tipo de cobertura. Ordena por cualquier tipo; pasa el cursor sobre una provincia para marcarla y haz clic para abrirla." });
+  const sBody = section(el, { title: `Composición de la tierra por ${T.state}`, note: `La tierra de cada ${T.state} repartida por tipo de cobertura. Ordena por cualquier tipo; pasa el cursor sobre una ${T.state} para marcarla y haz clic para abrirla.` });
   const stRows = states.rows.filter((r) => LAND_KEYS.some((k) => fin(r.v[`land_${k}`])));
   const comp = (r) => `<span class="adv-minibar">${LAND_KEYS.map((k) => {
     const v = r.v[`land_${k}`];
@@ -99,7 +100,7 @@ export function mount(ctx) {
   const domOf = (r) => LAND_KEYS.reduce((b, k) => ((r.v[`land_${k}`] ?? -1) > (r.v[`land_${b}`] ?? -1) ? k : b), LAND_KEYS[0]);
   let sortKey = "forest";
   const colsFor = (k) => [
-    { key: "name", label: "Provincia", align: "l", width: "minmax(0,1.1fr)", value: (r) => r.name, text: (r) => r.name },
+    { key: "name", label: `${T.State}`, align: "l", width: "minmax(0,1.1fr)", value: (r) => r.name, text: (r) => r.name },
     { key: "comp", label: "Composición", align: "l", width: "minmax(0,1.6fr)", value: (r) => r.v[`land_${k}`], html: comp, title: `Ordenar por ${LAND_LABEL[k]}` },
     { key: "share", label: LAND_LABEL[k], value: (r) => r.v[`land_${k}`], html: (r) => `<span class="dot" style="background:${LAND_COLOR[k]}"></span>${pct(r.v[`land_${k}`], 0)}` },
     { key: "dom", label: "Predominante", align: "l", width: "minmax(0,.9fr)", value: (r) => LAND_LABEL[domOf(r)], text: (r) => LAND_LABEL[domOf(r)] },
@@ -118,7 +119,7 @@ export function mount(ctx) {
   const gridHost = document.createElement("div");
   sBody.append(tableHost, gridHost);
   const table = createTable(tableHost, {
-    caption: "Cobertura del suelo por provincia", rank: true, maxHeight: 320, rows: stRows, columns: colsFor(sortKey), sort: { key: "share", dir: "desc" },
+    caption: `Cobertura del suelo por ${T.state}`, rank: true, maxHeight: 320, rows: stRows, columns: colsFor(sortKey), sort: { key: "share", dir: "desc" },
     onHover: (r) => link.hover(r ? rowsHighlight(states, [r]) : null),
     onClick: (r) => states.focus(r),
   });
@@ -152,7 +153,7 @@ export function mount(ctx) {
   const fBody = section(el, { title: "Quién trabaja la tierra", note: `${esc(foodDesc)}${/[.!?;)]$/.test(foodDesc) ? "" : " "}Ordenado por la proporción de los ocupados.` });
   const fHost = document.createElement("div");
   let fLevel = "states";
-  segmented(fBody, { label: "Unidad", value: fLevel, options: [{ value: "states", label: "Provincias" }, { value: "metros", label: "Comunas" }], onChange: (v) => { fLevel = v; drawFood(); } });
+  segmented(fBody, { label: "Unidad", value: fLevel, options: [{ value: "states", label: `${T.States}` }, { value: "metros", label: "Comunas" }], onChange: (v) => { fLevel = v; drawFood(); } });
   fBody.appendChild(fHost);
   function drawFood() {
     fHost.innerHTML = "";
@@ -175,7 +176,7 @@ export function mount(ctx) {
     `La cobertura del suelo${landSrcText ? ` (${esc(landSrcText)})` : ""} se remuestrea a hexágonos de 1 km de radio (unos ${+hexKm.toFixed(1)} km de lado a lado), así que lo pequeño (una chacra en un valle, un caserío) se funde con lo que lo rodea.`,
     "\"Predominante\" es la cobertura con mayor proporción dentro del hexágono; no significa que todo el hexágono sea de esa clase.",
     ...(lensSrc.length ? [`Los botones de lente abren otros datos (${lensSrc.map((s) => esc(data.source(s)?.title || s)).join(", ")}), con otras clases y otro año que la cobertura por hexágono de aquí, así que las cifras no coinciden.`] : []),
-    "Las provincias sin cifra de ocupados no entran en el ranking de empleo agropecuario.",
+    `Las ${T.states} sin cifra de ocupados no entran en el ranking de empleo agropecuario.`,
   ]));
 
   return {

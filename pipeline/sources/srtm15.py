@@ -6,12 +6,16 @@ import csv
 
 from ..core.source import Source, SourceInfo
 
-LAT, LON = (-34.60, -32.60), (-72.00, -69.45)  # cl_boundaries.BBOX plus the map margin
+from ..core.mapcfg import CFG
+
+_W = CFG["window"]  # lon0, lat0, lon1, lat1: the map bbox plus its margin
+LAT, LON = (_W[1], _W[3]), (_W[0], _W[2])
+STRIDE = CFG["srtm_stride"]
 URL = (
     "https://coastwatch.pfeg.noaa.gov/erddap/griddap/srtm15plus.csv"
-    f"?z%5B({LAT[0]}):1:({LAT[1]})%5D%5B({LON[0]}):1:({LON[1]})%5D"
+    f"?z%5B({LAT[0]}):{STRIDE}:({LAT[1]})%5D%5B({LON[0]}):{STRIDE}:({LON[1]})%5D"
 )
-FILE = f"srtm15plus_lat{LAT[0]}_{LAT[1]}_lon{LON[0]}_{LON[1]}.csv"
+FILE = f"srtm15plus_lat{LAT[0]}_{LAT[1]}_lon{LON[0]}_{LON[1]}_s{STRIDE}.csv"
 
 
 class Srtm15(Source):

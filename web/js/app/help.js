@@ -1,5 +1,6 @@
 // Keyboard & mouse cheat-sheet.
 import { icon } from "../ui/icon.js";
+import { T } from "../terms.js";
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
 const MOD = isMac ? "⌘" : "Ctrl";
@@ -16,8 +17,8 @@ const ROWS = [
   ]],
   ["Explorar", [
     [["Clic en una comuna"], "Abrir la vista de comuna"],
-    [["Clic en tierra"], "Abrir esa provincia"],
-    [["/", `${MOD} K`], "Buscar comunas y provincias"],
+    [["Clic en tierra"], `Abrir esa ${T.state}`],
+    [["/", `${MOD} K`], `Buscar comunas y ${T.states}`],
     [["L", "Shift L"], "Lente siguiente / anterior"],
     [["Leyenda"], "Pasa el mouse o arrastra sobre la escala para mostrar solo ese rango"],
     [["R"], "Mostrar u ocultar recursos"],

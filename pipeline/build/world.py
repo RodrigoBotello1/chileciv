@@ -13,7 +13,10 @@ from ..core.geo import HEX_KM, HEX_RADIUS, SCALE, MapProjection, ScaledAlbers, S
 from ..core.hexgrid import SQRT3, HexGrid
 from ..core.store import load_interim, save_interim, write_web
 
-REQUIRES = ["cl_boundaries", "natural_earth", "srtm15", "worldcover", "cl_rivers"]
+from ..core.mapcfg import CFG, MAP
+
+# The RM draws OpenStreetMap rivers; continental Chile uses Natural Earth 1:10m (OSM rivers for 4,300 km are too heavy).
+REQUIRES = ["cl_boundaries", "natural_earth", "srtm15", "worldcover"] + (["cl_rivers"] if MAP == "rm" else [])
 PRODUCES = ["_world", "world.json"]
 
 # Map units, not km: the map is real km × SCALE (core/geo.py), so a 25-unit hex is HEX_KM km across its corners.
@@ -85,6 +88,15 @@ COVER_NOTE = (
     f"bosque sale de la elevación media del hexágono (esclerófilo bajo {SCLEROPHYLL_MAX_M:,} m, andino desde ahí). Sin "
     "clase de praderas, las praderas son 0 en todas partes. Fuera de la región, la cobertura es 0 (ninguna)."
 )
+if MAP != "rm":
+    # Continental Chile: one name per forest band, since sclerophyll forest is only the centre of the country.
+    SCLEROPHYLL_MAX_M = 1500
+    COVER = [(1, "forest_deciduous", "Bosque", "#4f7a35", [10], f"Cobertura arbórea (10) es la clase mayor y la elevación media está bajo {SCLEROPHYLL_MAX_M:,} m: bosque esclerófilo en el centro, templado en el sur y plantaciones.")
+             if c[0] == 1 else
+             (3, "forest_mixed", "Bosque de altura", "#43703f", [10], f"Cobertura arbórea es la clase mayor y la elevación media es ≥ {SCLEROPHYLL_MAX_M:,} m: lenga, roble y bosque andino.")
+             if c[0] == 3 else c for c in COVER]
+    RELIEF_TABLE[0] = {"id": FLAT, "name": "Llano", "rule": "Ni cerro ni montaña: valles, la depresión intermedia, las pampas y el altiplano plano (alto pero parejo cuenta como alta cordillera solo por su elevación media)."}
+
 # Groups competing for the dominant cover (urban is decided by its threshold first).
 GROUPS = {
     "forest": (10,), "scrub": (20,), "grassland": (30,), "cropland": (40,),
@@ -96,7 +108,7 @@ PCT = {
     "forest": (10,), "crop": (40,), "pasture": (), "grass": (30,), "shrub": (20,),
     "wetland": (90, 95), "developed": (50,),
 }
-WC_STEP = 0.135 * SCALE  # lattice spacing in map units (~135 m real, a little under the 148 m pixel)
+WC_STEP = (0.135 if MAP == "rm" else 0.3) * SCALE  # lattice spacing in map units (a little under the WorldCover pixel)
 
 
 def classify_relief(mean: float, std: float) -> int:
@@ -261,7 +273,7 @@ def build() -> None:
     ne = load_interim("natural_earth")
     srtm = load_interim("srtm15")
     wc = load_interim("worldcover")
-    cl_rivers = load_interim("cl_rivers")["rivers"]
+    cl_rivers = load_interim("cl_rivers")["rivers"] if MAP == "rm" else ne["rivers"]
 
     states = sorted(bounds["states"], key=lambda s: s["fips"])
     counties = sorted(bounds["counties"], key=lambda c: c["geoid"])
@@ -491,7 +503,7 @@ def build() -> None:
 
     by_river: dict[tuple, list] = {}
     for r in cl_rivers:  # OpenStreetMap only: Natural Earth 1:50m rivers are too coarse at 1 km hexes
-        if r["rank"] > 8:
+        if r["rank"] > (8 if MAP == "rm" else 9):
             continue
         line = [proj(lon, lat) for lon, lat in r["line"]]
         if (r.get("featurecla") or "").startswith("Lake Centerline"):

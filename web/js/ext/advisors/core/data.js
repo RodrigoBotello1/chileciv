@@ -12,6 +12,7 @@
 import { fin, ratio } from "./util.js";
 import { CURRENCY } from "../../../format.js";
 import { frameBox } from "./frame.js";
+import { T as TM } from "../../../terms.js";
 
 const COUNTY_LENS = {
   density: "density", income: "income", home_value: "home", poverty: "poverty", median_age: "age", foreign_born: "foreign_born",
@@ -266,9 +267,9 @@ export function buildData(app) {
   const energyField = () => F("energy_mw", "Potencia en el mapa", "mw", { unit: "MW de las centrales del mapa", source: powerSource, group: G.energy, description: "Capacidad de las centrales marcadas como recurso en el mapa (de cada tipo solo cuentan las que superan el umbral): no es la capacidad instalada total." });
   const areaField = () => F("land_km2", "Superficie", "km2", { unit: "km²", source: areaSource, group: G.land, derived: true });
   const states_ = makeLevel({
-    id: "states", label: "Provincia", noun: "provincia",
+    id: "states", label: `${TM.State}`, noun: `${TM.state}`,
     rows: stateRows,
-    fields: [F("name", "Provincia", "text", { group: G.name }), ...econFields(SRC.labor), ...rollupFields(), areaField(), ...landFields, energyField()],
+    fields: [F("name", `${TM.State}`, "text", { group: G.name }), ...econFields(SRC.labor), ...rollupFields(), areaField(), ...landFields, energyField()],
     highlight: (rows) => ({ states: new Set(rows.map((r) => r.ref)) }),
     rowAtCell: (cell, byKey) => (owner[cell] >= 0 ? stateRows[owner[cell]] || null : null),
     focus: (row) => app.selectState(row.ref, { fly: true }),
@@ -290,7 +291,7 @@ export function buildData(app) {
   // "Provincia" and "Tipo" only say something when a city spans other states or the file tells two kinds apart.
   const metroNameFields = [
     F("name", "Comuna", "text", { group: G.name }),
-    ...(metroRows.some((r) => r.sub) ? [F("states", "Provincia", "text", { group: G.name })] : []),
+    ...(metroRows.some((r) => r.sub) ? [F("states", `${TM.State}`, "text", { group: G.name })] : []),
     ...(cities.some((c) => c.metro === false) ? [F("kind", "Tipo", "text", { group: G.name, description: "Clasificación de la comuna en el archivo de datos: área urbana o área urbana menor." })] : []),
   ];
   const metros = makeLevel({
@@ -332,7 +333,7 @@ export function buildData(app) {
     // Counties smaller than a hex own no cell: counties.json `cell` (the hex nearest the county's centre) stands in.
     const cellsOfRow = (r) => countyCells.get(r.ref) || (Number.isInteger(r.v.cell) ? [r.v.cell] : []);
     const fields = counties.fields.filter((f) => f.key !== "cbsa" && f.key !== "geoid" && f.key !== "cell").map((f) => ({
-      ...F(f.key, f.key === "name" ? "Comuna" : f.key === "state" ? "Provincia" : f.label, f.format, { unit: f.unit, higher_is: f.higher_is, source: f.source, description: f.description, lens: lensFor(f.key), group: groupFor(f.key, f.source) }),
+      ...F(f.key, f.key === "name" ? "Comuna" : f.key === "state" ? `${TM.State}` : f.label, f.format, { unit: f.unit, higher_is: f.higher_is, source: f.source, description: f.description, lens: lensFor(f.key), group: groupFor(f.key, f.source) }),
     }));
     // The city column repeats the provincia column when every city is its own state: add it only when it says more.
     if (countyRows.some((r) => r.v.metro && r.v.metro !== r.v.state)) {
@@ -468,13 +469,13 @@ function extendMilitary(data, mil) {
   const byState = instBy("state"), byMetro = instBy("cbsa");
   const src = { personnel: "dmdc_personnel", spending: "oldcc_spending" };
   states.addFields([
-    F4("mil_active", "Militares en servicio", "int", { unit: "personas, según provincia de destino", source: src.personnel, group: G.military, description: `Personal en servicio de todas las ramas, según provincia de destino${paren(v.personnel)}.` }),
-    F4("mil_guard_reserve", "Reservistas", "int", { unit: "personas", source: src.personnel, group: G.military, description: `Reservistas de cada provincia${paren(v.personnel)}.` }),
-    F4("mil_civilian", "Civiles de defensa", "int", { unit: "personas", source: src.personnel, group: G.military, description: `Personal civil del sector defensa, según provincia de trabajo${paren(v.personnel)}.` }),
-    F4("def_spending", "Gasto en defensa", "money", { unit: `${CURRENCY} por año`, source: src.spending, group: G.military, description: `Compras, transferencias y remuneraciones de defensa dentro de la provincia${paren(v.spending)}. Las compras se cuentan donde se ejecuta el contrato, no donde está la base.` }),
+    F4("mil_active", "Militares en servicio", "int", { unit: `personas, según ${TM.state} de destino`, source: src.personnel, group: G.military, description: `Personal en servicio de todas las ramas, según ${TM.state} de destino${paren(v.personnel)}.` }),
+    F4("mil_guard_reserve", "Reservistas", "int", { unit: "personas", source: src.personnel, group: G.military, description: `Reservistas de cada ${TM.state}${paren(v.personnel)}.` }),
+    F4("mil_civilian", "Civiles de defensa", "int", { unit: "personas", source: src.personnel, group: G.military, description: `Personal civil del sector defensa, según ${TM.state} de trabajo${paren(v.personnel)}.` }),
+    F4("def_spending", "Gasto en defensa", "money", { unit: `${CURRENCY} por año`, source: src.spending, group: G.military, description: `Compras, transferencias y remuneraciones de defensa dentro de la ${TM.state}${paren(v.spending)}. Las compras se cuentan donde se ejecuta el contrato, no donde está la base.` }),
     F4("def_per_resident", "Gasto en defensa por habitante", "usd", { unit: `${CURRENCY} por habitante`, source: src.spending, group: G.military, description: `Gasto en defensa ÷ habitantes${paren(v.spending)}.` }),
-    F4("def_pct_gdp", "Gasto en defensa como % del PIB", "pct", { unit: "% del PIB de la provincia", source: src.spending, group: G.military, description: `Gasto en defensa ÷ PIB de la provincia${paren(v.spending)}.` }),
-    F4("installations", "Instalaciones militares", "int", { unit: "instalaciones", source: "mirta", group: G.military, description: `Instalaciones militares dentro de la provincia${paren(v.installations)}. No son comparables en tamaño: una instalación puede ser una oficina o un campo de entrenamiento.` }),
+    F4("def_pct_gdp", "Gasto en defensa como % del PIB", "pct", { unit: `% del PIB de la ${TM.state}`, source: src.spending, group: G.military, description: `Gasto en defensa ÷ PIB de la ${TM.state}${paren(v.spending)}.` }),
+    F4("installations", "Instalaciones militares", "int", { unit: "instalaciones", source: "mirta", group: G.military, description: `Instalaciones militares dentro de la ${TM.state}${paren(v.installations)}. No son comparables en tamaño: una instalación puede ser una oficina o un campo de entrenamiento.` }),
   ]);
   for (const r of states.rows) {
     const s = mil.states?.[r.key];
@@ -504,14 +505,14 @@ function extendDistricts(data, d) {
   const lb = (x) => (x?.lower_bound ? " (al menos)" : "");
   const maxPer = d.rule?.max_per_city;
   metros.addFields([
-    F4("city_type", "Tipo de comuna", "text", { source: dsrc, group: G.districts, description: `Título de la comuna: se nombra por su distrito más fuerte; si una especialidad pesa en el empleo mucho más que en la región, se usa el título de esa especialidad${paren(vint)}. Vacío significa que ningún distrito llega al umbral (industria diversa).` }),
+    F4("city_type", "Tipo de comuna", "text", { source: dsrc, group: G.districts, description: `Título de la comuna: se nombra por su distrito más fuerte; si una especialidad pesa en el empleo mucho más que ${TM.inNation}, se usa el título de esa especialidad${paren(vint)}. Vacío significa que ningún distrito llega al umbral (industria diversa).` }),
     F4("districts", "Distritos", "text", { source: dsrc, group: G.districts, description: `Distritos industriales que la comuna alcanza, del más fuerte al más débil. ${d.rule?.text || ""}` }),
     F4("n_districts", "Número de distritos", "int", { source: dsrc, group: G.districts, description: `Distritos que alcanzan el umbral${maxPer ? ` (máximo ${maxPer})` : ""}.` }),
     // What these count (by workplace or by residence, employees or all workers) differs by build: the file's vintage and note say.
     F4("qcew_jobs", "Empleo por rubro", "int", { unit: "personas", source: dsrc, group: G.districts, description: `Empleo total de la comuna en la estadística por rubro usada para definir los distritos${paren(vint)}. ${d.note || ""}` }),
     F4("qcew_pay", "Remuneración anual media", "usd", { unit: `${CURRENCY} por persona al año`, source: dsrc, group: G.districts, description: `Remuneración anual media por ocupado en la misma estadística por rubro${paren(vint)}.` }),
     F4("top_industry", "Rubro más especializado", "text", { source: dsrc, group: G.districts, description: "Entre los rubros detallados que reunió este proyecto, el de mayor cociente de localización con empleo sobre el umbral." }),
-    F4("top_lq", "Su cociente de localización", "lq", { unit: "× proporción del empleo regional", source: dsrc, group: G.districts, description: "Cociente de localización del rubro más especializado: su proporción del empleo de la comuna ÷ su proporción del empleo de la región. Es un piso cuando hay datos reservados." }),
+    F4("top_lq", "Su cociente de localización", "lq", { unit: `× proporción del empleo ${TM.regional}`, source: dsrc, group: G.districts, description: `Cociente de localización del rubro más especializado: su proporción del empleo de la comuna ÷ su proporción del empleo ${TM.ofNation}. Es un piso cuando hay datos reservados.` }),
   ]);
   for (const r of metros.rows) {
     const c = d.cities?.[r.key];
@@ -548,7 +549,7 @@ const CZ = [
   ["age", "child", "Niños"], ["age", "young", "Jóvenes"], ["age", "elder", "Adultos mayores"],
   ["commute", "drove_alone", "Maneja solo"], ["commute", "transit", "Transporte público"], ["commute", "walk", "A pie"], ["commute", "home", "Trabaja en casa"],
   ["education", "graduate", "Posgrado"],
-  ["nativity", "born_in_state", "Nacidos en la provincia"], ["nativity", "foreign_born", "Nacidos fuera de la región"],
+  ["nativity", "born_in_state", `Nacidos en la ${TM.state}`], ["nativity", "foreign_born", `Nacidos fuera ${TM.ofNation}`],
 ];
 function extendCitizens(data, cz) {
   const { metros } = data.levels;
@@ -587,7 +588,7 @@ function extendCitizens(data, cz) {
     })),
     F4("cz_median_age", "Edad mediana (comuna)", "years", { unit: "años", source: srcOf("age"), group: grp.age, description: `Edad mediana de los habitantes${paren(vint)}: la mediana de la propia comuna, no una aproximación sumada desde otras áreas.` }),
     F4("cz_degree", "Educación superior", "pct", { unit: "% de la población adulta", source: srcOf("education"), group: grp.education, description: `Proporción de adultos con título universitario o más${paren(vint)}.` }),
-    F4("cz_specialist", "Categoría más marcada", "text", { source: csrc, group: G.citizens, description: `Categoría cuya proporción más supera a la regional${fin(minRatio) ? ` (al menos ${minRatio} veces)` : ""}. ${cz.rule?.text || ""}` }),
+    F4("cz_specialist", "Categoría más marcada", "text", { source: csrc, group: G.citizens, description: `Categoría cuya proporción más supera a la ${TM.regional}${fin(minRatio) ? ` (al menos ${minRatio} veces)` : ""}. ${cz.rule?.text || ""}` }),
   ]);
   for (const r of metros.rows) {
     const c = cz.cities?.[r.key];

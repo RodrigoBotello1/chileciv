@@ -13,6 +13,7 @@ from collections import Counter
 from pathlib import Path
 
 from ..core.geo import MapProjection
+from ..core.mapcfg import CFG
 from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, load_interim_payload, write_web
 
@@ -32,6 +33,8 @@ RULES = [
      "Los 3 rascacielos y torres de la región con más artículos en Wikipedia (la altura de Wikidata no siempre está "
      "bien cargada, así que no ordena)."),
 ]
+RULES = [(r, k, kind, CFG["wonders"].get(r, n), t.replace(f" {n} ", f" {CFG['wonders'].get(r, n)} ", 1))
+         for r, k, kind, n, t in RULES]
 RULE_NAME = {"protected_area": "Naturaleza", "historic_monument": "Monumento Histórico", "university": "Universidad",
              "tallest_building": "Rascacielos"}
 

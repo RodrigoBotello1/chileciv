@@ -17,13 +17,16 @@ from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, load_interim_payload, write_web
 import unicodedata
 
+from ..core.mapcfg import CFG
+
 from .yields import INDUSTRIES, YIELDS, economy, merge
 
 REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf"]
 PRODUCES = ["cities.json", "nation.json"]
 
 CAPITAL = "13101"  # Santiago, seat of the national government
-SII_ALIAS = {"titil": "tiltil"}  # the SII spells Tiltil "Titil"
+SII_ALIAS = {"titil": "tiltil", "lacalera": "calera", "marchigue": "marchihue", "coihaique": "coyhaique",
+             "aisen": "aysen"}  # the SII spells these comunas differently from the INE
 
 
 def name_key(name: str) -> str:
@@ -32,7 +35,7 @@ def name_key(name: str) -> str:
     return SII_ALIAS.get(s, s)
 
 
-GROWTH_YEARS = [2017, 2024]  # the two censuses (2017: INE republished population; 2024: first results)
+GROWTH_YEARS = [2017, 2024]  # 2017 habitual residents vs 2024 census: both count where people usually live (INE note N3)
 
 
 def growth_of(p2017: float | None, p2024: float | None) -> float | None:
@@ -174,7 +177,8 @@ def build() -> None:
     developed = world["pct"]["developed"]
     county_of = world["county"]
     pop = {c["code"]: c["population"] for c in censo["comunas"]}
-    pop17 = {code: rec["pop"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
+    reg_name = {c["code"]: c.get("reg_name") for c in censo["comunas"]}
+    pop17 = {code: rec["residentes"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
     sii_of = sii_by_code(sii, censo)
     state_index = {fips: i for i, fips in enumerate(world["states"])}
     abbr = {s["fips"]: s["abbr"] for s in bounds["states"]}
@@ -198,7 +202,7 @@ def build() -> None:
         cities.append({
             "id": code,
             "name": t["name"],
-            "full": f"Comuna de {t['name']}",
+            "full": f"Comuna de {t['name']}" + (f", {reg_name.get(t['geoid'])}" if CFG["state_level"] == "region" and reg_name.get(t['geoid']) else ""),
             "name_en": t["name"],
             "seat": t["name"],
             "states": [abbr[t["state_fips"]]],
@@ -273,6 +277,6 @@ def build() -> None:
             "gdp_industries": {},
             "income_year": None,
             "currency": "CLP",
-            "country": {"name": "Región Metropolitana", "name_en": "Santiago Metropolitan Region", "abbr": "RM"},
+            "country": {"name": CFG["name"], "name_en": CFG["name_en"], "abbr": CFG["abbr"]},
         },
     )
