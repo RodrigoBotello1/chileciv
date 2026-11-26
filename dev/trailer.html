@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="zh-Hant-TW">
+<html lang="es-CL">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>預告片產生器 — 臺灣文明地圖（開發用）</title>
+  <title>Generador de tráiler | chileciv (desarrollo)</title>
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:,">
   <style>
     :root {
       --ink: #efe4c6; --ink-dim: #b9ab88; --gold: #c9a45c; --gold-bright: #ecd08e; --bg: #0b1520; --card: #121d29;
-      --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Songti TC", "Noto Serif TC", "Noto Serif CJK TC", "Source Han Serif TC", "PingFang TC", "Microsoft JhengHei", serif;
-      --sans: "Helvetica Neue", "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", "Microsoft JhengHei", system-ui, sans-serif;
+      --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      --sans: "Helvetica Neue", "Segoe UI", Roboto, system-ui, sans-serif;
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 var(--sans); }
@@ -35,24 +35,24 @@
 </head>
 <body>
   <header>
-    <h1>預告片</h1>
-    <button id="btn-render" disabled>產生</button>
-    <button id="btn-download" disabled>下載 MP4</button>
-    <button id="btn-test">MP4 封裝自我測試</button>
-    <label><input type="checkbox" id="opt-ss" checked> 2× 超取樣</label>
-    <label><input type="checkbox" id="opt-sound" checked> 配樂</label>
-    <a href="art.html">美術館</a>
+    <h1>Tráiler</h1>
+    <button id="btn-render" disabled>Generar</button>
+    <button id="btn-download" disabled>Descargar MP4</button>
+    <button id="btn-test">Autotest del empaquetador MP4</button>
+    <label><input type="checkbox" id="opt-ss" checked> Supermuestreo 2×</label>
+    <label><input type="checkbox" id="opt-sound" checked> Banda sonora</label>
+    <a href="art.html">Galería de arte</a>
   </header>
   <main>
     <canvas id="preview" width="1920" height="1080"></canvas>
     <div class="row">
-      <label>拖曳 <input type="range" id="scrub" min="0" max="899" value="0" step="1"></label>
+      <label>Línea de tiempo <input type="range" id="scrub" min="0" max="899" value="0" step="1"></label>
       <span id="time">0.00 s</span>
     </div>
-    <div id="status">載入資料中…</div>
-    <p class="note">用網站本身的繪圖程式與資料，逐格產生 30 秒的發表預告片（1920×1080、30 fps、H.264），全部在這個分頁裡完成
-      （WebCodecs 加一個小型 MP4 封裝器，不必安裝任何東西）。勾選「配樂」時，會把配樂（<code>dev/trailer/score.js</code>，由程式合成、
-      依分鏡對時）以 AAC 混入。產生速度比即時慢，請保持分頁開啟直到完成。標題、副標與網址設定在 <code>dev/trailer/storyboard.js</code> 開頭。</p>
+    <div id="status">Cargando datos…</div>
+    <p class="note">Genera el tráiler de 30 segundos (1920×1080, 30 fps, H.264) cuadro a cuadro, con el mismo motor de dibujo y los mismos datos del sitio, todo dentro de esta pestaña
+      (WebCodecs más un empaquetador MP4 pequeño, sin instalar nada). Con "Banda sonora" marcado, se mezcla en AAC la música (<code>dev/trailer/score.js</code>, sintetizada por código
+      y sincronizada con el guion). Generar es más lento que el tiempo real: deja la pestaña abierta hasta que termine. El título, el subtítulo y la URL se configuran al inicio de <code>dev/trailer/storyboard.js</code>.</p>
   </main>
   <script type="module" src="trailer/main.js"></script>
 </body>
