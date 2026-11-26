@@ -48,6 +48,12 @@ QUERIES = {
         'OPTIONAL { ?item wdt:P1056 ?product . ?product rdfs:label ?productEs . FILTER(LANG(?productEs) = "es") } '
         f"{_COMMON}}}"
     ),
+    # Ski resorts: few and spread along the Andes, so a country filter (P17 = Chile) instead of the map box.
+    "ski.json": (
+        "SELECT DISTINCT ?item ?es ?en ?coord ?links WHERE { "
+        "?item wdt:P31/wdt:P279? wd:Q130003 ; wdt:P17 wd:Q298 ; wdt:P625 ?coord . "
+        f"{_COMMON}}}"
+    ),
     "towers.json": (
         f"SELECT DISTINCT ?item ?es ?en ?coord ?links ?height WHERE {{ {BOX}"
         "?item wdt:P31/wdt:P279? ?cls . VALUES ?cls { wd:Q41176 wd:Q11303 wd:Q18142 } "

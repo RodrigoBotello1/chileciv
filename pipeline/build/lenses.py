@@ -16,7 +16,7 @@ from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, write_web
 from .cities import sii_by_code
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos", "wikidata_rm"]
 PRODUCES = ["lenses.json"]
 
 GROUPS = [
@@ -26,6 +26,7 @@ GROUPS = [
     {"id": "life", "name": "Vida diaria"},
     {"id": "faith", "name": "Religión"},
     {"id": "nature", "name": "Clima y tierra"},
+    {"id": "curious", "name": "Datos curiosos"},
     {"id": "land", "name": "Suelo"},
 ]
 DOMAIN_NOTE = " La escala de colores va del percentil 2 al 98 de los hexágonos; los valores fuera de ese rango toman el color del extremo."
@@ -52,6 +53,10 @@ RAMP = {
     "faith": ["#1a1033", "#3d2466", "#6b3d8f", "#a5649c", "#d99a8f", "#f7dca0"],
     "rain": ["#5a3a1a", "#a8743a", "#e3c27a", "#c9e3c0", "#5fb3c9", "#1f5fa6", "#0b2a66"],
     "temperature": ["#2b3a8f", "#4a7fc1", "#9cc7e0", "#f2efd4", "#f4b06a", "#d9583b", "#8f1d1d"],
+    "daylight_dec": ["#1b1035", "#3d2466", "#7a3f7a", "#c96a5a", "#f2a65a", "#fde68a"],
+    "daylight_jun": ["#0b1026", "#1d2b5a", "#35508f", "#5f86c0", "#9cc0e3", "#e3f0fb"],
+    "sea_km": ["#0b2a66", "#1f5fa6", "#5fb3c9", "#c9e3c0", "#e3c27a", "#a8743a"],
+    "ski_km": ["#e8eef2", "#a9cfe3", "#5f9fc9", "#356fa0", "#1f4370", "#0d1f3d"],
     "quakes": ["#14161f", "#2e2a4a", "#5b3466", "#93405f", "#cf6a4a", "#f4b860"],
     "forest": ["#0b1f0f", "#14401c", "#1f6b2b", "#3a9443", "#7fc07a", "#d5efcd"],
     "farmland": ["#141d05", "#2f4510", "#557019", "#84a02a", "#b8cf55", "#eef7b8"],
@@ -228,6 +233,19 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
     add("quakes", "nature", "Terremotos", "🌋", "sismos de magnitud 7 o más a menos de 100 km, desde 1900", "int", "linear", "bad",
         "usgs_sismos", "Número de sismos de magnitud 7 o más desde 1900 cuyo epicentro está a menos de 100 km del centro del "
         "hexágono (catálogo ComCat del USGS).", "Cuenta epicentros, no daños: un terremoto se siente mucho más allá de 100 km.")
+    add("daylight_dec", "curious", "Luz el 21 de diciembre", "☀️", "horas de sol en el día más largo", "float", "linear", "neutral",
+        "worldclim", "Horas entre la salida y la puesta del sol el 21 de diciembre (solsticio de verano), calculadas con la "
+        "latitud del centro del hexágono y la declinación solar de ese día, contando la refracción atmosférica. Es "
+        "astronomía, no medición: no considera montañas que tapen el sol.")
+    add("daylight_jun", "curious", "Luz el 21 de junio", "🌙", "horas de sol en el día más corto", "float", "linear", "neutral",
+        "worldclim", "Horas de sol el 21 de junio (solsticio de invierno), con el mismo cálculo astronómico que el lente del "
+        "21 de diciembre.")
+    add("sea_km", "curious", "Distancia al mar", "🏖️", "km hasta el océano Pacífico", "int", "linear", "neutral", "world",
+        "Distancia aproximada desde el centro del hexágono hasta el hexágono de mar más cercano, contada en pasos de "
+        "hexágono (cada paso mide lo que separa dos centros vecinos). Los lagos no cuentan como mar.")
+    add("ski_km", "curious", "Distancia a la nieve", "🎿", "km en línea recta al centro de ski más cercano", "int", "linear", "neutral",
+        "wikidata_rm", "Distancia en línea recta desde el centro del hexágono hasta el centro de ski más cercano registrado "
+        "en Wikidata: {ski}.", "Wikidata no tiene todos los centros de ski del sur.")
     land = ("Proporción del hexágono con {what} según ESA WorldCover 2021 (píxeles de unos 148 m), sobre su suelo que no es agua.")
     add("forest", "land", "Bosque", "🌲", "del suelo del hexágono", "pct", "linear", "neutral", "worldcover", land.format(what="cobertura arbórea"))
     add("farmland", "land", "Cultivos", "🚜", "del suelo del hexágono", "pct", "linear", "neutral", "worldcover", land.format(what="cultivos"))
@@ -300,6 +318,42 @@ def build() -> None:
             if lid == "rain":
                 m["domain"] = percentile_domain([v if v else None for v in values], True)
                 m["description"] += DOMAIN_NOTE
+        elif lid in ("daylight_dec", "daylight_jun"):
+            decl = math.radians(-23.44 if lid == "daylight_dec" else 23.44)
+            h0 = math.radians(-0.833)  # sun's upper limb at the horizon, with refraction
+            values = []
+            for i in range(len(samples)):
+                if owner[i] < 0:
+                    values.append(None)
+                    continue
+                lat = math.radians(proj.inverse(*grid.center(*grid.col_row(i)))[1])
+                c = (math.sin(h0) - math.sin(lat) * math.sin(decl)) / (math.cos(lat) * math.cos(decl))
+                values.append(round(2 * math.degrees(math.acos(max(-1.0, min(1.0, c)))) / 15, 2))
+        elif lid == "sea_km":
+            step_km = math.sqrt(3) * proj.km(grid.radius)  # centre-to-centre distance of neighbouring hexes
+            dist = [None] * len(samples)
+            frontier = [i for i, wv in enumerate(world["water"]) if wv in (1, 2)]  # ocean and coast, not lakes
+            for i in frontier:
+                dist[i] = 0
+            while frontier:
+                nxt = []
+                for i in frontier:
+                    for j in grid.neighbours(i):
+                        if dist[j] is None:
+                            dist[j] = dist[i] + 1
+                            nxt.append(j)
+                frontier = nxt
+            values = [None if owner[i] < 0 or dist[i] is None else int(round(dist[i] * step_km)) for i in range(len(samples))]
+        elif lid == "ski_km":
+            ski = load_interim("wikidata_rm").get("ski") or []
+            m["description"] = m["description"].replace("{ski}", ", ".join(sorted({s["name"] for s in ski})) or "ninguno")
+            values = []
+            for i in range(len(samples)):
+                if owner[i] < 0 or not ski:
+                    values.append(None)
+                    continue
+                lon, lat = proj.inverse(*grid.center(*grid.col_row(i)))
+                values.append(int(round(min(_km(lon, lat, s["lon"], s["lat"]) for s in ski))))
         elif lid == "quakes":
             strong = [q for q in quakes if q["mag"] >= 7]
             values = []
