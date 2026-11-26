@@ -4,7 +4,7 @@ import { statDefs, fmtStat } from "./yieldReport.js";
 
 // The regional stats are buttons: each opens its report (ui/yieldReport.js, wired in main.js).
 export function renderTopbar(nation) {
-  const items = statDefs(nation).map((d) => {
+  const items = statDefs(nation).filter((d) => d.value != null && Number.isFinite(d.value)).map((d) => { // a stat with no data (Desempleo today) would only show "–"
     const ic = d.yield ? glyph(d.yield, 17) : icon(d.iconId, d.emoji, { size: 17 });
     const value = fmtStat(d, d.value);
     const tip = `${d.name}: ${d.description} Haz clic para ver el informe.`;

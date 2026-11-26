@@ -16,7 +16,7 @@ export function section(parent, { title, note = "", kicker = "", cls = "", open 
 
 /** Headline tiles: [{label, value, sub, color}] → html */
 export function tiles(items) {
-  return `<div class="adv-tiles">${items.map((t) => `<div class="adv-tile"${t.color ? ` style="--tc:${esc(t.color)}"` : ""}>
+  return `<div class="adv-tiles">${items.map((t) => `<div class="adv-tile${String(t.value).length > 12 ? " long" : ""}"${t.color ? ` style="--tc:${esc(t.color)}"` : ""}>
     <span class="k">${esc(t.label)}</span><b title="${esc(t.value)}">${esc(t.value)}</b>${t.sub ? `<span class="s" title="${esc(t.sub)}">${esc(t.sub)}</span>` : ""}</div>`).join("")}</div>`;
 }
 

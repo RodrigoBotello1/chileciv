@@ -247,11 +247,14 @@ button.chip:hover { background: rgba(201,164,92,.2); }
 }
 .cp-section h3::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
 /* Columns size to their content and share the leftover: the money tile is wider than the count tiles. */
-.yield-grid { display: grid; grid-template-columns: repeat(5, minmax(48px, auto)); gap: 6px; }
-.yield-tile { background: rgba(0,0,0,.25); border: 1px solid rgba(201,164,92,.25); border-radius: 5px; padding: 6px 2px; text-align: center; cursor: help; }
+.yield-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.yield-tile { background: rgba(0,0,0,.25); border: 1px solid rgba(201,164,92,.25); border-radius: 5px; padding: 6px 0; text-align: center; cursor: help; }
 .yield-tile .ico { display: flex; justify-content: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
-.yield-tile .val { font-weight: 700; font-size: 13.5px; margin-top: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.yield-tile .lbl { font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .06em; }
+.yield-tile { min-width: 0; overflow: hidden; }
+.yield-tile .val { font-weight: 700; font-size: 13.5px; margin-top: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.02em; }
+.yield-tile .val.long { font-size: 9.5px; letter-spacing: -.04em; }
+.yield-tile .val.xlong { font-size: 8px; letter-spacing: -.06em; }
+.yield-tile .lbl { font-size: 8.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0; white-space: nowrap; }
 .yield-tile .rank { font-size: 10px; color: var(--gold-bright); margin-top: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ind { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 6px; align-items: center; margin-bottom: 5px; font-size: 12px; }
 .ind .bar { grid-column: 2 / 4; height: 5px; background: rgba(255,255,255,.07); border-radius: 3px; overflow: hidden; }
@@ -291,7 +294,7 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 #lens-area { container-type: inline-size; }
 /* A narrow dock (e.g. beside the open panel) shows icons only for the quick lenses. */
 @container (max-width: 560px) {
-  .lens-quick .lens-btn:not(.active) span, .res-toggle span { display: none; }
+  .lens-quick .lens-btn:not(.active) span:not(.emoji), .res-toggle span:not(.emoji) { display: none; }
 }
 .lens-dock { display: flex; align-items: center; gap: 4px; padding: 5px; max-width: 100%; min-width: 0; }
 .lens-quick { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -322,7 +325,7 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 .lp-tile:hover, .lp-tile:focus-visible { border-color: var(--gold); background: rgba(201,164,92,.1); }
 .lp-tile.active { border-color: var(--gold-bright); background: linear-gradient(180deg, rgba(90,74,36,.9), rgba(58,47,21,.9)); color: var(--gold-bright); }
 .lp-ic { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #1b2838; border: 1px solid rgba(201,164,92,.55); color: var(--gold-bright); }
-.lp-nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-nm { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; overflow-wrap: normal; hyphens: auto; min-width: 0; }
 .lp-ramp { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 3px; border-radius: 2px; }
 .lp-ramp.terrain { background: linear-gradient(90deg, #2d6d97, #4f7a35, #a8a05a, #8a7a64, #e6e6e6); }
 

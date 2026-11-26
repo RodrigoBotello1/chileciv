@@ -204,7 +204,7 @@ export function districtsHtml(m, ddata, mil) {
     const pay = row.avg_pay != null
       ? `, sueldo medio ${money(row.avg_pay)}${ddata.national?.avg_pay != null ? ` (${T.nationShort} ${money(ddata.national.avg_pay)})` : ""}` : "";
     const text = String(b?.text || "").replace(/\.\s*$/, "");
-    lead = `<p class="cv-lead">${b?.district ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${text ? ` · ${esc(text)}` : ""}.` : ""}${
+    lead = `<p class="cv-lead">${b?.district ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${text ? ` · ${esc(text)}` : ""}.${row.emp != null ? " " : ""}` : ""}${
       row.emp != null ? `${int(row.emp)} empleos contados${cnt}${pay}.` : ""}</p>`;
   }
   const cards = list.length

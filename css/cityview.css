@@ -83,15 +83,15 @@
 
 /* tabs */
 .cv-tabs {
-  position: sticky; top: 0; z-index: 3; display: flex; gap: 2px; padding: 6px 10px;
+  position: sticky; top: 0; z-index: 3; display: flex; gap: 1px; padding: 6px 8px;
   background: linear-gradient(180deg, #1b2939, #142030); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
   box-shadow: 0 4px 10px rgba(0,0,0,.35); overflow-x: auto; scrollbar-width: none;
 }
 .cv-tabs::-webkit-scrollbar { display: none; }
 .cv-tabs button {
-  flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 7px; cursor: pointer;
+  flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 5px 3px; cursor: pointer;
   background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--ink-dim);
-  font: 11px var(--sans); letter-spacing: .08em; white-space: nowrap;
+  font: 10.5px var(--sans); letter-spacing: .02em; white-space: nowrap;
 }
 .cv-tabs button:hover { color: var(--gold-bright); border-color: rgba(201,164,92,.3); }
 .cv-tabs button.on { color: var(--gold-bright); background: linear-gradient(180deg, rgba(201,164,92,.22), rgba(201,164,92,.06)); border-color: rgba(201,164,92,.55); }
@@ -352,12 +352,12 @@ button.cv-cmp-n:hover { color: #fff3cf; text-decoration-color: var(--gold); }
 /* ---------- map legend ---------- */
 .cv-maplegend {
   position: fixed; z-index: 11; top: calc(var(--topbar-h) + 10px); left: calc(12px + var(--dock-left, 0px));
-  width: max-content; max-width: 250px; padding: 5px 6px 5px 9px; font-size: 11px; color: var(--ink); pointer-events: none;
+  width: max-content; max-width: 300px; padding: 5px 6px 5px 9px; font-size: 11px; color: var(--ink); pointer-events: none;
 }
 .cv-ml-t { display: flex; align-items: center; gap: 6px; font-size: 11px; white-space: nowrap; min-width: 0; }
 .cv-ml-t b {
   font: normal 13px var(--serif); letter-spacing: .06em; color: var(--gold-bright);
-  overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 150px;
+  overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 200px;
 }
 .cv-ml-k { color: var(--ink-dim); flex: none; }
 .cv-ml-sw { flex: none; width: 11px; height: 11px; border-radius: 2px; background: var(--sc); box-shadow: 0 0 0 1px #120d06, 0 0 6px var(--sc); }

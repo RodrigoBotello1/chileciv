@@ -19,9 +19,9 @@ import { T } from "../../terms.js";
 
 export const ADVISORS = [
   { id: "energy", name: "Energía y recursos", role: "Ministro de Energía", color: "#d98a2b", dark: "#3a1f08", blurb: "De dónde viene la electricidad: dónde están las centrales y cuánta potencia tienen.", load: () => import("./views/energy.js") },
-  { id: "economy", name: "Economía", role: "Tesorero", color: "#c9a43a", dark: "#3a2c08", blurb: `El PIB y la estructura productiva de cada ${T.state}, y las comunas que lideran.`, load: () => import("./views/economy.js") },
+  { id: "economy", name: "Economía", role: "Tesorero", color: "#c9a43a", dark: "#3a2c08", blurb: `Las ventas y la estructura productiva de cada ${T.state}, y las comunas que lideran.`, load: () => import("./views/economy.js") },
   { id: "people", name: "Población", role: "Guardián del Censo", color: "#c46a4f", dark: "#3a140c", blurb: "Dónde vive la gente, hacia dónde se mueve y cómo es la estructura de edades de cada lugar.", load: () => import("./views/people.js") },
-  { id: "prosperity", name: "Ingresos y vivienda", role: "Custodio del hogar", color: "#3f9c82", dark: "#082a22", blurb: "Ingresos, precios de la vivienda y desempleo, y los lugares donde más cuesta vivir.", load: () => import("./views/prosperity.js") },
+  { id: "prosperity", when: (app) => (app.data?.cities || []).some((c) => [c.median_income, c.home_value, c.median_rent, c.unemployment].some((v) => v != null)), name: "Ingresos y vivienda", role: "Custodio del hogar", color: "#3f9c82", dark: "#082a22", blurb: "Ingresos, precios de la vivienda y desempleo, y los lugares donde más cuesta vivir.", load: () => import("./views/prosperity.js") },
   { id: "knowledge", name: "Conocimiento", role: "Erudito real", color: "#4a86d6", dark: "#0a1c3a", blurb: "Cómo se distribuyen los títulos y el personal de ciencia.", load: () => import("./views/knowledge.js") },
   { id: "land", name: "Suelo", role: "Agrimensor general", color: "#6e9a3c", dark: "#18280a", blurb: "Bosque, cultivos y ciudad: qué cubre este territorio.", load: () => import("./views/land.js") },
   { id: "military", needs: "military", name: "Militar", role: "General", color: "#8796ab", dark: "#141b26", blurb: `Bases y campos de entrenamiento, tropas y gasto en defensa por ${T.state}, y dónde viven los veteranos.`, load: () => import("./views/military.js") },
@@ -71,7 +71,7 @@ export function install(app) {
 
   const ensureData = () => (dataP ??= app.loadCounties().catch(() => null).then(() => (data = buildData(app))));
   // Advisors on offer: all of them, except one whose optional data file is not loaded (see `needs` above).
-  const available = (a) => !!a && (!a.needs || app.data?.[a.needs] != null);
+  const available = (a) => !!a && (!a.needs || app.data?.[a.needs] != null) && (!a.when || a.when(app)); // `when`: an advisor with no values at all in this build is not offered
   const offered = () => ADVISORS.filter(available);
 
   // --- top-bar button ---------------------------------------------------------------------------------------------
