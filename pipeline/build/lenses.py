@@ -16,7 +16,7 @@ from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, write_web
 from .cities import sii_by_code
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos", "wikidata_rm"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos", "wikidata_rm", "cr2met"]
 PRODUCES = ["lenses.json"]
 
 GROUPS = [
@@ -52,6 +52,7 @@ RAMP = {
     "vacant": ["#121218", "#2c2c3c", "#4b4b66", "#727294", "#a3a3c2", "#e2e2f0"],
     "faith": ["#1a1033", "#3d2466", "#6b3d8f", "#a5649c", "#d99a8f", "#f7dca0"],
     "rain": ["#5a3a1a", "#a8743a", "#e3c27a", "#c9e3c0", "#5fb3c9", "#1f5fa6", "#0b2a66"],
+    "rain_days": ["#5a3a1a", "#a8743a", "#e3c27a", "#c9e3c0", "#5fb3c9", "#1f5fa6", "#0b2a66"],
     "temperature": ["#2b3a8f", "#4a7fc1", "#9cc7e0", "#f2efd4", "#f4b06a", "#d9583b", "#8f1d1d"],
     "daylight_dec": ["#1b1035", "#3d2466", "#7a3f7a", "#c96a5a", "#f2a65a", "#fde68a"],
     "daylight_jun": ["#0b1026", "#1d2b5a", "#35508f", "#5f86c0", "#9cc0e3", "#e3f0fb"],
@@ -225,9 +226,13 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
     add("faith_tradition", "faith", "Religión mayoritaria", "⛪", "la religión con más fieles", "category", "linear", "neutral",
         "ine_censo_tablas", f"La religión o credo más declarado por la población de 15 años o más de la comuna, {CENSO}. "
         "'Ninguna religión' cuenta como una opción más.")
-    add("rain", "nature", "Lluvia anual", "🌧️", "mm al año", "int", "log", "neutral", "worldclim",
-        "Precipitación anual promedio 1970-2000 (WorldClim 2.1, variable BIO12), en la celda de 5 minutos de arco (unos 9 km) "
-        "bajo el centro de cada hexágono.", "Climatología interpolada desde estaciones; donde hay pocas (altiplano, campos de hielo) es aproximada.")
+    add("rain", "nature", "Lluvia anual", "🌧️", "mm al año, promedio 1991-2020", "int", "log", "neutral", "cr2met",
+        "Precipitación anual promedio de la normal climática 1991-2020, que incluye la megasequía (CR2MET v2.5, CR2 de la "
+        "Universidad de Chile), en la celda de 0.05° (unos 5 km) bajo el centro de cada hexágono.",
+        "Producto grillado desde estaciones, reanálisis y satélites; donde hay pocas estaciones (altiplano, campos de hielo) es aproximado.")
+    add("rain_days", "nature", "Días con lluvia", "☔", "días al año con más de 1 mm", "int", "linear", "neutral", "cr2met",
+        "Promedio de días al año con más de 1 mm de lluvia en la normal 1991-2020 (CR2MET v2.5), en la celda bajo el centro "
+        "de cada hexágono.")
     add("temperature", "nature", "Temperatura media", "🌡️", "°C, promedio anual", "float", "linear", "neutral", "worldclim",
         "Temperatura media anual 1970-2000 (WorldClim 2.1, variable BIO1), en la celda de unos 9 km bajo el centro de cada hexágono.")
     add("quakes", "nature", "Terremotos", "🌋", "sismos de magnitud 7 o más a menos de 100 km, desde 1900", "int", "linear", "bad",
@@ -298,14 +303,30 @@ def build() -> None:
 
     tv = comuna_values(codes, censo, tablas, sii_by_code(sii, censo), uf)
     clim = load_interim("worldclim")
+    cr2 = load_interim("cr2met")
     quakes = load_interim("usgs_sismos")["quakes"]
     lenses = []
     for lid, m in meta(censo["year"], sii["year"]).items():
         m = dict(m)
         if lid == "density":
             values = density
-        elif lid in ("rain", "temperature"):
-            g = clim["prec" if lid == "rain" else "temp"]
+        elif lid in ("rain", "rain_days"):
+            lat_a, lon_a, grid_v = cr2["lat"], cr2["lon"], cr2["prec" if lid == "rain" else "rain_days"]
+            dlat, dlon = lat_a[1] - lat_a[0], lon_a[1] - lon_a[0]
+            values = []
+            for i in range(len(samples)):
+                if owner[i] < 0:
+                    values.append(None)
+                    continue
+                lon, lat = proj.inverse(*grid.center(*grid.col_row(i)))
+                r, c = round((lat - lat_a[0]) / dlat), round((lon - lon_a[0]) / dlon)
+                v = grid_v[r][c] if 0 <= r < len(grid_v) and 0 <= c < len(grid_v[0]) else None
+                values.append(None if v is None else int(round(v)))
+            if lid == "rain":
+                m["domain"] = percentile_domain([v if v else None for v in values], True)
+                m["description"] += DOMAIN_NOTE
+        elif lid == "temperature":
+            g = clim["temp"]
             values = []
             for i in range(len(samples)):
                 if owner[i] < 0:

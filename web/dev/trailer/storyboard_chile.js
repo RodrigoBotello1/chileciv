@@ -20,7 +20,7 @@ export const CONFIG = {
   subtitle: "Chile como mapa de estrategia",
   url: "rodrigobotello1.github.io/chileciv/chile",
   cta: "Sobre usaciv de Andrej Karpathy",
-  credit: "Datos públicos: INE, SII, USGS, Smithsonian, WorldClim, ESA, Wikidata",
+  credit: "Datos públicos: INE, SII, CR2, USGS, Smithsonian, ESA, Wikidata",
 };
 
 /**
