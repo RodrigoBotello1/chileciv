@@ -9,3 +9,7 @@ __pycache__/
 out/
 dist/
 usaciv.zip
+
+# Per-map data folders (data/chile/...): downloads and interims, never in git
+data/*/raw/
+data/*/interim/
