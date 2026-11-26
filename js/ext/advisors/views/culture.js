@@ -9,6 +9,7 @@ import { createTable } from "../core/table.js";
 import { section, tiles, segmented, mapPicker, sourcesHtml } from "../core/view.js";
 import { rowsHighlight, placeLabel } from "../core/data.js";
 import { frameBox, focusPoint } from "../core/frame.js";
+import { T } from "../../../terms.js";
 
 const KIND = {
   natural: { label: "Natural", color: "#6aa84f" },
@@ -61,7 +62,7 @@ export async function mount(ctx) {
     const nat = dis?.noaa?.national, years = (dis?.noaa?.years || []).join("–");
     const list = [
       wonders.length && { label: "Maravillas", value: int(wonders.length), sub: rules.map((r) => { const n = wonders.filter((w) => w.rule === r.id).length; return n ? `${ruleTitle(r)} ${int(n)}` : ""; }).filter(Boolean).join(" · ") },
-      fin(won?.national?.park_visits) && { label: `${ruleTitle(rules.find((r) => r.id === "national_park"), "national_park")}: visitantes`, value: `${count3(won.national.park_visits)} visitas`, sub: won.national.park_visits_year ? `${won.national.park_visits_year}, total regional` : "Total regional" },
+      fin(won?.national?.park_visits) && { label: `${ruleTitle(rules.find((r) => r.id === "national_park"), "national_park")}: visitantes`, value: `${count3(won.national.park_visits)} visitas`, sub: won.national.park_visits_year ? `${won.national.park_visits_year}, total ${T.regional}` : `Total ${T.regional}` },
       fin(nat?.events) && { label: "Eventos de desastre", value: int(nat.events), sub: [years ? `${years}` : "", fin(nat.cost_usd) ? money(nat.cost_usd) : "", fin(nat.deaths) ? `${int(nat.deaths)} fallecidos` : ""].filter(Boolean).join(" · ") },
       fin(faithMean) && { label: `${lensFaith.name} ≈`, value: lensFmt(lensFaith)(faithMean), sub: [lensFaith.unit, "comunas ponderadas por población"].filter(Boolean).join(" · ") },
     ].filter(Boolean).slice(0, 3);
@@ -178,7 +179,7 @@ export async function mount(ctx) {
       const fFmt = lensFmt(lensFaith);
       const sRow = mk("div", "adv-row");
       fBody.appendChild(sRow);
-      sRow.insertAdjacentHTML("beforeend", `<span class="adv-note" style="margin:0">${esc(lensFaith.name)} por provincia${lensFaith.unit ? ` (${esc(lensFaith.unit)})` : ""} ≈</span>`);
+      sRow.insertAdjacentHTML("beforeend", `<span class="adv-note" style="margin:0">${esc(lensFaith.name)} por ${T.state}${lensFaith.unit ? ` (${esc(lensFaith.unit)})` : ""} ≈</span>`);
       segmented(sRow, { label: "Orden", value: order, options: [{ value: "most", label: "Más alto" }, { value: "fewest", label: "Más bajo" }], onChange: (v) => { order = v; drawFaith(); } });
       const sHost = mk("div");
       fBody.appendChild(sHost);
@@ -188,14 +189,14 @@ export async function mount(ctx) {
         sHost.innerHTML = "";
         const list = [...fRows].sort((a, b) => (order === "most" ? b.v.faith - a.v.faith : a.v.faith - b.v.faith)).slice(0, 10);
         faithStates = barList(sHost, {
-          rank: true, compact: true, max: fMax, ariaLabel: `${lensFaith.name} por provincia`,
+          rank: true, compact: true, max: fMax, ariaLabel: `${lensFaith.name} por ${T.state}`,
           rows: list.map((r) => ({ key: r.key, label: r.name, value: r.v.faith, text: fFmt(r.v.faith), color: fColor(r.v.faith) })),
           onHover: (x) => link.hover(x ? rowsHighlight(stLevel, [stLevel.byKey.get(x.key)], { dim: true }) : null),
           onClick: (x) => { picker.set("faith"); stLevel.focus(stLevel.byKey.get(x.key)); },
         });
       }
       drawFaith();
-      fBody.insertAdjacentHTML("beforeend", `<p class="adv-note">Los valores de provincia son el promedio de sus comunas ponderado por población (≈), no la cifra propia de la provincia.</p>`);
+      fBody.insertAdjacentHTML("beforeend", `<p class="adv-note">Los valores de ${T.state} son el promedio de sus comunas ponderado por población (≈), no la cifra propia de la ${T.state}.</p>`);
     }
   }
 
@@ -252,7 +253,7 @@ export async function mount(ctx) {
     srcEl.innerHTML = sourcesHtml(data, uniq([...(won?.sources || []), lensFaith?.source, lensTrad?.source, lensAmen?.source, ...(dis?.sources || []), lensDis?.source]), [
       ...uniq([lensFaith, lensTrad, lensAmen, lensDis].filter((l) => l?.note).map((l) => `${esc(l.name)}: ${esc(l.note)}`)),
       ...(wonders.length ? ["Cada tipo de maravilla se elige y ordena con su propia regla publicada, con criterios distintos: no se pueden comparar entre tipos. Las listas marcadas como selección manual no se ordenan por datos."] : []),
-      ...(dis ? ["El número de eventos de desastre refleja las veces que se reportó o declaró, no la magnitud de la pérdida. Un mismo evento puede contarse en varias provincias, así que las cifras por provincia no se pueden sumar."] : []),
+      ...(dis ? [`El número de eventos de desastre refleja las veces que se reportó o declaró, no la magnitud de la pérdida. Un mismo evento puede contarse en varias ${T.states}, así que las cifras por ${T.state} no se pueden sumar.`] : []),
     ]);
   };
   drawSources(null);
@@ -330,16 +331,16 @@ export async function mount(ctx) {
     const any = (k) => sRows.some((r) => fin(r[k]));
     const years = (noaa.years || []).join("–");
     if (sRows.length) {
-      dSec.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">Provincias</h4>`);
+      dSec.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">${T.States}</h4>`);
       dState = createTable(dSec, {
-        caption: "Eventos de desastre por provincia", rank: true, maxHeight: 240, search: "Buscar provincia",
+        caption: `Eventos de desastre por ${T.state}`, rank: true, maxHeight: 240, search: `Buscar ${T.state}`,
         rows: sRows,
         columns: [
-          { key: "name", label: "Provincia", align: "l", width: "minmax(0,1.4fr)", value: (r) => r.name, html: (r) => `${esc(r.name)}${r.row ? "" : ` <span class="sub">no está en el mapa</span>`}` },
+          { key: "name", label: `${T.State}`, align: "l", width: "minmax(0,1.4fr)", value: (r) => r.name, html: (r) => `${esc(r.name)}${r.row ? "" : ` <span class="sub">no está en el mapa</span>`}` },
           ...(any("fema") ? [{ key: "fema", label: "Eventos", value: (r) => r.fema, text: (r) => (fin(r.fema) ? int(r.fema) : "–"), title: fema.title || "", ...(any("nCost") ? {} : { bar: { max: Math.max(...sRows.map((r) => r.fema || 0), 1), color: "rgba(207,106,74,.3)" } }) }] : []),
-          ...(any("cases") ? [{ key: "cases", label: "Casos", value: (r) => r.cases, text: (r) => (fin(r.cases) ? count3(r.cases) : "–"), title: "Casos reportados en la provincia dentro de estos eventos" }] : []),
-          ...(any("nEvents") ? [{ key: "nEvents", label: "Desastres graves", short: "Eventos graves", value: (r) => r.nEvents, text: (r) => (fin(r.nEvents) ? int(r.nEvents) : "–"), title: `Eventos de desastre grave que afectaron a la provincia${years ? `, ${years}` : ""}` }] : []),
-          ...(any("nCost") ? [{ key: "nCost", label: "Pérdidas", short: "Parte de las pérdidas", value: (r) => r.nCost, text: (r) => money(r.nCost), bar: { max: Math.max(...sRows.map((r) => r.nCost || 0), 1), color: "rgba(232,119,74,.3)" }, title: `Parte de las pérdidas de estos eventos que corresponde a la provincia${noaa.unit ? ` (${noaa.unit})` : ""}` }] : []),
+          ...(any("cases") ? [{ key: "cases", label: "Casos", value: (r) => r.cases, text: (r) => (fin(r.cases) ? count3(r.cases) : "–"), title: `Casos reportados en la ${T.state} dentro de estos eventos` }] : []),
+          ...(any("nEvents") ? [{ key: "nEvents", label: "Desastres graves", short: "Eventos graves", value: (r) => r.nEvents, text: (r) => (fin(r.nEvents) ? int(r.nEvents) : "–"), title: `Eventos de desastre grave que afectaron a la ${T.state}${years ? `, ${years}` : ""}` }] : []),
+          ...(any("nCost") ? [{ key: "nCost", label: "Pérdidas", short: "Parte de las pérdidas", value: (r) => r.nCost, text: (r) => money(r.nCost), bar: { max: Math.max(...sRows.map((r) => r.nCost || 0), 1), color: "rgba(232,119,74,.3)" }, title: `Parte de las pérdidas de estos eventos que corresponde a la ${T.state}${noaa.unit ? ` (${noaa.unit})` : ""}` }] : []),
         ],
         sort: { key: any("nCost") ? "nCost" : any("fema") ? "fema" : "name", dir: any("nCost") || any("fema") ? "desc" : "asc" },
         onHover: (r) => link.hover(r?.row ? rowsHighlight(stLevel, [r.row], { dim: true }) : null),
@@ -381,9 +382,9 @@ export async function mount(ctx) {
         rows: recent,
         columns: [
           { key: "date", label: "Fecha", align: "l", width: "82px", value: (r) => r.date, text: (r) => r.date },
-          { key: "state", label: "Provincia", align: "l", width: "minmax(0,.7fr)", value: (r) => stName(r.state), text: (r) => stName(r.state) },
+          { key: "state", label: `${T.State}`, align: "l", width: "minmax(0,.7fr)", value: (r) => stName(r.state), text: (r) => stName(r.state) },
           { key: "type", label: "Evento", align: "l", width: "minmax(0,1.6fr)", value: (r) => r.title, html: (r) => `<i class="dot" style="background:${DIS_COLOR[r.type] || "#999"}"></i>${esc(tidy(r.title))}`, tip: (r) => uniq([typeName.get(r.type), r.incident_type, tidy(r.title)]).join(" · ") },
-          { key: "areas", label: "N.° de áreas", value: (r) => r.areas, text: (r) => (r.statewide ? "Toda la provincia" : int(r.areas)), title: "Comunas y otras áreas que abarca el evento (incluidas las que no están en el mapa)" },
+          { key: "areas", label: "N.° de áreas", value: (r) => r.areas, text: (r) => (r.statewide ? `Toda la ${T.state}` : int(r.areas)), title: "Comunas y otras áreas que abarca el evento (incluidas las que no están en el mapa)" },
         ],
         sort: { key: "date", dir: "desc" },
         onHover: (r) => {

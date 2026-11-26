@@ -2,6 +2,7 @@
 import { drawIcon, hasIcon } from "../icons.js";
 import { icon } from "../ui/icon.js";
 import { SERIF, SANS } from "../fonts.js";
+import { T } from "../terms.js";
 
 // The address printed on shared images. Set it to the published site (e.g. "example.com/chileciv"); when left
 // empty, the page's own host and path are used, except on a local dev server, where SITE_FALLBACK is printed.
@@ -149,7 +150,7 @@ export function composeImage(info, { height = IMG_H } = {}) {
   spaced(ctx, 0);
   ctx.fillStyle = "#b9ab88";
   ctx.font = `italic 17px ${SERIF}`;
-  ctx.fillText("La Región Metropolitana como mapa de estrategia", 114, cy + 28);
+  ctx.fillText(`La ${T.nationName} como mapa de estrategia`, 114, cy + 28);
 
   // Lens + legend ramp
   const mx = 640;
@@ -192,7 +193,7 @@ export function composeImage(info, { height = IMG_H } = {}) {
     ctx.font = `13px ${SANS}`;
     ctx.fillStyle = "#b9ab88";
     spaced(ctx, 2);
-    ctx.fillText(sel.kind === "state" ? "PROVINCIA" : "COMUNA", rx, cy - 30);
+    ctx.fillText(sel.kind === "state" ? `${T.state.toUpperCase()}` : "COMUNA", rx, cy - 30);
     spaced(ctx, 0);
     ctx.font = `bold 24px ${SERIF}`;
     ctx.fillStyle = "#f3e6c4";

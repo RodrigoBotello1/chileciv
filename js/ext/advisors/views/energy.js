@@ -8,6 +8,7 @@ import { createTable } from "../core/table.js";
 import { section, tiles, chips, sourcesHtml } from "../core/view.js";
 import { frameBox, focusPoint } from "../core/frame.js";
 import { glyph } from "../../../ui/icon.js";
+import { T } from "../../../terms.js";
 
 const GROUPS = [
   { id: "thermal", label: "Centrales eléctricas", types: ["nuclear", "coal_plant", "gas_plant", "oil_plant", "geothermal"] },
@@ -64,7 +65,7 @@ export function mount(ctx) {
   ]) + `<p class="adv-callout">${esc(res.summary?.note || "Solo cuentan los sitios marcados en el mapa.")}</p>`;
 
   // --- national mix ---------------------------------------------------------------------------------------------
-  const mixBody = section(el, { title: "Matriz eléctrica de la región", kicker: "Sitios del mapa sobre el umbral", note: "Capacidad instalada de cada tipo de central en el mapa. Las centrales pequeñas no se marcan, así que esta <b>no</b> es la capacidad total de la región: muestra dónde están los sitios grandes y con qué generan." });
+  const mixBody = section(el, { title: `Matriz eléctrica ${T.ofNation}`, kicker: "Sitios del mapa sobre el umbral", note: `Capacidad instalada de cada tipo de central en el mapa. Las centrales pequeñas no se marcan, así que esta <b>no</b> es la capacidad total ${T.ofNation}: muestra dónde están los sitios grandes y con qué generan.` });
   const mixParts = mwTypes.map((t) => ({ key: t.id, label: t.name, value: nat[t.id]?.value || 0, color: t.color, text: mw(nat[t.id]?.value), icon: glyph(t, 14) })).sort((a, b) => b.value - a.value);
   const mixHover = (p) => {
     if (!p) { link.hover(null); bubbles.setSelected(null); return; }
@@ -132,13 +133,13 @@ export function mount(ctx) {
   const sizeSort = (r) => (isMW(r.type) && fin(r.value) ? r.value : null);
   const table = createTable(tBody, {
     caption: "Sitios de recursos en el mapa",
-    search: "Buscar sitios, provincias, operadores",
+    search: `Buscar sitios, ${T.states}, operadores`,
     searchText: (r) => `${r.name} ${stateName(r.state)} ${r.state || ""} ${r.detail || ""} ${typeById.get(r.type)?.name || ""}`,
     rank: true,
     columns: [
       { key: "name", label: "Sitio", align: "l", width: "minmax(0,1.7fr)", value: (r) => r.name, html: (r) => `<span class="ic">${glyph(typeById.get(r.type), 13)}</span>${esc(r.name)}` },
       { key: "type", label: "Tipo", align: "l", width: "minmax(0,1fr)", value: (r) => typeById.get(r.type)?.name, text: (r) => typeLabel(typeById.get(r.type)) || r.type },
-      { key: "state", label: "Provincia", align: "l", width: "minmax(0,.7fr)", value: (r) => stateName(r.state), text: (r) => stateName(r.state) || "–" },
+      { key: "state", label: `${T.State}`, align: "l", width: "minmax(0,.7fr)", value: (r) => stateName(r.state), text: (r) => stateName(r.state) || "–" },
       { key: "value", label: "Tamaño", width: "minmax(0,.95fr)", value: sizeSort, text: (r) => sizeText(r), title: "Ordena por capacidad (MW; las otras unidades quedan al final)" },
     ],
     rows: [],
@@ -180,10 +181,10 @@ export function mount(ctx) {
     .sort((a, b) => b.total - a.total);
   let stacks = null;
   if (stateRows.length) {
-    const sBody = section(el, { title: "Electricidad por provincia", note: "Capacidad instalada de cada provincia en el mapa, por tipo. Haz clic en una provincia para filtrar todo a ella; otro clic lo quita." });
+    const sBody = section(el, { title: `Electricidad por ${T.state}`, note: `Capacidad instalada de cada ${T.state} en el mapa, por tipo. Haz clic en una ${T.state} para filtrar todo a ella; otro clic lo quita.` });
     stacks = stackedBars(sBody, {
       rows: stateRows, keys: mwTypes.map((t) => ({ key: t.id, label: t.name, color: t.color })), fmt: (v) => mw(v),
-      ariaLabel: "Capacidad instalada en el mapa por provincia",
+      ariaLabel: `Capacidad instalada en el mapa por ${T.state}`,
       onHover: (x) => {
         if (!x) return link.hover(null);
         const sIdx = x.row.idx;
@@ -193,7 +194,7 @@ export function mount(ctx) {
       onClick: (x) => setState(st.state === x.row.key ? null : x.row.key, true),
     });
     const noPower = states.filter((s) => !(energyOf(s).total > 0)).map((s) => s.name);
-    if (noPower.length) sBody.insertAdjacentHTML("beforeend", `<p class="adv-note">Provincias sin centrales en el mapa: ${esc(noPower.join(", "))}.</p>`);
+    if (noPower.length) sBody.insertAdjacentHTML("beforeend", `<p class="adv-note">${T.States} sin centrales en el mapa: ${esc(noPower.join(", "))}.</p>`);
   }
 
   // --- explainer ------------------------------------------------------------------------------------------------
@@ -209,10 +210,10 @@ export function mount(ctx) {
   }).join("")}`).join("");
 
   el.insertAdjacentHTML("beforeend", sourcesHtml(data, [...types.map((t) => t.source), ...(Array.isArray(res.sources) ? res.sources : [])], [
-    "Solo se marcan los sitios que superan el umbral de cada tipo (ver la descripción de cada tipo más arriba), así que la suma <b>no</b> es la capacidad instalada de la provincia ni de la región.",
+    `Solo se marcan los sitios que superan el umbral de cada tipo (ver la descripción de cada tipo más arriba), así que la suma <b>no</b> es la capacidad instalada de la ${T.state} ni ${T.ofNation}.`,
     "La capacidad es potencia instalada (MW), no generación real: con los mismos 1,000 MW, una planta solar genera mucho menos en un año que una termoeléctrica.",
     ...(otherTypes.length ? [`${esc(otherTypes.map((t) => typeLabel(t)).join(", "))} no se miden en MW, así que sus valores no se suman a los MW.`] : []),
-    "Los sitios se cuentan en la provincia que registran los datos; unos pocos en el límite pueden quedar en un hexágono de la provincia vecina.",
+    `Los sitios se cuentan en la ${T.state} que registran los datos; unos pocos en el límite pueden quedar en un hexágono de la ${T.state} vecina.`,
   ]));
 
   // --- map ------------------------------------------------------------------------------------------------------
@@ -252,7 +253,7 @@ export function mount(ctx) {
     const sIdx = st.state ? stateIdx.get(st.state) : null;
     link.base({ dimOthers: true, states: sIdx != null ? new Set([sIdx]) : undefined });
     stateChip.innerHTML = st.state
-      ? `<span class="adv-fchip">Provincia: <b>${esc(stateName(st.state))}</b> · ${int(vis.length)} sitios<button type="button" data-clear-state aria-label="Quitar el filtro de provincia">✕</button></span>`
+      ? `<span class="adv-fchip">${T.State}: <b>${esc(stateName(st.state))}</b> · ${int(vis.length)} sitios<button type="button" data-clear-state aria-label="Quitar el filtro de ${T.state}">✕</button></span>`
       : "";
     const r = (v) => 24 * Math.sqrt(v / vMax);
     legendBox.innerHTML = sizeLegend([250, 1000, 4000].filter((v) => v <= vMax * 1.2), r, (v) => `${int(v)} MW`, "Área del círculo = capacidad instalada");

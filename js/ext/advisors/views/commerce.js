@@ -7,6 +7,7 @@ import { barList, shareBar, stackedBars, swatchLegend, sizeLegend } from "../cor
 import { createTable } from "../core/table.js";
 import { section, tiles, segmented, sourcesHtml } from "../core/view.js";
 import { frameBox, focusPoint } from "../core/frame.js";
+import { T } from "../../../terms.js";
 
 // Route colours by mode (original palette: ochre road, iron rail, blue water, lilac air, sea-green mixed,
 // dark copper pipeline drawn dashed).
@@ -232,7 +233,7 @@ export async function mount(ctx) {
       if (!z) { zDetail.innerHTML = ""; return; }
       const cityNames = (z.cities || []).slice(0, 6).map((id) => esc(metros.byKey.get(id)?.name || id)).join(", ");
       zDetail.innerHTML = `<div class="adv-card-detail"><h4 class="adv-h4">${esc(z.name)}</h4>
-        <p class="adv-note">${z.kind === "rest_of_state" ? "El resto de la provincia fuera de las zonas urbanas. " : ""}${fin(z.counties) ? `${int(z.counties)} comunas en el mapa · ` : ""}Comunas: ${cityNames || "no está en el mapa"}${(z.cities || []).length > 6 ? "…" : ""}</p>
+        <p class="adv-note">${z.kind === "rest_of_state" ? `El resto de la ${T.state} fuera de las zonas urbanas. ` : ""}${fin(z.counties) ? `${int(z.counties)} comunas en el mapa · ` : ""}Comunas: ${cityNames || "no está en el mapa"}${(z.cities || []).length > 6 ? "…" : ""}</p>
         <h4 class="adv-h4">Principales contrapartes</h4><div class="adv-zp"></div></div>`;
       barList(zDetail.querySelector(".adv-zp"), {
         compact: true, ariaLabel: "Principales zonas con las que intercambia",

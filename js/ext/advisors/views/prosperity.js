@@ -11,10 +11,11 @@ import { createScatter } from "../core/scatter.js";
 import { section, tiles, segmented, lensButton, sourcesHtml, topBy, frameBtn } from "../core/view.js";
 import { rowsHighlight } from "../core/data.js";
 import { CURRENCY } from "../../../format.js";
+import { T } from "../../../terms.js";
 
 const METRO_MIN = 100000; // comunas below this population are left out of the rent ranking
 const BIG_METRO = 100000; // same floor as METRO_MIN, for the unemployment ranking
-const LEVEL_NAME = { counties: "Comunas", metros: "Comunas", states: "Provincias" };
+const LEVEL_NAME = { counties: "Comunas", metros: "Comunas", states: `${T.States}` };
 // City income when the data gives the measure no label.
 const INCOME_ES = "Mediana del ingreso por hogar";
 
@@ -161,7 +162,7 @@ export function mount(ctx) {
       fmt: (v) => fmtShort(povFmt, v), unitLabel: "comunas", label: `Histograma de ${povLabel} por comuna`,
       colorOf: (_, t) => colorScale({ type: "seq", domain: [0, 1], ramp: RAMPS.heat })(worseHigh ? t : 1 - t),
       // The population-weighted mean of a rate is the national rate; of any other measure it is only an average.
-      markers: fin(avgPov) ? [{ v: avgPov, label: isRate ? `Región ${pct(avgPov)}` : `Promedio ponderado por población ${fmtShort(povFmt, avgPov)}` }] : [],
+      markers: fin(avgPov) ? [{ v: avgPov, label: isRate ? `${T.NationShort} ${pct(avgPov)}` : `Promedio ponderado por población ${fmtShort(povFmt, avgPov)}` }] : [],
       onHover: (bin) => link.hover(bin ? rowsHighlight(counties, bin.keys.map((k) => counties.byKey.get(k)), { dim: true }) : null),
     });
     const povTable = createTable(pBody, {
@@ -204,7 +205,7 @@ export function mount(ctx) {
     const uBody = section(el, { title: "Desempleo", note: `Desocupados ÷ fuerza de trabajo (${esc(data.vintage)}). De las comunas solo se listan las de población ${compact(BIG_METRO)} o más; las áreas sin valor quedan fuera.` });
     const uHost = document.createElement("div");
     let uLevel = uLevels[0];
-    if (uLevels.length > 1) segmented(uBody, { label: "Alcance", value: uLevel, options: [{ value: "states", label: "Provincias" }, { value: "metros", label: "Comunas grandes" }], onChange: (v) => { uLevel = v; drawU(); } });
+    if (uLevels.length > 1) segmented(uBody, { label: "Alcance", value: uLevel, options: [{ value: "states", label: `${T.States}` }, { value: "metros", label: "Comunas grandes" }], onChange: (v) => { uLevel = v; drawU(); } });
     uBody.appendChild(uHost);
     const drawU = () => {
       uHost.innerHTML = "";
@@ -239,9 +240,9 @@ export function mount(ctx) {
   el.insertAdjacentHTML("beforeend", sourcesHtml(data, srcIds, [
     ...(missing.length ? [`Estos datos no traen valores de ${missing.join(", ")}; por eso no se muestran los gráficos relacionados.`] : []),
     ...(affLevels.length ? ["Vivienda ÷ ingreso es el cociente de dos medianas de poblaciones distintas: sirve para comparar lugares entre sí, no indica cuántos años de ingreso necesita un hogar concreto para comprar."] : []),
-    ...(affLevels.length === 1 && affLevels[0] === "counties" ? ["Las ciudades y provincias no tienen valor de vivienda, por eso la comparación de vivienda e ingreso solo existe por comuna."] : []),
+    ...(affLevels.length === 1 && affLevels[0] === "counties" ? [`Las ciudades y ${T.states} no tienen valor de vivienda, por eso la comparación de vivienda e ingreso solo existe por comuna.`] : []),
     ...(affLevels.length === 1 && affLevels[0] === "counties" && any(counties, (r) => r.v.home_sales) ? [`En las comunas con pocas transacciones (${esc(lab("home_sales", "N° de ventas"))}), la mediana del valor puede depender de unas pocas operaciones; el múltiplo es solo referencial.`] : []),
-    ...(affLevels.includes("counties") && affLevels.includes("metros") ? [`Las cifras de provincias y ciudades son de "${esc(data.vintage)}"; las de comunas son de "${esc(data.countyVintage)}", y los años pueden diferir.`] : []),
+    ...(affLevels.includes("counties") && affLevels.includes("metros") ? [`Las cifras de ${T.states} y ciudades son de "${esc(data.vintage)}"; las de comunas son de "${esc(data.countyVintage)}", y los años pueden diferir.`] : []),
     ...(hasRent ? ["Arriendo ÷ ingreso es el cociente de dos medianas de poblaciones distintas: solo es una referencia aproximada, no la proporción que realmente paga quien arrienda."] : []),
     ...(uLevels.length && uLevels.some((k) => data.levels[k].rows.some((r) => !fin(r.v.unemployment))) ? ["Algunas áreas no tienen valor de desempleo; el ranking no las incluye."] : []),
     ...(data.countiesOffMap && (affLevels.includes("counties") || hasPoverty) ? [`${int(data.countiesOffMap)} de las comunas más pequeñas no llegan a un hexágono; al seleccionarlas no se marca ningún área en el mapa.`] : []),

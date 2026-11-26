@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es" data-map="chile">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>chileciv: Chile como mapa de estrategia, con datos reales</title>
+  <meta name="description" content="Chile continental dibujada como mapa de un juego de estrategia 4X: terreno en hexágonos, comunas con sus rendimientos y lentes de datos, todo a partir de datos públicos.">
+  <meta name="theme-color" content="#131e2a">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='31' fill='%23120d06'/%3E%3Ccircle cx='32' cy='32' r='29' fill='%23c9a45c'/%3E%3Ccircle cx='32' cy='32' r='24' fill='%232a4d8f'/%3E%3Cpath fill='%23f8f0d8' d='M32 14l4.9 11.3 12.2 1.1-9.3 8.1 2.8 12-10.6-6.4-10.6 6.4 2.8-12-9.3-8.1 12.2-1.1z'/%3E%3C/svg%3E">
+  <!-- chileciv: a Santiago Metropolitan Region port of Andrej Karpathy's usaciv (MIT), built on the taiwanciv port.
+       Social cards need absolute URLs: when this is hosted, set canonical, og:url and the image URLs to its address. -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_CL">
+  <meta property="og:site_name" content="chileciv">
+  <meta property="og:title" content="chileciv: Chile como mapa de estrategia">
+  <meta property="og:description" content="Chile continental como mapa de un juego de estrategia 4X: hexágonos de terreno, comunas con sus rendimientos y lentes de datos, todo a partir de datos públicos.">
+  <meta property="og:image:alt" content="Mapa de hexágonos de Chile al estilo de un juego de estrategia, con un estandarte sobre cada comuna">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="chileciv: Chile como mapa de estrategia">
+  <meta name="twitter:description" content="Chile continental como mapa de un juego de estrategia 4X, con datos públicos.">
+  <meta name="twitter:image:alt" content="Mapa de hexágonos de Chile al estilo de un juego de estrategia, con un estandarte sobre cada comuna">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand" title="chileciv"><span class="brand-emblem" aria-hidden="true">★</span><span class="brand-text">Chile</span></div>
+    <div id="yields" class="yields" aria-label="Rendimientos de Chile"></div>
+    <div class="spacer"></div>
+    <div class="search" role="search">
+      <span class="search-ic" aria-hidden="true"></span>
+      <input id="search-input" type="search" placeholder="Buscar comuna o región…" autocomplete="off" spellcheck="false"
+        role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results" aria-label="Buscar comuna o región (/ o Ctrl K)">
+      <kbd class="search-kbd" aria-hidden="true">/</kbd>
+    </div>
+    <div id="turn" class="turn"></div>
+    <div class="tb-buttons">
+      <button id="btn-share" class="btn" aria-haspopup="dialog" aria-expanded="false" aria-label="Compartir la vista actual" title="Compartir: copiar el enlace o descargar la imagen"></button>
+      <button id="btn-help" class="btn btn-icon" aria-label="Ayuda de teclado y mouse" title="Ayuda (?)"></button>
+      <button id="btn-pedia" class="btn" aria-label="Abrir el Almanaque" title="Qué significa cada número y de dónde sale"></button>
+    </div>
+  </header>
+
+  <canvas id="map" role="img" aria-label="Mapa de hexágonos de Chile"></canvas>
+
+  <div id="tooltip" class="tooltip" hidden></div>
+  <aside id="city-panel" class="panel" hidden role="region" aria-label="Detalle"></aside>
+
+  <div id="lens-area">
+    <div id="lens-picker" class="panel lens-picker" hidden role="dialog" aria-label="Elegir lente"></div>
+    <div id="legend" class="panel legend" hidden role="group" aria-label="Leyenda del lente"></div>
+    <div id="lens-dock" class="panel lens-dock" role="toolbar" aria-label="Lentes del mapa">
+      <button id="btn-res" class="lens-btn res-toggle" aria-pressed="true" aria-label="Recursos en los hexágonos (R)" title="Mostrar u ocultar los recursos en los hexágonos (R)" hidden></button>
+      <div id="lens-quick" class="lens-quick"></div>
+      <button id="btn-lenses" class="lens-btn lens-more" aria-haspopup="dialog" aria-expanded="false" aria-controls="lens-picker"></button>
+    </div>
+  </div>
+
+  <div id="minimap-wrap" class="panel"><canvas id="minimap" aria-label="Minimapa: haz clic para ir a ese lugar" role="img"></canvas></div>
+  <button id="btn-minimap" class="panel minimap-toggle" aria-pressed="false" aria-controls="minimap-wrap" aria-label="Mostrar el minimapa"></button>
+
+  <div id="search-results" class="panel search-results" role="listbox" aria-label="Resultados de la búsqueda" hidden></div>
+  <div id="share-pop" class="panel share-pop" role="dialog" aria-label="Compartir" hidden></div>
+  <div id="yield-report" class="panel yield-report" role="dialog" aria-label="Informe de Chile" tabindex="-1" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="pedia" class="modal" hidden>
+    <div class="modal-card panel" role="dialog" aria-modal="true" aria-label="Almanaque">
+      <button class="close icon-btn" data-close aria-label="Cerrar el Almanaque">✕</button>
+      <nav id="pedia-nav" aria-label="Páginas del Almanaque"></nav>
+      <article id="pedia-body"></article>
+    </div>
+  </div>
+
+  <div id="help" class="modal" hidden>
+    <div class="help-card panel" role="dialog" aria-modal="true" aria-labelledby="help-title"></div>
+  </div>
+
+  <div id="loading">Explorando el terreno…</div>
+  <script type="module" src="../js/main.js"></script>
+</body>
+</html>

@@ -9,6 +9,7 @@ import { section, tiles, chips, segmented, mapPicker, sourcesHtml } from "../cor
 import { rowsHighlight, extendData } from "../core/data.js";
 import { countyLens, stateLens } from "../core/lenses.js";
 import { frameBox, focusPoint } from "../core/frame.js";
+import { T } from "../../../terms.js";
 
 // Colours per component (branch hues; reserve = lighter, guard = gold tones).
 const COMP_COLOR = {
@@ -63,7 +64,7 @@ export async function mount(ctx) {
     { label: "Servicio activo", value: count3(P.active?.total), sub: `+ ${count3(P.guard_reserve?.total)} guardia y reserva`, color: "#a9c3d6" },
     { label: "Gasto en defensa", value: money(S.total), sub: `${pct(S.pct_gdp)} de las ventas · ${esc(vint.spending || "")}` },
     { label: "Veteranos", value: count3(nat.veterans), sub: "civiles de 18 años o más" },
-  ]) + `<p class="adv-callout">No se publica la dotación de cada base, así que el mapa las dimensiona por la tierra dentro de su límite. Las cifras de tropa de abajo son por provincia.</p>`);
+  ]) + `<p class="adv-callout">No se publica la dotación de cada base, así que el mapa las dimensiona por la tierra dentro de su límite. Las cifras de tropa de abajo son por ${T.state}.</p>`);
 
   // --- map colour -----------------------------------------------------------------------------------------------
   const mapRow = mk("div", "adv-sec adv-mapsec");
@@ -74,7 +75,7 @@ export async function mount(ctx) {
   });
   const perResLens = () => stateLens(data, "def-per-resident", (abbr) => mil.states?.[abbr]?.spending?.per_resident ?? null, {
     name: "Gasto en defensa por habitante", emoji: "💵", format: "usd", unit: "$ por habitante", ramp: SPEND_RAMP, source: "oldcc_spending",
-    description: `Contratos, subvenciones y remuneraciones de defensa por habitante, por provincia (${vint.spending || "fuente"}). Los contratos siguen el lugar de ejecución.`,
+    description: `Contratos, subvenciones y remuneraciones de defensa por habitante, por ${T.state} (${vint.spending || "fuente"}). Los contratos siguen el lugar de ejecución.`,
   });
   mapPicker(ctx, mapRow, {
     value: "terrain",
@@ -89,7 +90,7 @@ export async function mount(ctx) {
   // --- installations --------------------------------------------------------------------------------------------
   const iBody = section(el, {
     title: "Instalaciones", kicker: esc(vint.installations || "Defensa"),
-    note: `Todos los sitios activos de defensa en la región: el área del círculo sigue la tierra dentro de su límite (tope de ${int(AREA_CAP)} km²; los sitios sin límite son puntos). ${esc(mil.rules?.tier || "")}`,
+    note: `Todos los sitios activos de defensa ${T.inNation}: el área del círculo sigue la tierra dentro de su límite (tope de ${int(AREA_CAP)} km²; los sitios sin límite son puntos). ${esc(mil.rules?.tier || "")}`,
   });
   const counts = new Map();
   for (const it of insts) counts.set(it.component, (counts.get(it.component) || 0) + 1);
@@ -122,13 +123,13 @@ export async function mount(ctx) {
   legend.innerHTML = sizeLegend([100, 1000, AREA_CAP], (v) => 14 * Math.sqrt(v / AREA_CAP), (v) => `${int(v)} km²`, "Área del círculo = tierra dentro del límite");
   iBody.appendChild(legend);
   const instTable = createTable(iBody, {
-    caption: "Instalaciones de defensa", search: "Buscar instalaciones, provincias", rank: true, maxHeight: 280,
+    caption: "Instalaciones de defensa", search: `Buscar instalaciones, ${T.states}`, rank: true, maxHeight: 280,
     searchText: (r) => `${r.name} ${r.state} ${compById.get(r.component)?.name || ""}`,
     columns: [
       { key: "name", label: "Instalación", align: "l", width: "minmax(0,1.9fr)", value: (r) => r.name, html: (r) => `<i class="dot" style="background:${esc(compById.get(r.component)?.color || "#999")}"></i>${esc(r.name)}${r.joint ? ` <span class="sub">conjunta</span>` : ""}`, tip: (r) => `${r.name} · ${compById.get(r.component)?.name || r.component}${r.status !== "act" ? ` · ${STATUS[r.status] || r.status}` : ""}` },
       { key: "component", label: "Rama", align: "l", width: "minmax(0,.9fr)", hideBelow: 400, value: (r) => compById.get(r.component)?.short, text: (r) => compById.get(r.component)?.short || r.component },
       { key: "tier", label: "Nivel", align: "l", width: "46px", value: (r) => ({ major: 0, base: 1, site: 2 })[r.tier], text: (r) => TIER_LABEL[r.tier] || r.tier },
-      { key: "state", label: "Provincia", align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
+      { key: "state", label: `${T.State}`, align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
       { key: "area", label: "Área", width: "minmax(0,.8fr)", value: (r) => r.area_km2, text: (r) => (fin(r.area_km2) ? `${count3(r.area_km2)} km²` : "–"), title: "Tierra dentro del límite (vacío: sin límite publicado)" },
     ],
     rows: [], sort: { key: "area", dir: "desc" },
@@ -148,8 +149,8 @@ export async function mount(ctx) {
 
   // --- by state -------------------------------------------------------------------------------------------------
   const sBody = section(el, {
-    title: "Tropa y gasto por provincia",
-    note: `Personal por provincia de destino (${esc(vint.personnel || "fuente")}); gasto por lugar de ejecución (${esc(vint.spending || "fuente")}). Haz clic en una provincia para ver su detalle y filtrar las bases a ella.`,
+    title: `Tropa y gasto por ${T.state}`,
+    note: `Personal por ${T.state} de destino (${esc(vint.personnel || "fuente")}); gasto por lugar de ejecución (${esc(vint.spending || "fuente")}). Haz clic en una ${T.state} para ver su detalle y filtrar las bases a ella.`,
   });
   const sCtl = mk("div", "adv-row");
   sBody.appendChild(sCtl);
@@ -182,7 +183,7 @@ export async function mount(ctx) {
       total: (s) => s.spending?.total, fmt: money,
     },
     perres: { keys: [{ key: "v", label: "$ por habitante", color: "#d9a457" }], parts: (s) => ({ v: s.spending?.per_resident }), total: (s) => s.spending?.per_resident, fmt: dollars },
-    gdp: { keys: [{ key: "v", label: "Parte de las ventas de la provincia", color: "#c46a4f" }], parts: (s) => ({ v: s.spending?.pct_gdp }), total: (s) => s.spending?.pct_gdp, fmt: (v) => pct(v) },
+    gdp: { keys: [{ key: "v", label: `Parte de las ventas de la ${T.state}`, color: "#c46a4f" }], parts: (s) => ({ v: s.spending?.pct_gdp }), total: (s) => s.spending?.pct_gdp, fmt: (v) => pct(v) },
   };
   const milStates = Object.entries(mil.states || {}).filter(([, s]) => s);
   function drawStates() {
@@ -195,7 +196,7 @@ export async function mount(ctx) {
     allBtn.textContent = showAll ? "Top 15" : `Todas (${rows.length})`;
     sHost.innerHTML = "";
     stacks = stackedBars(sHost, {
-      rows: shown, keys: M.keys, fmt: (v) => M.fmt(v), ariaLabel: "Defensa por provincia",
+      rows: shown, keys: M.keys, fmt: (v) => M.fmt(v), ariaLabel: `Defensa por ${T.state}`,
       onHover: (x) => {
         if (!x) return link.hover(null);
         const i = stateIdx(x.row.key);
@@ -265,7 +266,7 @@ export async function mount(ctx) {
     caption: "Mayores campos militares", rank: true, maxHeight: 240,
     columns: [
       { key: "name", label: "Campo", align: "l", width: "minmax(0,2fr)", value: (r) => r.name, html: (r) => `<i class="dot" style="background:${esc(compById.get(r.component)?.color || "#999")}"></i>${esc(r.name)}` },
-      { key: "state", label: "Provincia", align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
+      { key: "state", label: `${T.State}`, align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
       { key: "area", label: "Area", width: "minmax(0,.9fr)", value: (r) => r.area_km2, text: (r) => `${count3(r.area_km2)} km²`, bar: { max: Math.max(...ranges.map((r) => r.area_km2 || 0), 1), color: "rgba(194,74,62,.3)" } },
     ],
     rows: ranges, sort: { key: "area", dir: "desc" },
@@ -276,14 +277,14 @@ export async function mount(ctx) {
   // --- veterans -------------------------------------------------------------------------------------------------
   const vBody = section(el, {
     title: "Veteranos y tropa en su comuna",
-    note: `Veteranos civiles de 18 años o más y residentes en servicio activo de 16 años o más, contados donde viven (${esc(vint.acs || data.countyVintage)}). Las proporciones de provincias y comunas son cifras sumadas ÷ bases sumadas de sus comunas.`,
+    note: `Veteranos civiles de 18 años o más y residentes en servicio activo de 16 años o más, contados donde viven (${esc(vint.acs || data.countyVintage)}). Las proporciones de ${T.states} y comunas son cifras sumadas ÷ bases sumadas de sus comunas.`,
   });
   let vLevel = "states";
   const vCtl = mk("div", "adv-row");
   vBody.appendChild(vCtl);
   segmented(vCtl, {
     label: "Lugares", value: vLevel,
-    options: [{ value: "states", label: "Provincias" }, { value: "metros", label: "Comunas" }, ...(counties ? [{ value: "counties", label: "Comunas (detalle)" }] : [])],
+    options: [{ value: "states", label: `${T.States}` }, { value: "metros", label: "Comunas" }, ...(counties ? [{ value: "counties", label: "Comunas (detalle)" }] : [])],
     onChange: (v) => { vLevel = v; vTable.setRows(vRows()); },
   });
   const vRows = () => data.levels[vLevel].rows.filter((r) => fin(r.v.veterans_pct) && (vLevel !== "counties" || (r.v.population || 0) >= 10000));
@@ -305,8 +306,8 @@ export async function mount(ctx) {
     esc(mil.caveats || ""),
     `El personal es de ${esc(vint.personnel || "la fuente de personal")}; el gasto es de ${esc(vint.spending || "la fuente de gasto")}, la edición más reciente publicada. Son años distintos.`,
     "Los niveles de instalación salen del área del límite y del componente, nunca de la dotación: un campo \"mayor\" puede tener poca gente y un cuartel chico mucha.",
-    "Unos pocos sitios figuran en una provincia que no es la suya: la tabla conserva la provincia del registro; los campos usan la provincia que contiene la mayoría de sus hexágonos.",
-    "Los territorios fuera del mapa aparecen en los gráficos por provincia pero no en el mapa.",
+    `Unos pocos sitios figuran en una ${T.state} que no es la suya: la tabla conserva la ${T.state} del registro; los campos usan la ${T.state} que contiene la mayoría de sus hexágonos.`,
+    `Los territorios fuera del mapa aparecen en los gráficos por ${T.state} pero no en el mapa.`,
   ].filter(Boolean)));
 
   // --- map ------------------------------------------------------------------------------------------------------
@@ -345,7 +346,7 @@ export async function mount(ctx) {
     const i = st.state ? stateIdx(st.state) : null;
     link.base(i != null ? { states: new Set([i]), dimOthers: true } : null);
     stateChip.innerHTML = st.state
-      ? `<span class="adv-fchip">Provincia: <b>${esc(stateName(st.state))}</b> · ${int(vis.length)} sitios<button type="button" data-clear-state aria-label="Quitar el filtro de provincia">✕</button></span>`
+      ? `<span class="adv-fchip">${T.State}: <b>${esc(stateName(st.state))}</b> · ${int(vis.length)} sitios<button type="button" data-clear-state aria-label="Quitar el filtro de ${T.state}">✕</button></span>`
       : "";
   }
   drawStates();

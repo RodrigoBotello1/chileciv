@@ -4,9 +4,10 @@ export class Minimap {
     this.canvas = canvas;
     this.w = world;
     this.cam = camera;
-    const W = 230;
-    this.k = W / world.raw.width;
-    this.cssW = W;
+    // At most 230 px wide and 230 px tall: a long, thin country (Chile) gets a narrow minimap instead of a tall one.
+    const MAX = 230;
+    this.k = Math.min(MAX / world.raw.width, MAX / world.raw.height);
+    this.cssW = Math.round(world.raw.width * this.k);
     this.cssH = Math.round(world.raw.height * this.k);
     const dpr = window.devicePixelRatio || 1;
     canvas.width = this.cssW * dpr;

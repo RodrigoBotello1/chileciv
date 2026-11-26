@@ -6,6 +6,7 @@ import { esc } from "../format.js";
 import { parseHex, luminance } from "../color.js";
 import { icon, glyph } from "./icon.js";
 import { gdpLabel, useSources } from "./infoPanel.js";
+import { T } from "../terms.js";
 
 const COVER_ICON = { forest_deciduous: "l-forest", forest_evergreen: "l-forest", forest_mixed: "l-forest", cropland: "l-farmland", pasture: "l-farmland", urban: "l-developed" };
 // Glyph colour that reads on a resource medallion (dark on light faces such as nuclear yellow or silver).
@@ -40,22 +41,22 @@ export function initPedia(data) {
   const pages = [
     { id: "About this map", title: "Acerca de este mapa", html: () => `
       ${h2("pedia", "📖", "Acerca de este mapa")}
-      <p>chileciv dibuja la Región Metropolitana de Santiago como un juego de estrategia. Nada es inventado: cada hexágono,
+      <p>chileciv dibuja ${T.theNationFull} como un juego de estrategia. Nada es inventado: cada hexágono,
       cada comuna y cada número viene de datos públicos, que se listan en <i>Fuentes</i>.</p>
       <h4>Cómo se construye</h4>
-      <p>La región se proyecta (Albers de áreas iguales) y se corta en ${data.world.grid.cols}×${data.world.grid.rows}
-      hexágonos de 1 km de radio (${hexKm()} km de punta a punta). Cada hexágono pertenece a la comuna y a la provincia que están bajo su centro,
+      <p>${T.Nation} se proyecta (Albers de áreas iguales) y se corta en ${data.world.grid.cols}×${data.world.grid.rows}
+      hexágonos de ${+(hexKm() / 2).toFixed(1)} km de radio (${hexKm()} km de punta a punta). Cada hexágono pertenece a la comuna y a la ${T.state} que están bajo su centro,
       y el terreno sale de muestras de elevación dentro de cada uno.</p>
-      <p>Cada <b>comuna</b> es una ciudad del mapa${data.cities?.length ? ` (${data.cities.length} en total)` : ""}${stateCount() ? `, agrupadas en ${stateCount()} provincias` : ""}: lleva un estandarte y sus números cubren toda la comuna, no solo su zona urbana.</p>
+      <p>Cada <b>comuna</b> es una ciudad del mapa${data.cities?.length ? ` (${data.cities.length} en total)` : ""}${stateCount() ? `, agrupadas en ${stateCount()} ${T.states}` : ""}: lleva un estandarte y sus números cubren toda la comuna, no solo su zona urbana.</p>
       <h4>Controles</h4>
-      <p>Arrastra o usa las flechas / WASD para desplazarte · rueda, +/– o doble clic para hacer zoom · clic en una comuna o una provincia para abrir su panel ·
+      <p>Arrastra o usa las flechas / WASD para desplazarte · rueda, +/– o doble clic para hacer zoom · clic en una comuna o una ${T.state} para abrir su panel ·
       / o ⌘K para buscar · L para recorrer los lentes · R para mostrar u ocultar recursos · ? para ver todos los atajos · Esc para cerrar.</p>
       <p>La barra de direcciones siempre guarda un enlace a lo que estás viendo (lente, selección y vista); usa <i>Compartir</i> para copiarlo
       o para descargar una imagen.</p>
       <h4>Código y créditos</h4>
       <p>chileciv está construido sobre <a href="${UPSTREAM_URL}" target="_blank" rel="noopener">usaciv</a> de Andrej Karpathy (MIT)
-      y sobre el port a Taiwán, <a href="${TAIWAN_URL}" target="_blank" rel="noopener">taiwanciv</a>. Muestra la Región Metropolitana de Santiago
-      con hexágonos de 1 km, y cada número viene de los datos públicos que se listan en este Almanaque.</p>` },
+      y sobre el port a Taiwán, <a href="${TAIWAN_URL}" target="_blank" rel="noopener">taiwanciv</a>. Muestra ${T.theNationFull}
+      con hexágonos de ${+(hexKm() / 2).toFixed(1)} km de radio, y cada número viene de los datos públicos que se listan en este Almanaque.</p>` },
     { id: "Yields", title: "Rendimientos", html: () => {
       const gold = gdpLabel(data.nation);
       return `
@@ -68,12 +69,12 @@ export function initPedia(data) {
       <p>Desempleo = personas desempleadas ÷ fuerza de trabajo.${data.nation.nation?.rent_burden != null ? ` Arriendo ÷ ingreso = arriendo mediano mensual × 12 ÷ ingreso mediano:
       una señal gruesa de carga, no la carga real de un hogar.` : ""} Las medidas que esta versión de los datos no trae (valor vacío) no aparecen en el panel.</p>`;
     } },
-    { id: "States", title: "Provincias", html: () => `
-      ${h2("terrain", "🗺️", "Provincias")}
-      <p>Haz clic en cualquier hexágono de tierra sin estandarte para abrir el panel de su provincia${vintageLine() ? ` (${vintageLine()})` : ""}.</p>
-      <p>El <b>ranking</b> (por ejemplo "3.º de ${stateCount() || "N"}") compara las ${stateCount() ? `${stateCount()} ` : ""}provincias del mapa; 1 es la mayor.</p>
-      <p>Cada comuna pertenece a una sola provincia. El panel de una comuna y el de su provincia son distintos, pero comparten las mismas tablas de datos.</p>
-      ${data.states ? "" : `<p class="muted">Esta versión de los datos no trae states.json, así que el panel de provincia solo muestra nombres y comunas.</p>`}` },
+    { id: "States", title: `${T.States}`, html: () => `
+      ${h2("terrain", "🗺️", `${T.States}`)}
+      <p>Haz clic en cualquier hexágono de tierra sin estandarte para abrir el panel de su ${T.state}${vintageLine() ? ` (${vintageLine()})` : ""}.</p>
+      <p>El <b>ranking</b> (por ejemplo "3.º de ${stateCount() || "N"}") compara las ${stateCount() ? `${stateCount()} ` : ""}${T.states} del mapa; 1 es la mayor.</p>
+      <p>Cada comuna pertenece a una sola ${T.state}. El panel de una comuna y el de su ${T.state} son distintos, pero comparten las mismas tablas de datos.</p>
+      ${data.states ? "" : `<p class="muted">Esta versión de los datos no trae states.json, así que el panel de ${T.state} solo muestra nombres y comunas.</p>`}` },
     { id: "Terrain", title: "Terreno", html: () => {
       const t = data.w?.tables || resolveTables(data.world.tables);
       const hasCover = Array.isArray(data.world.cover);
@@ -95,8 +96,8 @@ export function initPedia(data) {
       <table>${t.relief.map(row).join("")}</table>
       <h4>${icon("r-hydro", "💧", { size: 16 })} Agua</h4>
       <table>${t.water.filter((x) => x.id > 0).map(row).join("")}</table>
-      <h4>Fuera de la región</h4>
-      <p class="muted">La tierra que queda fuera de la región (Valparaíso, O'Higgins y Argentina) se dibuja bajo una niebla ligera:
+      <h4>Fuera ${T.ofNation}</h4>
+      <p class="muted">La tierra que queda fuera ${T.ofNation} (${T.outsideLands}) se dibuja bajo una niebla ligera:
       se muestra como contexto y no tiene datos detallados.</p>`;
     } },
     { id: "Lenses", title: "Lentes", html: () => `
@@ -123,7 +124,7 @@ export function initPedia(data) {
       const cats = [...new Set(r.types.map((t) => t.category || "other"))];
       return `
       ${h2("resources", "⛏️", "Recursos")}
-      <p>Los recursos marcan los principales puntos de interés de la región en los hexágonos donde están, con los tipos de la tabla.
+      <p>Los recursos marcan los principales puntos de interés ${T.ofNation} en los hexágonos donde están, con los tipos de la tabla.
       Solo se muestran los sitios relevantes: el umbral de cada tipo está en su descripción. Con el mapa alejado, un hexágono muestra su
       recurso de mayor rango; acércate para ver más. Pulsa <b>R</b> para mostrarlos u ocultarlos.</p>
       ${cats.map((c) => `<h4>${esc(CATEGORY[c] || c)}</h4><table class="res-table">

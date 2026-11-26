@@ -10,6 +10,7 @@ import { section, tiles, segmented, selectBox, sourcesHtml, frameBtn } from "../
 import { rowsHighlight } from "../core/data.js";
 import { icon } from "../../../ui/icon.js";
 import { hasIcon } from "../../../icons.js";
+import { T } from "../../../terms.js";
 
 export const METRO_MIN = 100000; // comunas of 100 mil residents or more
 // City income when the data gives the measure no label: the median total income per tax unit on filed returns.
@@ -48,7 +49,7 @@ export function mount(ctx) {
   }));
   let indBars = null;
   if (indRows.length) {
-    const indBody = section(el, { title: "Ventas por rubro", kicker: "Región Metropolitana", note: "Ventas anuales de cada rubro. Pasa el cursor sobre un rubro para marcar las provincias donde pesa más en la economía; haz clic para listar las comunas más especializadas en él." });
+    const indBody = section(el, { title: "Ventas por rubro", kicker: `${T.nationName}`, note: `Ventas anuales de cada rubro. Pasa el cursor sobre un rubro para marcar las ${T.states} donde pesa más en la economía; haz clic para listar las comunas más especializadas en él.` });
     indBars = barList(indBody, {
       rows: indRows, ariaLabel: "Ventas por rubro",
       onHover: (r) => {
@@ -113,7 +114,7 @@ export function mount(ctx) {
   });
 
   // --- specialisation -------------------------------------------------------------------------------------------
-  const specBody = section(el, { title: "Quién se especializa en qué", note: `Cociente de localización (CL): la proporción de los ocupados de la comuna que trabaja en el rubro ÷ la proporción de la región. ×2 significa el doble de concentración que en la región. Solo comunas de ${minPop} habitantes o más; las 15 más especializadas se marcan en el mapa.` });
+  const specBody = section(el, { title: "Quién se especializa en qué", note: `Cociente de localización (CL): la proporción de los ocupados de la comuna que trabaja en el rubro ÷ la proporción ${T.ofNation}. ×2 significa el doble de concentración que ${T.inNation}. Solo comunas de ${minPop} habitantes o más; las 15 más especializadas se marcan en el mapa.` });
   if (!jobInd.length) specBody.closest("section").hidden = true; // nation.json has no industries
   let industry = params.industry && jobInd.includes(params.industry) ? params.industry : jobInd.includes("manufacturing") ? "manufacturing" : jobInd[0];
   const indSel = selectBox(specBody, {
@@ -163,7 +164,7 @@ export function mount(ctx) {
     x: { label: "Ventas por habitante", fmt: (v) => money(v), log: true },
     y: { label: "Crecimiento de la población", fmt: (v) => fmtShort("signed", v) },
     size: { label: "Población", fmt: count3, max: 15, min: 2 },
-    refY: [{ v: n.growth ?? 0, label: `Región ${signedPct(n.growth)}` }],
+    refY: [{ v: n.growth ?? 0, label: `${T.NationShort} ${signedPct(n.growth)}` }],
     onHover: (p) => { link.hover(p ? rowsHighlight(metros, [p.row]) : null); bubbles.setHot(p ? p.key : null); table.setHot(p ? p.key : null, false); },
     onClick: (p) => app.selectCity(p.row.ref),
     onBrush: (set) => {
@@ -180,7 +181,7 @@ export function mount(ctx) {
   function brushSummary(sel) {
     const pop = sel.reduce((a, r) => a + (r.v.population || 0), 0);
     const gdp = sel.reduce((a, r) => a + (r.v.gdp || 0), 0);
-    return `<b>${sel.length}</b> comunas seleccionadas · población ${count3(pop)} · ventas ${money(gdp)}${fin(ratio(gdp, n.gdp)) ? ` (${pct(gdp / n.gdp)} de la región)` : ""} ${frameBtn()}<button type="button" class="adv-mini" data-clear>Limpiar</button>`;
+    return `<b>${sel.length}</b> comunas seleccionadas · población ${count3(pop)} · ventas ${money(gdp)}${fin(ratio(gdp, n.gdp)) ? ` (${pct(gdp / n.gdp)} ${T.ofNation})` : ""} ${frameBtn()}<button type="button" class="adv-mini" data-clear>Limpiar</button>`;
   }
   brushInfo.addEventListener("click", (e) => { if (e.target.closest("[data-clear]")) { scatter.setSelected(null); link.base(specHighlight()); bubbles.setSelected(null); brushInfo.innerHTML = ""; } });
 
@@ -216,7 +217,7 @@ export function mount(ctx) {
     specTable.setColumns(specCols(maxLq, 0.45), { key: "lq", dir: "desc" });
     specTable.setRows(list);
     const us = ratio(n.jobs?.[k], n.employed);
-    specInfo.innerHTML = k == null ? "" : `Región: <b>${pct(us)}</b> de los ocupados (${count3(n.jobs?.[k])}) trabaja en ${esc(indName(k))}.`;
+    specInfo.innerHTML = k == null ? "" : `${T.NationShort}: <b>${pct(us)}</b> de los ocupados (${count3(n.jobs?.[k])}) trabaja en ${esc(indName(k))}.`;
     if (!scatter.selected) link.base(specHighlight());
     indBars?.setSelected(k === "public_admin" ? "government" : k);
     drawScatter();

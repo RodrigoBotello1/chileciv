@@ -2,6 +2,7 @@
 // Each is an ordinary lens object ({id, name, ramp, domain, scale, format, values: per cell}) that app.setLens()
 // accepts; they are built once per data model and cached, so the lens dock's histogram cache stays valid.
 import { fin, quantile } from "./util.js";
+import { T } from "../../../terms.js";
 
 // Diverging: shrinking (brick) ← no change (parchment) → growing (teal). Dark ends so the extremes read on the map.
 const GROWTH_RAMP = ["#7a1f2b", "#c2463d", "#e8a07a", "#efe6d2", "#8fcbb8", "#2e9c8a", "#0f5e57"];
@@ -44,12 +45,12 @@ export function growthLens(data, by = "metros") {
       vals = data.levels.metros.rows.map((r) => r.v.growth);
     }
     return {
-      id: `adv-growth-${by}`, group: "people", name: by === "states" ? "Crecimiento de la población por provincia" : "Crecimiento de la población por comuna",
+      id: `adv-growth-${by}`, group: "people", name: by === "states" ? `Crecimiento de la población por ${T.state}` : "Crecimiento de la población por comuna",
       icon: "l-people", emoji: "📈", unit: "variación de la población", format: "pct", scale: "linear",
       // The source id is the one the data model resolved for the growth column (sources.json decides which exists).
       domain: symDomain(vals), ramp: GROWTH_RAMP, higher_is: "neutral", source: data.levels.states.field("growth")?.source || "",
       description: by === "states"
-        ? `Variación de la población por provincia${yrs ? ` ${yrs}` : ""}.`
+        ? `Variación de la población por ${T.state}${yrs ? ` ${yrs}` : ""}.`
         : `Variación de la población por comuna${yrs ? ` ${yrs}` : ""}. Los hexágonos grises no pertenecen a ninguna comuna.`,
       values,
     };

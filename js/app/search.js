@@ -2,6 +2,7 @@
 // population. Matching ignores accents and case; names are matched by Spanish name, English name and province code.
 import { esc, popShort } from "../format.js";
 import { icon } from "../ui/icon.js";
+import { T } from "../terms.js";
 
 // NFD + dropping combining marks makes matching accent-insensitive ("nunoa" finds Ñuñoa); every run of non-letters
 // becomes one space.
@@ -22,7 +23,7 @@ export function initSearch(opts) {
   const hasCounties = (opts.counties || []).length > 0;
   // The full placeholder only fits the wide search box; narrower ones say just "Buscar".
   const narrow = matchMedia("(max-width: 1120px)");
-  const full = hasCounties ? "Buscar comuna o provincia…" : "Buscar provincia…";
+  const full = hasCounties ? `Buscar comuna o ${T.state}…` : `Buscar ${T.state}…`;
   const setPlaceholder = () => (input.placeholder = narrow.matches ? "Buscar…" : full);
   setPlaceholder();
   input.setAttribute("aria-label", `${full.replace("…", "")} (/ o Ctrl K)`);
@@ -40,7 +41,7 @@ export function initSearch(opts) {
   (opts.states || []).forEach((s, index) => {
     if (!s) return;
     entries.push({ kind: "state", index, n: norm(s.name), alt: alts(s.name_en), abbr: norm(s.abbr),
-      pop: s.population || 0, sub: "Provincia", label: s.name });
+      pop: s.population || 0, sub: `${T.State}`, label: s.name });
   });
   (opts.counties || []).forEach((c, county) => {
     if (!c || !(c.state >= 0)) return;
@@ -49,7 +50,7 @@ export function initSearch(opts) {
     // "Providencia Santiago" finds Providencia in the province of Santiago.
     entries.push({ kind: "county", index: c.state, county, geoid: c.geoid, n: norm(c.name),
       alt: alts(`${c.name} ${stName}`, c.name_en), pop: c.population || 0,
-      sub: stName ? `Comuna · provincia de ${stName}` : "Comuna", label: c.name });
+      sub: stName ? `Comuna · ${T.state} de ${stName}` : "Comuna", label: c.name });
   });
 
   let results = [];
@@ -90,7 +91,7 @@ export function initSearch(opts) {
     if (!results.length) {
       // No "not found" while an input method is composing: its half-typed symbols match nothing yet.
       const text = composing ? "" : input.value.trim();
-      box.innerHTML = text ? `<div class="sr-empty">Sin resultados para "${esc(text)}" entre ${hasCounties ? "comunas y provincias" : "provincias"}</div>` : "";
+      box.innerHTML = text ? `<div class="sr-empty">Sin resultados para "${esc(text)}" entre ${hasCounties ? `comunas y ${T.states}` : `${T.states}`}</div>` : "";
       box.hidden = !text;
       input.setAttribute("aria-expanded", String(!box.hidden));
       input.removeAttribute("aria-activedescendant");

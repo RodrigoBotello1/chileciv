@@ -19,6 +19,7 @@ import { resourceFilterSig, layerActive, layerError, Z as LAYER_Z } from "./rend
 import { installExtensions } from "./ext/index.js";
 import { initShare } from "./app/share.js";
 import { initHelp } from "./app/help.js";
+import { T } from "./terms.js";
 
 const { drawStatic, drawOverlay, OCEAN_BG } = mapRender;
 
@@ -38,7 +39,7 @@ async function loadJSON(name, optional = false) {
 const EAGER_DATA = ["infrastructure", "wonders", "trade"];
 // Files this build leaves out on purpose (docs/PORTING-taiwan.md: no military layer for this build). loadData() answers null
 // for them without a request, so nothing logs a 404 and every consumer takes its "no data" path.
-const OMITTED_DATA = new Set(["military", "trade", "resources", "counties", "disasters"]); // not built for the region yet
+const OMITTED_DATA = new Set(["military", "trade", "counties", "disasters"]); // not built for the region yet
 const DATA_NAME = /^[a-z0-9_-]+$/;
 
 // render/snapshot.js draws a whole view into any canvas; optional, with a local fallback.
@@ -533,12 +534,12 @@ async function main() {
     announceEl.textContent = "";
     setTimeout(() => (announceEl.textContent = text), 30);
   };
-  const stateName = (idx) => states?.[idx]?.name || w.raw.states[idx]?.name || "Provincia";
+  const stateName = (idx) => states?.[idx]?.name || w.raw.states[idx]?.name || `${T.State}`;
 
   function describeCanvas() {
-    const parts = ["Mapa de hexágonos de la Región Metropolitana", state.lens ? `coloreado con el lente ${state.lens.name}` : "mostrando el terreno"];
+    const parts = [`Mapa de hexágonos de ${T.theNationName}`, state.lens ? `coloreado con el lente ${state.lens.name}` : "mostrando el terreno"];
     if (state.selectedCity) parts.push(`${state.selectedCity.name} seleccionada`);
-    else if (state.selectedState != null) parts.push(`Provincia de ${stateName(state.selectedState)} seleccionada`);
+    else if (state.selectedState != null) parts.push(`${T.State} de ${stateName(state.selectedState)} seleccionada`);
     canvas.setAttribute("aria-label", parts.join(", "));
   }
 
@@ -566,7 +567,7 @@ async function main() {
     state.selectedState = idx;
     app.panels.state(idx, panelCtx());
     if (fly) focusState(idx);
-    announce(`Provincia de ${stateName(idx)} seleccionada.`);
+    announce(`${T.State} de ${stateName(idx)} seleccionada.`);
     afterSelect();
   }
 

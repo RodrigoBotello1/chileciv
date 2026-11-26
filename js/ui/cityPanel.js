@@ -2,6 +2,7 @@ import { css } from "../color.js";
 import { esc } from "../format.js";
 import { isCapital } from "../world.js";
 import { yieldGrid, amenities, industries, gdpRow, gdpLabel, popLine, growthSpan, showPanel, hidePanel } from "./infoPanel.js";
+import { T } from "../terms.js";
 
 /**
  * ctx: {w, nation, onClose, onPedia, onState(stateIndex)}
@@ -19,7 +20,7 @@ export function openCityPanel(city, ctx) {
     .map((abbr) => ({ abbr, i: w.raw.states.findIndex((s) => s.abbr === abbr) }))
     .map(({ abbr, i }) => {
       const s = i >= 0 ? w.raw.states[i] : null;
-      if (s && own(s)) return ctx.onState ? `<button class="chip" data-state="${i}" title="Abrir el panel de la provincia de ${esc(s.name)}">Panel de provincia ›</button>` : "";
+      if (s && own(s)) return ctx.onState ? `<button class="chip" data-state="${i}" title="Abrir el panel de la ${T.state} de ${esc(s.name)}">Panel de ${T.state} ›</button>` : "";
       return s && ctx.onState
         ? `<button class="chip" data-state="${i}" title="Abrir ${esc(s.name)}">${esc(s.name)}</button>`
         : `<span class="chip">${esc(s?.name || abbr)}</span>`;
@@ -46,7 +47,7 @@ export function openCityPanel(city, ctx) {
       { title: "Rubros · dónde trabaja la gente", html: industries(city, nation) },
     ],
     foot: `Fuente: ${esc(nation.vintage || "")}${nation.gdp_vintage ? `; ${esc(gdpLabel(nation))}: ${esc(nation.gdp_vintage)}` : ""}.
-      Un ×N en verde indica que el rubro pesa N veces más en el empleo de la comuna que en el de la región.`,
+      Un ×N en verde indica que el rubro pesa N veces más en el empleo de la comuna que en el ${T.ofNation}.`,
     onClose: ctx.onClose,
     onPedia: ctx.onPedia,
     wire(panel) {

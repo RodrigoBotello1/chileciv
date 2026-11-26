@@ -12,6 +12,7 @@ import { section, tiles, segmented, mapPicker, frameBtn, sourcesHtml, topBy } fr
 import { rowsHighlight } from "../core/data.js";
 import { scienceLens } from "../core/lenses.js";
 import { CURRENCY } from "../../../format.js";
+import { T } from "../../../terms.js";
 
 const METRO_MIN = 100000; // comunas of 100 mil residents or more
 const LEVEL_NAME = { counties: "Comunas (detalle)", metros: "Comunas" };
@@ -92,7 +93,7 @@ export function mount(ctx) {
     sHost.innerHTML = "";
     const list = mode === "abs" ? topBy(metros.rows, (r) => r.v.y_science, { n: 12 }) : topBy(metros.rows, share, { n: 12, min: METRO_MIN });
     if (!list.length) { sHost.innerHTML = `<p class="adv-empty">Sin datos</p>`; return; }
-    const vsNation = (r) => (fin(share(r)) && usShare > 0 ? `${(share(r) / usShare).toFixed(2)} veces la región` : "");
+    const vsNation = (r) => (fin(share(r)) && usShare > 0 ? `${(share(r) / usShare).toFixed(2)} veces ${T.nation}` : "");
     barList(sHost, {
       rank: true, ariaLabel: `Ranking de empleo en ${sciName.toLowerCase()}`,
       rows: list.map((x) => ({ key: x.r.key, label: x.r.name, sub: mode === "abs" ? (fin(share(x.r)) ? pct(share(x.r)) : "") : vsNation(x.r), value: x.v, text: mode === "abs" ? count3(x.v) : pct(x.v), color: sci?.color, row: x.r })),

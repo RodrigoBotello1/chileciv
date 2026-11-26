@@ -15,15 +15,16 @@ import { emblem } from "./core/emblems.js";
 import { frameNation } from "./core/frame.js";
 import { esc, el } from "./core/util.js";
 import { icon } from "../../ui/icon.js";
+import { T } from "../../terms.js";
 
 export const ADVISORS = [
   { id: "energy", name: "Energía y recursos", role: "Ministro de Energía", color: "#d98a2b", dark: "#3a1f08", blurb: "De dónde viene la electricidad: dónde están las centrales y cuánta potencia tienen.", load: () => import("./views/energy.js") },
-  { id: "economy", name: "Economía", role: "Tesorero", color: "#c9a43a", dark: "#3a2c08", blurb: "El PIB y la estructura productiva de cada provincia, y las comunas que lideran.", load: () => import("./views/economy.js") },
+  { id: "economy", name: "Economía", role: "Tesorero", color: "#c9a43a", dark: "#3a2c08", blurb: `El PIB y la estructura productiva de cada ${T.state}, y las comunas que lideran.`, load: () => import("./views/economy.js") },
   { id: "people", name: "Población", role: "Guardián del Censo", color: "#c46a4f", dark: "#3a140c", blurb: "Dónde vive la gente, hacia dónde se mueve y cómo es la estructura de edades de cada lugar.", load: () => import("./views/people.js") },
   { id: "prosperity", name: "Ingresos y vivienda", role: "Custodio del hogar", color: "#3f9c82", dark: "#082a22", blurb: "Ingresos, precios de la vivienda y desempleo, y los lugares donde más cuesta vivir.", load: () => import("./views/prosperity.js") },
   { id: "knowledge", name: "Conocimiento", role: "Erudito real", color: "#4a86d6", dark: "#0a1c3a", blurb: "Cómo se distribuyen los títulos y el personal de ciencia.", load: () => import("./views/knowledge.js") },
   { id: "land", name: "Suelo", role: "Agrimensor general", color: "#6e9a3c", dark: "#18280a", blurb: "Bosque, cultivos y ciudad: qué cubre este territorio.", load: () => import("./views/land.js") },
-  { id: "military", needs: "military", name: "Militar", role: "General", color: "#8796ab", dark: "#141b26", blurb: "Bases y campos de entrenamiento, tropas y gasto en defensa por provincia, y dónde viven los veteranos.", load: () => import("./views/military.js") },
+  { id: "military", needs: "military", name: "Militar", role: "General", color: "#8796ab", dark: "#141b26", blurb: `Bases y campos de entrenamiento, tropas y gasto en defensa por ${T.state}, y dónde viven los veteranos.`, load: () => import("./views/military.js") },
   { id: "commerce", name: "Comercio", role: "Maestro del comercio", color: "#2fa4b8", dark: "#062630", blurb: "Las principales rutas de carga entre comunas y los puertos y aeropuertos más activos.", load: () => import("./views/commerce.js") },
   { id: "culture", name: "Cultura", role: "Guardián de las maravillas", color: "#c25b9a", dark: "#2e0c22", blurb: "Las maravillas de este territorio, y la cultura y el modo de vida de cada lugar.", load: () => import("./views/culture.js") },
   { id: "explorer", name: "Explorador", role: "Cartógrafo", color: "#9a7bc9", dark: "#1e1236", blurb: "Cambia a gusto de nivel, columnas y gráficos para cruzar cada cifra.", load: () => import("./views/explorer.js") },

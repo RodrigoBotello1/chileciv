@@ -1,5 +1,6 @@
 // Small inline-SVG charts for the city screen (no libraries). All return HTML strings.
 import { esc } from "../../format.js";
+import { T } from "../../terms.js";
 
 let uid = 0;
 
@@ -57,12 +58,12 @@ export function meter(v, us, max, better = null) {
   let cls = "";
   if (better && us != null && Math.abs(v / us - 1) >= 0.03) cls = (better === "high" ? v > us : v < us) ? "good" : "bad";
   return `<div class="cv-meter ${cls}"><i style="width:${(f * 100).toFixed(1)}%"></i>${
-    u != null ? `<b class="us" style="left:${(u * 100).toFixed(1)}%" title="Región"></b>` : ""}</div>`;
+    u != null ? `<b class="us" style="left:${(u * 100).toFixed(1)}%" title="${T.NationShort}"></b>` : ""}</div>`;
 }
 
 /** A thin horizontal bar (0..1) in a colour; optional tick (0..1) for a reference such as the national share. */
 export function bar(frac, color, tick = null) {
   const f = Math.max(0, Math.min(1, frac || 0));
   return `<div class="cv-bar"><i style="width:${(f * 100).toFixed(1)}%;background:${color}"></i>${
-    tick != null ? `<b style="left:${(Math.max(0, Math.min(1, tick)) * 100).toFixed(1)}%" title="Proporción regional"></b>` : ""}</div>`;
+    tick != null ? `<b style="left:${(Math.max(0, Math.min(1, tick)) * 100).toFixed(1)}%" title="Proporción ${T.regional}"></b>` : ""}</div>`;
 }
