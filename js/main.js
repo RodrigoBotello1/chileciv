@@ -100,7 +100,8 @@ async function main() {
     requestDraw();
     url.schedule();
   });
-  const pedia = initPedia({ world, nation, lenses: lensFile, sources: sources || [], w, resources, states });
+  const pediaData = { world, nation, lenses: lensFile, sources: sources || [], w, resources, states };
+  const pedia = initPedia(pediaData);
   const help = initHelp();
 
   // --- static layer cache ----------------------------------------------------------------------------------------
@@ -1282,6 +1283,7 @@ async function main() {
     ui,
     panels: { city: openCityPanel, state: openStatePanel, close: closeCityPanel, element: panelEl },
     // the built-in modules, for poking at things from the console
+    pediaData,
     search, share, help, lensDock: dock, reports, pedia, minimap, shareInfo, url, perf,
     stats() {
       const avg = (a) => (a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0);
