@@ -1,4 +1,4 @@
-// The Almanac (Almanaque): what every number means and exactly where it comes from.
+// The Almanac (Guía): what every number means and exactly where it comes from.
 // Page ids stay English (main.js and the City View open pages by id, e.g. pedia.open("Yields")); `title` is what the
 // reader sees. Everything about sources and vintages is read from the data files, never written here.
 import { resolveTables } from "../terrain.js";
@@ -56,7 +56,7 @@ export function initPedia(data) {
       <h4>Código y créditos</h4>
       <p>chileciv está construido sobre <a href="${UPSTREAM_URL}" target="_blank" rel="noopener">usaciv</a> de Andrej Karpathy (MIT)
       y sobre el port a Taiwán, <a href="${TAIWAN_URL}" target="_blank" rel="noopener">taiwanciv</a>. Muestra ${T.theNationFull}
-      con hexágonos de ${+(hexKm() / 2).toFixed(1)} km de radio, y cada número viene de los datos públicos que se listan en este Almanaque.</p>` },
+      con hexágonos de ${+(hexKm() / 2).toFixed(1)} km de radio, y cada número viene de los datos públicos que se listan en esta Guía.</p>` },
     { id: "Yields", title: "Rendimientos", html: () => {
       const gold = gdpLabel(data.nation);
       return `
@@ -161,7 +161,7 @@ export function initPedia(data) {
       b.setAttribute("aria-current", on ? "page" : "false");
     });
   };
-  nav.innerHTML = `<div class="hd">Almanaque</div>` + pages.map((p) => `<button data-page="${esc(p.id)}">${esc(p.title)}</button>`).join("");
+  nav.innerHTML = `<div class="hd">Guía</div>` + pages.map((p) => `<button data-page="${esc(p.id)}">${esc(p.title)}</button>`).join("");
   nav.onclick = (e) => {
     const b = e.target.closest("button[data-page]");
     if (b) show(b.dataset.page);

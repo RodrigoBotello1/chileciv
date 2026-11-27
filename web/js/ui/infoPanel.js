@@ -145,7 +145,7 @@ export function showPanel(spec) {
       ${spec.headExtra || ""}
     </div>
     ${spec.sections.filter(Boolean).map((s) => `<section class="cp-section"><h3>${s.title}</h3>${s.html}</section>`).join("")}
-    <div class="cp-foot">${spec.foot || ""} <a href="#" data-pedia>Almanaque ›</a></div>`;
+    <div class="cp-foot">${spec.foot || ""} <a href="#" data-pedia>Guía ›</a></div>`;
   panel.hidden = false;
   panel.scrollTop = 0;
   panel.classList.remove("dragging-sheet");

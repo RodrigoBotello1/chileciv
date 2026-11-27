@@ -26,7 +26,7 @@ Referencias para entender cada texto:
 |---|---|---|
 | Food / Production / Gold / Science / Culture | 糧食 / 生產 / 金 / 科學 / 文化 | Comida / Producción / Oro / Ciencia / Cultura |
 | Yields | 產出 | Rendimientos |
-| Almanac | 資料年鑑 | Almanaque |
+| Almanac | 資料年鑑 | Guía |
 | Lens / Lenses | 濾鏡 | Lente / Lentes |
 | Advisors | 顧問團 | Consejeros |
 | City View | 城市檢視 | Vista de comuna |

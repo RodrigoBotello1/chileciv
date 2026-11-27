@@ -154,7 +154,7 @@ export function sourcesHtml(data, ids, caveats = []) {
     ${caveats.length ? `<h4>Ten en cuenta al interpretar</h4><ul class="adv-caveats">${caveats.map((c) => `<li>${c}</li>`).join("")}</ul>` : ""}
     <h4>Fuentes de datos</h4>
     ${list.length ? `<ul>${list.map((s) => `<li><b>${esc(s.title)}</b>${s.publisher ? `, ${esc(s.publisher)}` : ""}${s.vintage ? ` <span class="v">${esc(s.vintage)}</span>` : ""}</li>`).join("")}</ul>` : ""}
-    <button type="button" class="adv-link" data-pedia="Sources">Ver todas las fuentes, archivos y sumas de verificación en el Almanaque</button>
+    <button type="button" class="adv-link" data-pedia="Sources">Ver todas las fuentes, archivos y sumas de verificación en la Guía</button>
   </footer>`;
 }
 

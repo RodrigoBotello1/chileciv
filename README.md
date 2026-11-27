@@ -4,7 +4,7 @@ Visualizador (no es un juego) que dibuja la **Región Metropolitana de Santiago*
 turnos, a partir de datos públicos reales: 52 comunas, 6 provincias y hexágonos de 1 km de radio (unos 5,900 dentro de
 la región). El relieve y la cobertura del suelo salen de datos satelitales, las comunas muestran rendimientos
 (Comida, Producción, Oro, Ciencia, Cultura) calculados con el Censo 2024 y las estadísticas de empresas del SII, y
-cada número se puede rastrear hasta su fuente en el **Almanaque** de la app.
+cada número se puede rastrear hasta su fuente en el **Guía** de la app.
 
 Es un sitio estático: módulos ES y Canvas 2D, sin framework ni build. Los datos los genera un pipeline en Python que
 usa solo la biblioteca estándar, con descargas públicas que no piden claves.
@@ -49,7 +49,7 @@ Radio de 1 km (unos 2.6 km² por hexágono). La región cubre unos 5,900 hexágo
 | `wikidata_rm` | Monumentos, áreas protegidas, universidades y edificios (Wikidata) | Maravillas |
 | `osm_rm_transport` | Autopistas, rutas, ferrocarril, Metro y aeropuertos (OpenStreetMap) | Infraestructura (en construcción, aún sin salida en `web/data`) |
 
-Las licencias y los archivos exactos de cada fuente están en el Almanaque y en `web/data/sources.json`.
+Las licencias y los archivos exactos de cada fuente están en la Guía y en `web/data/sources.json`.
 
 ## Límites que conviene saber
 
