@@ -11,7 +11,7 @@ import { isCapital } from "../../world.js";
 import { sparkline, meter, bar } from "./charts.js";
 import { popSeries, rankCount, resourceValue, LAND } from "./model.js";
 import { citizensHtml, mountCitizens } from "./citizens.js";
-import { badgeHtml, cityDistricts, districtsHtml } from "./districts.js";
+import { cityDistricts, districtsHtml } from "./districts.js";
 import { T } from "../../terms.js";
 
 const TABS = [
@@ -38,7 +38,7 @@ function rankBadge(rank, of, label, tip) {
   if (rank == null) return "";
   const tier = rank <= Math.max(3, Math.round(of / 90)) ? "gold" : rank <= Math.max(10, Math.round(of / 18)) ? "silver" : "bronze";
   return `<div class="cv-rank ${tier}" title="${esc(tip || `${label}: lugar ${rank} de ${of} comunas (1 = más alto)`)}">
-    <span class="cv-medal">${rank}</span><span class="cv-rank-l">${esc(label)}</span></div>`;
+    <span class="cv-medal">#${rank}</span><span class="cv-rank-l">${esc(label)}</span></div>`;
 }
 
 function lqBadge(lq) {
@@ -54,7 +54,12 @@ function medallion(id, fallback, bg, size = 18) {
 
 // The "gdp" field is the annual sales (SII) the data's gdp_vintage names; there is no official GDP by comuna, so the
 // screen never calls it GDP.
-const GDP = "Ventas anuales";
+const GDP = "Ventas de empresas";
+const GDP_NOTE = "Lo que declaran al SII las empresas con sede en la comuna. No es PIB.";
+const GDP_TIP = "Ventas anuales que declaran al SII las empresas, privadas o del Estado, con casa matriz en la comuna. "
+  + "Se cuentan donde está la sede y no donde se vende: por eso las comunas de oficinas (Las Condes, Santiago, "
+  + "Providencia) concentran la mayor parte del país. El gasto de ministerios, municipios y hospitales públicos no es "
+  + "venta y no entra. No es PIB: las ventas incluyen lo que las empresas compran a otras.";
 const GDP_PC = "Ventas por habitante";
 /** True when sources.json (a list, or {sources: [...]}) has an entry with this id. */
 function hasSource(sources, id) {
@@ -99,14 +104,13 @@ function header(m) {
       <div class="cv-tt">
         <h2 class="cv-name" tabindex="-1">${isCapital(c) ? `<span class="cv-cap" title="Capital ${T.ofNation}">★</span> ` : ""}${esc(c.name)}</h2>
         ${full ? `<div class="cv-full">${esc(full)}</div>` : ""}
-        <div class="cv-typeslot" data-ctype></div>
         ${chips ? `<div class="chips">${chips}</div>` : ""}
       </div>
     </div>
     <div class="cv-headline">
       <div class="cv-big"><span class="lbl">${icon("pop", "👥", { size: 13 })} Población</span><b>${int(c.population)}</b>${growth}</div>
-      <div class="cv-big"><span class="lbl">${icon("y-gold", "💰", { size: 13 })} ${GDP}${c.gdp_year ? ` (${c.gdp_year})` : ""}</span><b>${money(c.gdp)}</b>${
-        perCap != null ? `<span class="cv-sub">${money(perCap)} por habitante</span>` : ""}</div>
+      <div class="cv-big" title="${esc(GDP_TIP)}"><span class="lbl">${icon("y-gold", "💰", { size: 13 })} ${GDP}${c.gdp_year ? ` (${c.gdp_year})` : ""}</span><b>${money(c.gdp)}</b>${
+        perCap != null ? `<span class="cv-sub">${money(perCap)} por habitante</span>` : ""}<span class="cv-sub cv-gdp-note">${GDP_NOTE}</span></div>
     </div>
     <div class="cv-ranks" aria-label="Lugar entre las ${cities.length} comunas">
       ${rankBadge(r.population, N("population"), "Población")}
@@ -248,7 +252,7 @@ function economy(m) {
   const yields = nat.yields.map((y) => {
     const v = c.yields?.[y.key];
     const rk = r[y.key];
-    // The gold yield is labelled "Ventas anuales" when it is the city's gdp figure itself; otherwise it keeps the data's label.
+    // The gold yield is labelled "Ventas de empresas" when it is the city's gdp figure itself; otherwise it keeps the data's label.
     const lbl = y.key === "gold" && c.gdp != null && v === c.gdp ? GDP : y.label;
     return `<div class="cv-yield" style="--yc:${esc(y.color)}" title="${esc(y.label)}: ${esc(y.description || "")}">
       <div class="ico">${glyph(y, 20)}</div><div class="val">${yieldValue(y, v)}</div>
@@ -507,7 +511,6 @@ export function render(el, m, h) {
     mountCitizens(czHost, m, data);
   }, () => czHost.remove());
   const dHost = el.querySelector("[data-districts]");
-  const typeSlot = el.querySelector("[data-ctype]");
   // A build without districts.json has no Districts section at all: the section and its tab go, rather than a tab
   // that only says there is no data.
   const dropDistricts = () => {
@@ -530,7 +533,6 @@ export function render(el, m, h) {
       return;
     }
     dHost.innerHTML = districtsHtml(m, dd, mil ?? null);
-    typeSlot.innerHTML = badgeHtml(m, dd);
     h.onDistricts?.(cityDistricts(dd, mil ?? null, m.city.id));
   }, dropDistricts);
 

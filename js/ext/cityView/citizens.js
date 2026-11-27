@@ -15,6 +15,7 @@ import { esc, int, pct } from "../../format.js";
 import { compact } from "./fmt.js";
 import { CATEGORY_COLOR, artKey, figureCanvas, loadPainter } from "./figures.js";
 import { T } from "../../terms.js";
+import { mountPyramid, pyramidHtml } from "./pyramid.js";
 
 /** groups → (row, key) → the key of the figure and colour that category uses (its own, or the one its icon names). */
 function artOf(groups) {
@@ -130,6 +131,10 @@ export function citizensHtml(m, data) {
       return `<div class="cv-cz-row missing" data-row="${rd.id}">${head}
         <p class="muted cv-note">La fuente no tiene esta estadística para ${esc(c.name)}, por eso no se muestra esta fila.</p></div>`;
     }
+    if (rd.id === "age" && row.pyramid && Array.isArray(data.age_bands)) {
+      const medTxt = med != null ? ` · edad mediana ${med.toFixed(1)} años${usMed != null ? ` (${T.nationShort} ${usMed.toFixed(1)} años)` : ""}` : "";
+      return pyramidHtml(c, row, nat.age, data.age_bands, `${compact(row.total)} habitantes${medTxt}. Pasa el cursor sobre un tramo para ver sus cifras.`);
+    }
     const { keys, n, figs, natFigs } = rowModel(rd, row, nat[rd.id], groups, data.figures || {});
     if (!figs) return `<div class="cv-cz-row missing" data-row="${rd.id}">${head}<p class="muted cv-note">Esta fila no tiene datos.</p></div>`;
     const per = row.total / n;
@@ -212,6 +217,7 @@ export function mountCitizens(host, m, data) {
     }
   };
   paintAll();
+  if (row0.age?.pyramid && Array.isArray(data.age_bands)) mountPyramid(host, m.city, row0.age, nat.age, data.age_bands);
   // Once the citizen painter (render/art/people.js) loads, repaint the figures.
   loadPainter().then(() => { if (host.isConnected) paintAll(); });
 
