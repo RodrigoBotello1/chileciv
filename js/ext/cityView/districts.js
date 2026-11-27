@@ -103,7 +103,7 @@ function districtCard(d, row, ddata, mil) {
     facts.push(`<div><span>Empleo</span><b>${ge(lb)}${compact(d.emp)}</b><small>${d.share != null ? `${pct(d.share, 1)} de la comuna` : ""}</small></div>`);
   }
   if (d.avg_pay != null) {
-    facts.push(`<div><span>Sueldo medio</span><b>${money(d.avg_pay)}</b><small>${row?.avg_pay != null ? `comuna ${money(row.avg_pay)}` : ""}</small></div>`);
+    facts.push(`<div title="Remuneración mensual promedio que informan al SII las empresas con casa matriz en la comuna (bruta, por trabajador equivalente a jornada de un año). Es de las empresas de la comuna, no de sus vecinos."><span>Sueldo mensual promedio</span><b>${money(d.avg_pay)}</b><small>${row?.avg_pay != null ? `comuna ${money(row.avg_pay)}` : ""}</small></div>`);
   }
   if (d.strength != null) {
     facts.push(`<div title="Empleos sobre la norma ${T.regional}: empleo − empleo ÷ cociente de localización (así se ordenan los distritos)"><span>Sobre la norma</span><b>${ge(lb)}${compact(Math.max(0, d.strength))}</b><small>empleos</small></div>`);
@@ -152,12 +152,12 @@ function topTable(row, ddata) {
   return `<h4 class="cv-h4">Industrias más especializadas <span class="muted">por cociente de localización</span></h4>
   <div class="cv-top" role="table" aria-label="Industrias más especializadas">
     <div class="cv-top-r cv-top-hd" role="row"${grid}><span role="columnheader">Industria</span><span role="columnheader">Empleo</span><span role="columnheader">×${T.nationShort}</span>${
-      hasPay ? `<span role="columnheader">Sueldo ($)</span>` : ""}${hasOty ? `<span role="columnheader">1 año</span>` : ""}</div>
+      hasPay ? `<span role="columnheader" title="Sueldo mensual promedio informado al SII por las empresas con casa matriz en la comuna">Sueldo mensual</span>` : ""}${hasOty ? `<span role="columnheader">1 año</span>` : ""}</div>
     ${top.map((t) => {
       const named = ddata.industries?.[t.naics]?.title;
       const title = named || `Código de actividad ${t.naics}`;
       const lb = !!t.lower_bound;
-      return `<div class="cv-top-r" role="row"${grid} title="${esc(title)}${named ? code(t) : ""}${t.avg_pay != null ? `, sueldo medio ${esc(money(t.avg_pay))}` : ""}${lb ? `. Límite inferior: ${withheld(t.suppressed)}.` : ""}">
+      return `<div class="cv-top-r" role="row"${grid} title="${esc(title)}${named ? code(t) : ""}${t.avg_pay != null ? `, sueldo mensual promedio ${esc(money(t.avg_pay))}` : ""}${lb ? `. Límite inferior: ${withheld(t.suppressed)}.` : ""}">
         <span role="cell" class="cv-top-n">${esc(title)}<i style="width:${((Math.log(1 + (t.lq || 0)) / Math.log(1 + max)) * 100).toFixed(1)}%"></i></span>
         <span role="cell">${ge(lb)}${compact(t.emp)}</span>
         <span role="cell"><b>${t.lq != null ? `${ge(lb)}${t.lq.toFixed(1)}` : "–"}</b></span>

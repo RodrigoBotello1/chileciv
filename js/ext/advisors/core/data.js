@@ -510,7 +510,7 @@ function extendDistricts(data, d) {
     F4("n_districts", "Número de distritos", "int", { source: dsrc, group: G.districts, description: `Distritos que alcanzan el umbral${maxPer ? ` (máximo ${maxPer})` : ""}.` }),
     // What these count (by workplace or by residence, employees or all workers) differs by build: the file's vintage and note say.
     F4("qcew_jobs", "Empleo por rubro", "int", { unit: "personas", source: dsrc, group: G.districts, description: `Empleo total de la comuna en la estadística por rubro usada para definir los distritos${paren(vint)}. ${d.note || ""}` }),
-    F4("qcew_pay", "Remuneración anual media", "usd", { unit: `${CURRENCY} por persona al año`, source: dsrc, group: G.districts, description: `Remuneración anual media por ocupado en la misma estadística por rubro${paren(vint)}.` }),
+    F4("qcew_pay", "Sueldo mensual promedio (SII)", "usd", { unit: `${CURRENCY} al mes por trabajador`, source: dsrc, group: G.districts, description: `Remuneración bruta mensual promedio que informan al SII las empresas con casa matriz en la comuna, por trabajador equivalente a un año completo${paren(vint)}. Es de las empresas de la comuna, no de sus vecinos.` }),
     F4("top_industry", "Rubro más especializado", "text", { source: dsrc, group: G.districts, description: "Entre los rubros detallados que reunió este proyecto, el de mayor cociente de localización con empleo sobre el umbral." }),
     F4("top_lq", "Su cociente de localización", "lq", { unit: `× proporción del empleo ${TM.regional}`, source: dsrc, group: G.districts, description: `Cociente de localización del rubro más especializado: su proporción del empleo de la comuna ÷ su proporción del empleo ${TM.ofNation}. Es un piso cuando hay datos reservados.` }),
   ]);
