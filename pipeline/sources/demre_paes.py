@@ -76,6 +76,11 @@ class DemrePaes(Source):
 
         blank = lambda: {k: new() for k in ("all", *DEP.values())}  # noqa: E731
         nation, regions, comunas = blank(), {}, {}
+        # Each test on its own (every student who took it, any cohort filter as above): comuna → test → {n, sum}
+        TESTS = {"lectora": "CLEC_REG_ACTUAL", "m1": "MATE1_REG_ACTUAL", "m2": "MATE2_REG_ACTUAL",
+                 "historia": "HCSOC_REG_ACTUAL", "ciencias": "CIEN_REG_ACTUAL"}
+        tests_c: dict[str, dict] = {}
+        tests_n = {t: new() for t in TESTS}
         kept = 0
         with open(self._csv(), encoding="utf-8-sig", newline="") as f:
             for row in csv.DictReader(f, delimiter=";"):
@@ -87,6 +92,19 @@ class DemrePaes(Source):
                 except ValueError:
                     continue
                 code, region = row["CODIGO_COMUNA"].strip().zfill(5), row["CODIGO_REGION"].strip().zfill(2)
+                if row["CODIGO_COMUNA"].strip():
+                    for t, col in TESTS.items():
+                        try:
+                            v = float(row[col])
+                        except ValueError:
+                            continue
+                        if v > 0:
+                            tests_n[t]["n"] += 1
+                            tests_n[t]["sum"] += v
+                            if keep_region(code[:2]):
+                                acc = tests_c.setdefault(code, {k: new() for k in TESTS})[t]
+                                acc["n"] += 1
+                                acc["sum"] += v
                 if cl <= 0 or m1 <= 0 or not row["CODIGO_COMUNA"].strip():
                     continue
                 score = (cl + m1) / 2
@@ -99,4 +117,6 @@ class DemrePaes(Source):
         return {"vintage": "PAES regular, Admisión 2026 (DEMRE; prueba rendida en noviembre y diciembre de 2025)",
                 "_files": [ARCHIVE], "rule": RULE, "national": fin(nation),
                 "regions": {r: fin(v) for r, v in sorted(regions.items())},
-                "comunas": {c: fin(v) for c, v in sorted(comunas.items())}}
+                "comunas": {c: fin(v) for c, v in sorted(comunas.items())},
+                "tests_national": fin(tests_n),
+                "tests": {c: fin(v) for c, v in sorted(tests_c.items())}}

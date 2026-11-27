@@ -41,7 +41,9 @@ CONSERVATION_TOLERANCE = 0.005
 LENS_NULL_WARN = 0.05  # share of region cells with a null lens value
 CAPITAL_ID = "13101"  # Santiago
 GEOID_RE = r"\d{5}"  # INE comuna code (city id and county geoid)
-STATE_FIPS_RE = r"\d{3}"  # INE provincia code
+from .core.mapcfg import CFG
+
+STATE_FIPS_RE = r"\d{2}" if CFG["state_level"] == "region" else r"\d{3}"  # INE region (Chile) or provincia (RM) code
 
 REQUIRED = ["world.json", "cities.json", "states.json", "nation.json", "lenses.json", "sources.json"]
 OPTIONAL = ["resources.json", "counties.json"]
@@ -64,7 +66,7 @@ ECON_NUMBERS = ["population", "employed", "median_income", "median_rent", "home_
 # The economic shape shared by a city, a state and nation.json "nation" (gdp_by_industry is optional).
 ECON_KEYS = ["population", "employed", "yields", "jobs", "median_income", "median_rent", "home_value",
              "unemployment", "rent_burden", "gdp", "gdp_year", "growth", "growth_years"]
-GROWTH_MAX = 0.60  # comuna growth between the 2017 and 2024 censuses (7 years); the real range is about -12% to +42%
+GROWTH_MAX = 0.80  # comuna growth 2017-2024 (7 years); real extremes: Torres del Paine -72% (seasonal workers in 2017), La Estrella +58%
 CITY_RANK_BASE = ["population", "gdp", "gdp_per_capita", "growth"]
 PEERS = 5
 COUNTY_FORMATS = (LENS_FORMATS - {"category"}) | {"text", "km2"}  # categorical county columns are "text"

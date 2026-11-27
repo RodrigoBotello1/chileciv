@@ -1,14 +1,14 @@
 """Which map the pipeline builds: the Santiago Metropolitan Region (1 km hexes) or continental Chile (5 km hexes).
 
-Choose with the environment variable CHILECIV_MAP=rm|chile (default rm). Each map has its own data folder
-(data/ or data/chile/) and web data folder (web/data/ or web/chile/data/), so the two never overwrite each other.
+The published site is continental Chile (default; data in data/chile/, web data in web/data/). The RM configuration
+(CHILECIV_MAP=rm: data/, web/rm/data/) is kept only for reference and is not published.
 """
 
 from __future__ import annotations
 
 import os
 
-MAP = os.environ.get("CHILECIV_MAP", "rm")
+MAP = os.environ.get("CHILECIV_MAP", "chile")  # the published site is Chile; "rm" is kept for reference
 
 CONFIGS = {
     "rm": {

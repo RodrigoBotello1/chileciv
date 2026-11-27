@@ -17,7 +17,7 @@ import { OCEAN_BG } from "../../js/render/map.js";
 import { createModel } from "../../js/ext/layers/model.js";
 import { makeLayers } from "../../js/ext/layers/layers.js";
 import { buildModel, placeDistricts } from "../../js/ext/cityView/model.js";
-import { cityDistricts, badgeOf } from "../../js/ext/cityView/districts.js";
+import { cityDistricts } from "../../js/ext/cityView/districts.js";
 import { createMapLayer } from "../../js/ext/cityView/mapLayer.js";
 import { formatLensTick } from "../../js/ui/lenses.js";
 
@@ -55,12 +55,8 @@ export async function loadStage(base = "../data/") {
   const on = Object.fromEntries(LAYER_KEYS.map((k) => [k, false]));
   const layers = makeLayers(model, on, { app: null });
 
-  // City-type badges on the banners, as the City View extension hands them to render/banners.js.
+  // No city-type badges: the map dropped the comuna type (most comunas had none and the rest overstated it).
   const cityBadges = new Map();
-  for (const c of data.cities) {
-    const b = badgeOf(data.districts, c.id);
-    if (b && b.district) cityBadges.set(c.id, { label: b.label, color: b.color });
-  }
 
   const cam = new Camera(data.world.width, data.world.height);
   const state = {

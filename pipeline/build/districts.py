@@ -187,7 +187,9 @@ def jobs_of(rec: dict | None) -> dict | None:
 
 
 def pay_clp(emp: float, pay_uf: float, uf: float) -> int | None:
-    return round(pay_uf / emp * uf) if emp > 0 and pay_uf > 0 else None
+    """Average MONTHLY pay in pesos: the year's taxable pay the companies report (SII, UF) ÷ full-year-equivalent
+    workers (weighted by months worked) ÷ 12, at the UF of 31 December."""
+    return round(pay_uf / emp * uf / 12) if emp > 0 and pay_uf > 0 else None
 
 
 def build() -> None:

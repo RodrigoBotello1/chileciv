@@ -21,7 +21,7 @@ PRODUCES = ["compare.json"]
 
 GROUPS = [("people", "Personas"), ("knowledge", "Educación"), ("life", "Trabajo y vida diaria"),
           ("prosperity", "Vivienda y economía"), ("faith", "Religión")]
-SKIP = {"faith_tradition"}  # a category, not a number
+SKIP = {"faith_tradition", "paes", "paes_gap"}  # a category; the PAES average rows (each test is shown instead)
 
 
 def area_km2(rings, proj) -> float:
@@ -70,10 +70,15 @@ def build() -> None:
         paes = load_interim("demre_paes")
     except FileNotFoundError:
         paes = None
-    if paes and isinstance(paes.get("comunas"), dict):
-        rows = paes["comunas"]
-        add_metric("paes", "knowledge", "Puntaje PAES promedio", "Lectora y M1, colegios de la comuna", "int", "good",
-                   "demre_paes", [(rows.get(g) or {}).get("mean") for g in codes])
+    if paes and isinstance(paes.get("tests"), dict):
+        rows = paes["tests"]
+        for tid, label in (("lectora", "PAES Competencia Lectora"), ("m1", "PAES Matemática 1"), ("m2", "PAES Matemática 2"),
+                           ("historia", "PAES Historia y Ciencias Sociales"), ("ciencias", "PAES Ciencias")):
+            def val(g, t=tid):
+                rec = (rows.get(g) or {}).get(t) or {}
+                return rec.get("mean") if (rec.get("n") or 0) >= 30 else None  # fewer than 30 test takers: too noisy
+            add_metric(f"paes_{tid}", "knowledge", label, "puntaje promedio, colegios de la comuna (Admisión 2026)", "int",
+                       "good", "demre_paes", [val(g) for g in codes])
 
     def rnd(v, fmt):
         if v is None:

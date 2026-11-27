@@ -6,7 +6,6 @@ import {
   titleCard, endCard, caption, chip, lensLegend, cityPanel, pulseRing, vignette, darken,
   win, smooth, clamp01,
 } from "./overlays.js";
-import { badgeOf } from "../../js/ext/cityView/districts.js";
 import { int, pct } from "../../js/format.js";
 import {
   FPS, W, H, FADE, activeShots, fadeOf, gatherFacts, camAt, camZoom, camFly, smoother, glide, easeOutQ,
@@ -18,7 +17,7 @@ export { FPS, W, H, activeShots, fadeOf };
 export const CONFIG = {
   title: "chileciv",
   subtitle: "Chile como mapa de estrategia",
-  url: "rodrigobotello1.github.io/chileciv/chile",
+  url: "rodrigobotello1.github.io/chileciv",
   cta: "Sobre usaciv de Andrej Karpathy",
   credit: "Datos públicos: INE, SII, CR2, USGS, Smithsonian, ESA, Wikidata",
 };
@@ -233,7 +232,7 @@ export function buildStoryboard(stage, cfg = CONFIG) {
   const figs = (fig) => groups.flatMap((g) => Array(fig[g.key] || 0).fill(g.key));
   const HI = "elder";
   const hiGroup = groups.find((g) => g.key === HI);
-  const badge = badgeOf(data.districts, hc.id);
+  const badge = null; // the comuna type badge was removed from the map
   const foreign = (c) => 1 - c.nativity.shares.born_in_chile;
   const [gy0, gy1] = hc.growth_years || [2017, 2024];
   const panel = {

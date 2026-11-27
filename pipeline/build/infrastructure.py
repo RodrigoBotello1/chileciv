@@ -314,8 +314,11 @@ class Locator:
 
 
 def build_airports(loc: Locator, aerodromes: list[dict]) -> tuple[list[dict], list[str]]:
-    out, unplaced = [], []
+    out, unplaced, seen = [], [], set()
     for a in aerodromes:
+        if a["iata"] in seen:
+            continue  # the same airport twice in the source (two Wikidata items with one IATA code)
+        seen.add(a["iata"])
         at = loc.place(a["lon"], a["lat"])
         if at is None:
             unplaced.append(a["name"] or a["iata"])

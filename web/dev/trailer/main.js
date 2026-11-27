@@ -35,10 +35,9 @@ const say = (msg, err = false) => {
 
 let stage, sb;
 try {
-  // ?map=chile: the Chile data and story (js/terms.js reads data-map, set in trailer.html before any module loads)
-  const chile = new URLSearchParams(location.search).get("map") === "chile";
-  stage = await loadStage(chile ? "../chile/data/" : "../data/");
-  const story = await import(chile ? "./storyboard_chile.js" : "./storyboard.js");
+  // The site is the Chile map: its data and story (js/terms.js reads data-map, set in trailer.html before any module loads)
+  stage = await loadStage("../data/");
+  const story = await import("./storyboard_chile.js");
   sb = story.buildStoryboard(stage, story.CONFIG);
 } catch (err) {
   say(`No se pudo cargar: ${err.message}`, true);

@@ -14,7 +14,6 @@ import {
   titleCard, endCard, caption, chip, lensLegend, cityPanel, pulseRing, vignette, darken,
   win, smooth, easeInOut, lerp, clamp01,
 } from "./overlays.js";
-import { badgeOf } from "../../js/ext/cityView/districts.js";
 import { compact, int, money, pct } from "../../js/format.js";
 
 export const FPS = 30;
@@ -289,7 +288,7 @@ export function buildStoryboard(stage, cfg = CONFIG) {
   const figs = (fig) => groups.flatMap((g) => Array(fig[g.key] || 0).fill(g.key));
   const HI = "elder";
   const hiGroup = groups.find((g) => g.key === HI);
-  const badge = badgeOf(data.districts, hc.id);
+  const badge = null; // the comuna type badge was removed from the map
   const foreign = (c) => 1 - c.nativity.shares.born_in_chile;
   const panel = {
     name: hc.name,
