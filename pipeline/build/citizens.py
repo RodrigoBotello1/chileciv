@@ -4,7 +4,8 @@ Tres filas tienen fuente chilena, todas del Censo 2024 del INE (ine_censo2024, i
 
 * age: población por tramo de edad (los 18 tramos quinquenales del censo), agrupada en cuatro categorías: niñez (0 a 14),
   jóvenes (15 a 34), adultos (35 a 64) y mayores (65 o más). La edad mediana se interpola dentro del tramo quinquenal
-  que contiene a la persona del medio (aproximada: el censo publica tramos, no años simples).
+  que contiene a la persona del medio (aproximada: el censo publica tramos, no años simples). `pyramid` guarda los 18
+  tramos separados en hombres y mujeres (en el orden de `age_bands`), para la pirámide de edades.
 * education: nivel educacional más alto aprobado. La tabla del censo cubre a toda la población (incluye a niños y
   jóvenes que aún estudian), no solo a los adultos: por eso "hasta básica" sobrerrepresenta a quienes están en edad
   escolar. El total de la fila excluye a quienes no declararon el nivel. `bachelors_plus` (la cifra del encabezado) se
@@ -151,6 +152,7 @@ def row(name: str, counts: dict[str, float], extra: dict) -> dict | None:
         out["figures"] = largest_remainder(counts, FIGURES[name])
     if name == "age":
         out["median"] = extra.get("median")
+        out["pyramid"] = extra.get("pyramid")
     if name == "education":
         out["bachelors_plus"] = extra.get("bachelors_plus")
     if name == "nativity":
@@ -171,20 +173,23 @@ def build_rows(records: list[tuple[dict, dict]]) -> dict:
     """Una fila completa para el conjunto de comunas `records` (una comuna, o toda la región)."""
     acc = {name: {} for name in GROUPS}
     ages = dict.fromkeys(AGE_BANDS, 0)
+    men, women = [0] * len(AGE_BANDS), [0] * len(AGE_BANDS)
     pop = a0_14 = superior = 0
     paises: dict[str, float] = {}
     for c, t in records:
         for name in GROUPS:
             acc[name] = add(acc[name], counts_of(name, c, t))
-        for b in AGE_BANDS:
+        for i, b in enumerate(AGE_BANDS):
             ages[b] += c["ages"][b]
+            men[i] += c["ages_by_sex"][b][0]
+            women[i] += c["ages_by_sex"][b][1]
         pop += c["population"]
         a0_14 += t["edad"]["a0_14"]
         superior += t["nivel_educativo"]["superior"]
         for k, v in t["inmigracion"]["paises"].items():
             paises[k] = paises.get(k, 0) + v
     extras = {
-        "age": {"median": age_median(ages)},
+        "age": {"median": age_median(ages), "pyramid": {"men": men, "women": women}},
         "education": {"bachelors_plus": round(superior / (pop - a0_14), 4) if pop > a0_14 else None},
         "nativity": {"top_countries": top_countries(paises)},
     }
@@ -265,6 +270,7 @@ def build() -> None:
         "year": censo["year"],
         "sources": ["ine_censo2024", "ine_censo_tablas"],
         "figures": dict(FIGURES),
+        "age_bands": AGE_BANDS,
         "rows": dict(ROW_LABELS),
         "groups": GROUPS,
         "units": {name: 1 for name in GROUPS},

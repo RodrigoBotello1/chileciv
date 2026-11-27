@@ -4,9 +4,7 @@
 //
 //   cityDistricts(ddata, mil, id) → [district]   the metro's districts, strongest first, each with what the dock and
 //                                                the map plaques need ({id, name, short, color, icon, lq, emp, …})
-//   badgeOf(ddata, id) → {label, text, color, icon, district} | null | undefined   the city-type badge
 //   districtsHtml(m, ddata, mil) → HTML          the section body
-//   badgeHtml(m, ddata) → HTML                   the header badge
 import { esc, int, pct } from "../../format.js";
 import { compact, money } from "./fmt.js";
 import { icon } from "../../ui/icon.js";
@@ -82,23 +80,6 @@ export function cityDistricts(ddata, mil, id) {
     if (d.military) d.tierLabel = TIER[d.military.tier] || d.military.tier;
   }
   return out;
-}
-
-/** The city-type badge; undefined while districts.json is loading, null when there is none. */
-export function badgeOf(ddata, id) {
-  if (!ddata) return ddata; // undefined (loading) or null (missing)
-  const row = ddata.cities?.[id];
-  if (!row) return null;
-  if (!row.badge) return { label: "Sin tipo específico", text: "Ningún sector alcanza el umbral de un distrito.", color: "#6a7484", icon: null, district: null };
-  const c = catalog(ddata).get(row.badge.district) || {};
-  return { ...row.badge, color: c.color || "#6a7484", icon: iconFor(row.badge.district, c), emoji: FALLBACK[row.badge.district]?.[1] };
-}
-
-export function badgeHtml(m, ddata) {
-  const b = badgeOf(ddata, m.city.id);
-  if (!b) return "";
-  return `<span class="cv-type${b.district ? "" : " plain"}" style="--tc:${esc(b.color)}" title="Tipo de comuna: ${esc(b.text || b.label)}${ddata.vintage ? ` (${esc(ddata.vintage)})` : ""}">
-    <span class="cv-type-ic">${icon(b.icon, b.emoji || "◆", { size: 13 })}</span>${esc(b.label)}</span>`;
 }
 
 const ge = (lb) => (lb ? "≥" : "");
@@ -193,7 +174,6 @@ export function districtsHtml(m, ddata, mil) {
   const id = m.city.id;
   const row = ddata.cities?.[id] || null;
   const list = cityDistricts(ddata, mil, id);
-  const b = badgeOf(ddata, id);
   let lead;
   if (!row) {
     // A null row: the source does not cover this city. The file's own note says which source and which places.
@@ -203,9 +183,7 @@ export function districtsHtml(m, ddata, mil) {
     const cnt = row.counties ? ` (de ${row.counties[0]} de ${row.counties[1]} comunas)` : "";
     const pay = row.avg_pay != null
       ? `, sueldo medio ${money(row.avg_pay)}${ddata.national?.avg_pay != null ? ` (${T.nationShort} ${money(ddata.national.avg_pay)})` : ""}` : "";
-    const text = String(b?.text || "").replace(/\.\s*$/, "");
-    lead = `<p class="cv-lead">${b?.district ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${text ? ` · ${esc(text)}` : ""}.${row.emp != null ? " " : ""}` : ""}${
-      row.emp != null ? `${int(row.emp)} empleos contados${cnt}${pay}.` : ""}</p>`;
+    lead = row.emp != null ? `<p class="cv-lead">${int(row.emp)} empleos contados${cnt}${pay}.</p>` : "";
   }
   const cards = list.length
     ? `<div class="cv-dcs">${list.map((d) => districtCard(d, row, ddata, mil)).join("")}</div>`

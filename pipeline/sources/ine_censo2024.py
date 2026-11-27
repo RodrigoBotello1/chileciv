@@ -43,7 +43,7 @@ class IneCenso2024(Source):
                 comunas[r[4].zfill(5)] = {
                     "code": r[4].zfill(5), "name": NAME_FIX.get(r[5], r[5]), "prov_code": r[2].zfill(3), "prov_name": r[3],
                     "reg_code": r[0].zfill(2), "reg_name": r[1],
-                    "population": _int(r[6]), "men": _int(r[7]), "women": _int(r[8]), "ages": {},
+                    "population": _int(r[6]), "men": _int(r[7]), "women": _int(r[8]), "ages": {}, "ages_by_sex": {},
                 }
         header = None
         for r in sheet_rows(path, "4"):
@@ -55,6 +55,7 @@ class IneCenso2024(Source):
                 if age.startswith("Total"):
                     continue
                 comunas[r[4].zfill(5)]["ages"][age] = _int(r[header.index("Población censada")])
+                comunas[r[4].zfill(5)]["ages_by_sex"][age] = [_int(r[header.index("Hombres")]), _int(r[header.index("Mujeres")])]
         expected = 52 if CFG["regions"] == {"13"} else 346
         if len(comunas) != expected:
             raise ValueError(f"expected {expected} comunas, got {len(comunas)}")

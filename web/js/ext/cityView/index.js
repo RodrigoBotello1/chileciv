@@ -7,11 +7,10 @@
 //     estimated residents and its main land use; the metro's resource sites are labelled; its real districts
 //     (districts.json; a build with military.json adds the Encampment) stand on nearby hexes at schematic positions.
 //   * Screen: a right-hand dock (a bottom sheet on phones), see screen.js.
-//   * Banners: zoomed in, the banners that show their yield row also carry the city-type badge (districts.json),
-//     handed to render/banners.js as app.state.cityBadges; districts.json loads the first time the map is zoomed in
-//     that far (or a City View opens).
+//   * districts.json loads the first time the map is zoomed in far enough to show yield rows (or a City View opens),
+//     so the quick panel can offer its "Distritos ›" line. There is no city-type badge: it named most comunas
+//     "Sin tipo específico" and overstated the rest.
 import { buildModel, placeDistricts } from "./model.js";
-import { badgeOf } from "./districts.js";
 import { createMapLayer } from "./mapLayer.js";
 import { createBannerFocus } from "./bannerFocus.js";
 import { render, goToSection } from "./screen.js";
@@ -461,35 +460,21 @@ export async function install(app) {
     addOpenButton(app.state.selectedCity);
   }
 
-  // --- city-type badges on the map banners ------------------------------------------------------------------------
-  // render/banners.js draws a badge on banners that show their yield row (zoomed in) when app.state.cityBadges
-  // (Map id → {label, color}) has one. districts.json is big, so it loads only once the map is zoomed in that far.
-  const BADGE_RPX = 24; // banners.js shows yield rows above this hex radius
-  function setBadges(dd) {
-    if (!dd?.cities) return;
-    const map = new Map();
-    for (const c of app.data.cities) {
-      const b = badgeOf(dd, c.id);
-      if (b?.district) map.set(c.id, { label: b.label, color: b.color });
-    }
-    app.state.cityBadges = map;
-    app.requestDraw();
-  }
-  const wantBadges = (Rpx) => {
-    if (Rpx > BADGE_RPX && app.data.districts === undefined) app.loadData("districts").catch(() => {});
+  // --- districts.json, for the quick panel's "Distritos ›" line ---------------------------------------------------
+  const DISTRICTS_RPX = 24; // banners.js shows yield rows above this hex radius
+  const wantDistricts = (Rpx) => {
+    if (Rpx > DISTRICTS_RPX && app.data.districts === undefined) app.loadData("districts").catch(() => {});
   };
   app.on("data", (e) => {
     if (e?.name !== "districts") return;
-    setBadges(e.data);
     // The quick panel may already show a city: it gets its "Distritos ›" line now that the file is in.
     const panel = app.panels.element;
     if (e.data && app.mode !== MODE && app.state.selectedCity && panel && !panel.hidden && panel.dataset.kind === "city") {
       addDistrictsLink(panel, app.state.selectedCity);
     }
   });
-  app.on("camera", (e) => wantBadges(e?.Rpx ?? 0));
-  if (app.data.districts) setBadges(app.data.districts);
-  else wantBadges(app.w.grid.R * app.cam.scale);
+  app.on("camera", (e) => wantDistricts(e?.Rpx ?? 0));
+  if (!app.data.districts) wantDistricts(app.w.grid.R * app.cam.scale);
 
   app.cityView = { open: openCityView, close: () => leave(true), get city() { return cv.city; }, get model() { return cv.model; } };
 }
