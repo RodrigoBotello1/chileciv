@@ -674,7 +674,7 @@ async function main() {
   if (brandText && nation.country?.name) brandText.textContent = nation.country.name;
   setBtn("btn-share", `${icon("share", "🔗", { size: 15 })}<span class="lbl">Compartir</span>`);
   setBtn("btn-help", icon("help", "?", { size: 15 }));
-  setBtn("btn-pedia", `${icon("pedia", "📖", { size: 16 })}<span class="lbl">Almanaque</span>`);
+  setBtn("btn-pedia", `${icon("pedia", "📖", { size: 16 })}<span class="lbl">Guía</span>`);
   const searchIc = document.querySelector(".search-ic");
   if (searchIc) searchIc.innerHTML = icon("search", "🔍", { size: 14 });
   document.querySelector(".search-kbd")?.setAttribute("title", "Pulsa / o Ctrl K para buscar");

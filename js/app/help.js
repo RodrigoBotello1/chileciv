@@ -25,7 +25,7 @@ const ROWS = [
   ]],
   ["Paneles", [
     [["?"], "Esta ayuda"],
-    [["Esc"], "Cerrar la ayuda, la búsqueda, el Almanaque y luego el panel"],
+    [["Esc"], "Cerrar la ayuda, la búsqueda, la Guía y luego el panel"],
   ]],
 ];
 
@@ -41,7 +41,7 @@ export function initHelp() {
       <section><h3>${title}</h3>${rows.map(([keys, what]) => `
         <div class="help-row"><span class="keys">${keys.map((k) => `<kbd>${k}</kbd>`).join("")}</span><span>${what}</span></div>`).join("")}
       </section>`).join("")}</div>
-    <p class="help-foot">Cada número viene de datos públicos: abre el <b>Almanaque</b> para ver las fuentes.
+    <p class="help-foot">Cada número viene de datos públicos: abre la <b>Guía</b> para ver las fuentes.
       El enlace de la barra de direcciones siempre reabre esta misma vista.
       Basado en <a href="${UPSTREAM_URL}" target="_blank" rel="noopener">usaciv</a> de Andrej Karpathy (MIT)
       y en el port <a href="${TAIWAN_URL}" target="_blank" rel="noopener">taiwanciv</a> (MIT).</p>`;

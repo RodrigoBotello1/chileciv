@@ -308,7 +308,7 @@ function workforce(m) {
     <h3 id="cv-h-workforce">${icon("y-production", "⚙️", { size: 15 })}Empleo</h3>
     ${cards ? `<p class="cv-lead">Industrias en que trabajan ${m.city.employed != null ? `los ${int(m.city.employed)} ocupados` : "los ocupados"} de la comuna. <span class="cv-lq hi">×N</span> compara la proporción del empleo de una industria con la ${T.regional}.</p>
     <div class="cv-blds">${cards}</div>` : `<p class="muted cv-note">No hay datos de empleo por industria para esta comuna.</p>`}
-    <p class="cv-note">Fuente: ${esc(m.nation.vintage || "ver el Almanaque")}. <span data-dnote>Los distritos del mapa se definen aparte, con el cociente de localización de cada industria: ver "Distritos".</span></p>
+    <p class="cv-note">Fuente: ${esc(m.nation.vintage || "ver la Guía")}. <span data-dnote>Los distritos del mapa se definen aparte, con el cociente de localización de cada industria: ver "Distritos".</span></p>
   </section>`;
 }
 
@@ -407,8 +407,8 @@ function compare(m) {
 
 function footer(m) {
   const nat = m.nation;
-  return `<div class="cv-foot">Fuentes: ${esc(nat.vintage || "")}${nat.gdp_vintage ? `; ${GDP}: ${esc(nat.gdp_vintage)}` : ""}. La fuente y el año de cada dato están en el Almanaque; el lugar se mide entre las ${m.cityList.length} comunas del mapa.
-    <a href="#" data-pedia>Almanaque ›</a></div>`;
+  return `<div class="cv-foot">Fuentes: ${esc(nat.vintage || "")}${nat.gdp_vintage ? `; ${GDP}: ${esc(nat.gdp_vintage)}` : ""}. La fuente y el año de cada dato están en la Guía; el lugar se mide entre las ${m.cityList.length} comunas del mapa.
+    <a href="#" data-pedia>Guía ›</a></div>`;
 }
 
 /**
