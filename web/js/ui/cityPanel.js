@@ -27,6 +27,10 @@ export function openCityPanel(city, ctx) {
     })
     .join("");
   // Under the title: what `full` adds to the name ("Puente Alto, Región Metropolitana" → "Región Metropolitana") and the seat, if given.
+  // "Comparar" appears once the compare extension has found its data file (it re-draws the panel when it does).
+  const cmp = window.__app?.compare?.available
+    ? `<button class="chip" data-compare title="Comparar ${esc(city.name)} con otras comunas">Comparar ›</button>`
+    : "";
   const full = String(city.full || "");
   const extra = full.startsWith(city.name) ? full.slice(String(city.name).length).replace(/^[\s,]+/, "") : full;
   const sub = [extra || (city.name_en && city.name_en !== city.name ? city.name_en : ""), city.seat && city.seat !== city.name ? `El estandarte está sobre ${city.seat}` : ""].filter(Boolean).map(esc).join(" · ");
@@ -39,7 +43,7 @@ export function openCityPanel(city, ctx) {
     stripe: col,
     title: city.name,
     titleHtml: `${isCapital(city) ? `<span class="cap" title="Capital">★</span> ` : ""}${esc(city.name)}`,
-    sub: `${sub}${states ? `<div class="chips">${states}</div>` : ""}`,
+    sub: `${sub}${states || cmp ? `<div class="chips">${states}${cmp}</div>` : ""}`,
     headExtra: popLine(city, growth),
     sections: [
       { title: "Rendimientos", html: `<div class="yield-grid">${yieldGrid(nation, city.yields)}</div>` },
@@ -51,6 +55,7 @@ export function openCityPanel(city, ctx) {
     onClose: ctx.onClose,
     onPedia: ctx.onPedia,
     wire(panel) {
+      panel.querySelector("[data-compare]")?.addEventListener("click", () => window.__app?.compare?.open(city.id));
       panel.querySelectorAll("[data-state]").forEach((b) => (b.onclick = () => ctx.onState(+b.dataset.state)));
     },
   });

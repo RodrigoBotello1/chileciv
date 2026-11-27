@@ -403,7 +403,8 @@ function compare(m) {
   return `
   <section class="cv-sec" id="cv-compare" data-sec="compare" aria-labelledby="cv-h-compare">
     <h3 id="cv-h-compare">${icon("layers", "⚖️", { size: 15 })}Comparar</h3>
-    <p class="cv-lead">${m.peers.length ? `Las ${m.peers.length} comunas más cercanas en población. Haz clic en una para abrirla.` : "No hay comunas para comparar."}</p>
+    <p class="cv-lead">${m.peers.length ? `Las ${m.peers.length} comunas más cercanas en población. Haz clic en una para abrirla.` : "No hay comunas para comparar."}
+      <button type="button" class="cv-link" onclick="window.__app?.compare?.open('${m.city.id}')">Comparar en detalle con otras comunas ›</button></p>
     ${sets.length > 1 ? `<div class="cv-seg" role="group" aria-label="Métricas">
       ${sets.map((s) => `<button type="button" data-set="${s.id}" aria-pressed="${s.id === first}">${esc(s.label)}</button>`).join("")}
     </div>` : ""}

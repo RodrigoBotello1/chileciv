@@ -3,8 +3,9 @@
 // console.info and skipped, so an extension can be left out without breaking the app. A failing install() is logged
 // as an error and does not stop the others. Modules are fetched in parallel and installed in list order.
 // commute/: arcs of where each comuna's workers go, and the "Trabajo" block in the panels.
+// compare/: the "Comparar comunas" screen (up to 4 comunas side by side, from compare.json).
 // layers/: static map layers (roads, rail, ports, forts, wonders, trade routes) and their toggles.
-const MODULES = ["./cityView/index.js", "./advisors/index.js", "./layers/index.js", "./commute/index.js"];
+const MODULES = ["./cityView/index.js", "./advisors/index.js", "./layers/index.js", "./commute/index.js", "./compare/index.js"];
 
 export async function installExtensions(app, list = MODULES) {
   const loads = list.map((spec) => import(spec).then((m) => ({ m }), (err) => ({ err })));
