@@ -29,8 +29,10 @@ class IneCensoOd(Source):
         description="Base de microdatos del Censo 2024 (publicada en diciembre de 2025). De cada persona ocupada se toma "
         "su comuna de residencia, la comuna donde está su trabajo (pregunta 44: en su vivienda, en su comuna, en otra "
         "comuna, en otro país o en varias) y su medio de transporte principal (pregunta 45). Se agregan por comuna; "
-        "no sale ningún dato individual. Quien trabaja en varias comunas no tiene un destino único y no entra en los flujos.",
-        used_for=["Flujos de viaje al trabajo entre comunas", "Lentes de trabajo en otra comuna y medio de transporte"],
+        "no sale ningún dato individual. Quien trabaja en varias comunas no tiene un destino único y no entra en los flujos. "
+        "También el logro educativo (clasificación internacional CINE 2011) de las personas de 25 años o más.",
+        used_for=["Flujos de viaje al trabajo entre comunas", "Lentes de trabajo en otra comuna y medio de transporte",
+                  "Nivel educativo de los adultos (CINE 2011)", "Ocupados por comuna"],
     )
 
     def fetch(self, force=False):
@@ -62,6 +64,13 @@ class IneCensoOd(Source):
             code = str(comuna).zfill(5)
             if code in comunas:
                 comunas[code]["mode"][MODE.get(mode, "no_answer")] = n
+        # Educational attainment (CINE 2011, 12 codes) of people aged 25 or more, who have mostly finished studying.
+        for comuna, cine, n in con.execute(
+                f"select comuna, cine11, count(*) from {src} where (case when edad >= 0 then edad else edad_quinquenal end) >= 25 "
+                f"and cine11 is not null group by 1, 2").fetchall():  # small comunas hide exact age (-66): use the 5-year band
+            code = str(comuna).zfill(5)
+            if code in comunas:
+                comunas[code].setdefault("cine25", {})[str(cine)] = n
         flows = []
         for o, d, n in con.execute(
                 f"select comuna, p44_lug_trab_esp, count(*) from {src} where p44_lug_trab = 3 group by 1, 2").fetchall():

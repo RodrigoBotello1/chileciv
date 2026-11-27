@@ -175,7 +175,7 @@ export function citizensHtml(m, data) {
   return `
     <div class="cv-cz-top">
       ${chip(med, usMed, (v) => `${v.toFixed(1)} años`, "edad mediana", "Edad mediana de los habitantes")}
-      ${chip(ba, usBa, (v) => pct(v, 0), "con educación superior", "Personas de 15 años o más cuyo nivel educativo más alto es la educación superior (completa o incompleta)")}
+      ${chip(ba, usBa, (v) => pct(v, 0), "con título universitario o postgrado", `Personas de 25 años o más con título universitario, magíster o doctorado (Censo 2024)${row0.education?.doctorate ? `; ${row0.education.doctorate.toLocaleString("en-US")} con doctorado` : ""}`)}
       ${chip(fb, usFb, (v) => pct(v, 0), "nacidos en el extranjero", "Proporción de habitantes nacidos en otro país")}
     </div>
     ${great}

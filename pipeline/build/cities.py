@@ -21,7 +21,7 @@ from ..core.mapcfg import CFG
 
 from .yields import INDUSTRIES, YIELDS, economy, merge
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "ine_censo_od", "sii_empresas", "uf"]
 PRODUCES = ["cities.json", "nation.json"]
 
 CAPITAL = "13101"  # Santiago, seat of the national government
@@ -180,6 +180,7 @@ def build() -> None:
     reg_name = {c["code"]: c.get("reg_name") for c in censo["comunas"]}
     pop17 = {code: rec["residentes"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
     sii_of = sii_by_code(sii, censo)
+    od = load_interim("ine_censo_od")["comunas"]
     state_index = {fips: i for i, fips in enumerate(world["states"])}
     abbr = {s["fips"]: s["abbr"] for s in bounds["states"]}
     county_index = {g: k for k, g in enumerate(world["counties"])}
@@ -199,6 +200,7 @@ def build() -> None:
         else:
             x, y = gx, gy
         econ = economy(pop[code], sii_of[code], uf, sii["year"])
+        econ["employed"] = (od.get(code) or {}).get("workers")  # employed residents (Censo 2024), not SII jobs
         cities.append({
             "id": code,
             "name": t["name"],
@@ -260,6 +262,7 @@ def build() -> None:
             print(f"    {len(items)} {label}: {', '.join(items)}")
 
     region = economy(sum(pop.values()), merge(list(sii_of.values())), uf, sii["year"])
+    region["employed"] = sum((od.get(c) or {}).get("workers") or 0 for c in pop)
     p17 = sum(pop17.values())
     region["growth"] = growth_of(p17, region["population"])
     region["growth_years"] = GROWTH_YEARS

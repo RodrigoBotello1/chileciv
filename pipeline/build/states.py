@@ -23,7 +23,7 @@ from ..core.mapcfg import CFG
 from .cities import GROWTH_YEARS, growth_of, sii_by_code
 from .yields import YIELDS, economy, merge
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "ine_censo_od", "sii_empresas", "uf"]
 PRODUCES = ["states.json"]
 
 MIN_LABEL_KM, MAX_LABEL_KM = 14.0, 110.0  # suggested font height range, map units (hex radius = 25)
@@ -160,6 +160,7 @@ def build() -> None:
     owner = world["owner"]
     names = {s["fips"]: s for s in bounds["states"]}
     sii_of = sii_by_code(sii, censo)
+    od = load_interim("ine_censo_od")["comunas"]
     pop17 = {code: rec["residentes"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
 
     energy = energy_by_state()
@@ -171,6 +172,7 @@ def build() -> None:
         level_key = "reg_code" if CFG["state_level"] == "region" else "prov_code"
         comunas = [c for c in censo["comunas"] if c[level_key] == fips]
         econ = economy(sum(c["population"] for c in comunas), merge([sii_of[c["code"]] for c in comunas]), uf, sii["year"])
+        econ["employed"] = sum((od.get(c["code"]) or {}).get("workers") or 0 for c in comunas)  # Censo 2024 residents
         states.append(
             {
                 "fips": fips,

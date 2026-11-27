@@ -35,7 +35,7 @@ from pathlib import Path
 from ..core.paths import WEB_DATA
 from ..core.store import load_interim, write_web
 
-REQUIRES = ["ine_censo2024", "ine_censo_tablas", "cities.json"]
+REQUIRES = ["ine_censo2024", "ine_censo_tablas", "ine_censo_od", "cities.json"]
 PRODUCES = ["citizens.json"]
 
 FIGURES = {"age": 10}
@@ -66,9 +66,16 @@ GROUPS = {
     ],
     "education": [
         _g("hasta_basica", "Sin estudios o hasta educación básica", "hasta básica", "c-edu0",
-           "Censo 2024, nivel educacional: nunca asistió, educación diferencial, parvularia y básica"),
-        _g("media", "Educación media", "media", "c-edu1", "Censo 2024, nivel educacional: educación media"),
-        _g("superior", "Educación superior", "superior", "c-edu3", "Censo 2024, nivel educacional: educación superior"),
+           "Censo 2024 (microdatos), personas de 25 años o más, CINE 2011: nunca cursó, primera infancia, primaria y "
+           "secundaria baja, educación especial"),
+        _g("media", "Educación media completa", "media", "c-edu1",
+           "Censo 2024 (microdatos), 25 años o más, CINE 24 y 25: secundaria científico-humanista o técnico-profesional"),
+        _g("tecnica", "Técnico de nivel superior", "técnico", "c-edu2",
+           "Censo 2024 (microdatos), 25 años o más, CINE 35: terciaria de ciclo corto (técnico de nivel superior)"),
+        _g("universitaria", "Título universitario o profesional", "universitario", "c-edu3",
+           "Censo 2024 (microdatos), 25 años o más, CINE 46: grado de educación terciaria o equivalente"),
+        _g("postgrado", "Magíster o doctorado", "magíster o doctorado", "c-edu4",
+           "Censo 2024 (microdatos), 25 años o más, CINE 56 y 64: maestría, especialización o doctorado"),
     ],
     "nativity": [
         _g("born_in_chile", "Nacidos en Chile", "Chile", "c-local", "Población total menos personas nacidas en otro país"),
@@ -81,7 +88,7 @@ GROUPS = {
 }
 ROW_LABELS = {
     "age": "Población por tramo de edad",
-    "education": "Nivel educacional más alto de la población (incluye a niños y jóvenes que aún estudian; sin los que no declararon)",
+    "education": "Nivel educativo más alto de las personas de 25 años o más (sin los que no respondieron)",
     "nativity": "País de nacimiento de los habitantes",
 }
 
@@ -127,9 +134,10 @@ def counts_of(name: str, c: dict, t: dict) -> dict[str, float]:
         band = lambda lo, hi: sum(a[b] for b in AGE_BANDS[lo:hi])  # noqa: E731
         return {"child": band(0, 3), "young": band(3, 7), "midlife": band(7, 13), "elder": band(13, 18)}
     if name == "education":
-        n = t["nivel_educativo"]
-        return {"hasta_basica": n["nunca"] + n["diferencial"] + n["parvularia"] + n["basica"],
-                "media": n["media"], "superior": n["superior"]}
+        e = t.get("cine25") or {}
+        g = lambda *codes: sum(e.get(str(k), 0) for k in codes)  # noqa: E731  CINE 2011 codes 1..12 of the microdata
+        return {"hasta_basica": g(1, 2, 3, 4, 5, 12), "media": g(6, 7), "tecnica": g(8), "universitaria": g(9),
+                "postgrado": g(10, 11)}
     p = t["inmigracion"]["paises"]
     latam = sum(p[k] for k in LATAM)
     ven = p[VENEZUELA]
@@ -155,6 +163,7 @@ def row(name: str, counts: dict[str, float], extra: dict) -> dict | None:
         out["pyramid"] = extra.get("pyramid")
     if name == "education":
         out["bachelors_plus"] = extra.get("bachelors_plus")
+        out["doctorate"] = extra.get("doctorate")
     if name == "nativity":
         out["foreign_born"] = round(1 - counts["born_in_chile"] / total, 4)
         out["born_in_chile"] = round(counts["born_in_chile"] / total, 4)
@@ -174,7 +183,7 @@ def build_rows(records: list[tuple[dict, dict]]) -> dict:
     acc = {name: {} for name in GROUPS}
     ages = dict.fromkeys(AGE_BANDS, 0)
     men, women = [0] * len(AGE_BANDS), [0] * len(AGE_BANDS)
-    pop = a0_14 = superior = 0
+    pop = a0_14 = superior = doctorate = 0
     paises: dict[str, float] = {}
     for c, t in records:
         for name in GROUPS:
@@ -185,12 +194,16 @@ def build_rows(records: list[tuple[dict, dict]]) -> dict:
             women[i] += c["ages_by_sex"][b][1]
         pop += c["population"]
         a0_14 += t["edad"]["a0_14"]
-        superior += t["nivel_educativo"]["superior"]
+        e = t.get("cine25") or {}
+        superior += sum(e.get(str(k), 0) for k in (9, 10, 11))
+        doctorate += e.get("11", 0)
         for k, v in t["inmigracion"]["paises"].items():
             paises[k] = paises.get(k, 0) + v
     extras = {
         "age": {"median": age_median(ages), "pyramid": {"men": men, "women": women}},
-        "education": {"bachelors_plus": round(superior / (pop - a0_14), 4) if pop > a0_14 else None},
+        "education": {"bachelors_plus": round(superior / max(1, sum(acc["education"].values())), 4)
+                      if sum(acc["education"].values()) else None,
+                      "doctorate": doctorate},
         "nativity": {"top_countries": top_countries(paises)},
     }
     parts = {name: row(name, acc[name], extras[name]) for name in GROUPS}
@@ -243,9 +256,11 @@ def build() -> None:
     tablas = load_interim("ine_censo_tablas")["tablas"]
     cities = json.loads((WEB_DATA / "cities.json").read_text())
     by_code = {c["code"]: c for c in censo["comunas"]}
+    od = load_interim("ine_censo_od")["comunas"]
 
     def rec(code):
         t = {name: tab.get(code) for name, tab in tablas.items()}
+        t["cine25"] = (od.get(code) or {}).get("cine25")
         if code not in by_code or any(t.get(k) is None for k in ("edad", "nivel_educativo", "inmigracion")):
             return None
         return by_code[code], t

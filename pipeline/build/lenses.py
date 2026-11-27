@@ -50,6 +50,7 @@ RAMP = {
     "homeownership": ["#1c1a05", "#45410f", "#76701d", "#a8a033", "#d4ce62", "#f8f6c4"],
     "crowding": ["#faebdd", "#f69c73", "#e83f3f", "#a11a5b", "#4c1d4b", "#03051a"],
     "bachelors": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
+    "postgrad": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
     "schooling": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
     "broadband": ["#1a0a2e", "#3f1d6b", "#6a3fa0", "#9a72c9", "#c9a9e6", "#f3e8ff"],
     "firewood": ["#1a0505", "#4a0f0f", "#80201a", "#b8452b", "#e07b54", "#f9c9a8"],
@@ -184,6 +185,12 @@ def comuna_values(codes: list[str], censo: dict, tablas: dict, sii_of: dict, uf:
 
     def moved(rec):
         return sum(n for k, n in rec["mode"].items() if k != "no_answer") or None
+    def cine(g, codes):
+        e = (od.get(g) or {}).get("cine25") or {}
+        tot = sum(v for k, v in e.items() if k != "-99")
+        return sum(e.get(str(k), 0) for k in codes) / tot if tot else None
+    out["bachelors"] = col(lambda g: cine(g, (9, 10, 11)))
+    out["postgrad"] = col(lambda g: cine(g, (10, 11)))
     out["commute_out"] = col(lambda g: odv(g, lambda r: (r["place"].get("other") or 0) / r["workers"]))
     out["jobs_inflow"] = col(lambda g: odv(g, lambda r: inflow.get(g, 0) / r["workers"]))
     out["public_transport"] = col(lambda g: odv(g, lambda r: _div(r["mode"].get("public") or 0, moved(r))))
@@ -245,9 +252,14 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
         f"Hogares en vivienda propia pagada o pagándose ÷ hogares censados, {CENSO}." + SPREAD)
     add("crowding", "prosperity", "Hacinamiento", "🛏️", "viviendas con hacinamiento medio o crítico", "pct", "linear", "bad",
         "ine_censo_tablas", f"Viviendas con hacinamiento medio o crítico ÷ viviendas particulares ocupadas con moradores presentes, {CENSO}." + SPREAD)
-    add("bachelors", "knowledge", "Educación superior", "🎓", "población con educación superior", "pct", "linear", "good", "ine_censo_tablas",
-        f"Personas cuyo nivel educativo más alto es la educación superior ÷ población censada, {CENSO}." + SPREAD,
-        "Sobre toda la población, niños incluidos: por eso ninguna comuna se acerca al 100%.")
+    add("bachelors", "knowledge", "Título universitario", "🎓", "adultos de 25 años o más con título universitario o postgrado", "pct",
+        "linear", "good", "ine_censo_od",
+        f"Personas de 25 años o más con título universitario, magíster o doctorado (CINE 46, 56 y 64) ÷ personas de 25 años "
+        f"o más que respondieron, {CENSO} (microdatos)." + SPREAD)
+    add("postgrad", "knowledge", "Magíster o doctorado", "📜", "adultos de 25 años o más con magíster o doctorado", "pct",
+        "linear", "good", "ine_censo_od",
+        f"Personas de 25 años o más con magíster, especialización o doctorado (CINE 56 y 64) ÷ personas de 25 años o más que "
+        f"respondieron, {CENSO} (microdatos)." + SPREAD)
     add("schooling", "knowledge", "Años de escolaridad", "📚", "años, población de 18 o más", "years", "linear", "good", "ine_censo_tablas",
         f"Años de escolaridad promedio de la población de 18 años o más, {CENSO}." + SPREAD)
     add("broadband", "knowledge", "Internet fija", "📡", "hogares con internet fija", "pct", "linear", "good", "ine_censo_tablas",
