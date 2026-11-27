@@ -16,7 +16,7 @@ from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, write_web
 from .cities import sii_by_code
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos", "wikidata_rm", "cr2met", "ine_censo_od"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos", "wikidata_rm", "cr2met", "ine_censo_od", "demre_paes"]
 PRODUCES = ["lenses.json"]
 
 GROUPS = [
@@ -33,6 +33,7 @@ DOMAIN_NOTE = " La escala de colores va del percentil 2 al 98 de los hexágonos;
 SPREAD = " Un hexágono que cruza dos comunas muestra el promedio ponderado por población."
 CENSO = "Censo 2024 (INE)"
 
+MIN_PAES = 30  # a comuna (or school type) with fewer test takers than this is hidden: its mean is too noisy
 RAMP = {
     "density": ["#1b1035", "#4b2377", "#9a3b8a", "#e0645e", "#f9b24a", "#fff3a8"],
     "growth": ["#7a1f3d", "#c2525a", "#f0b7a4", "#f7f4ea", "#9ed3c6", "#3f9c9a", "#1b5e6b"],
@@ -50,6 +51,8 @@ RAMP = {
     "homeownership": ["#1c1a05", "#45410f", "#76701d", "#a8a033", "#d4ce62", "#f8f6c4"],
     "crowding": ["#faebdd", "#f69c73", "#e83f3f", "#a11a5b", "#4c1d4b", "#03051a"],
     "bachelors": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
+    "paes": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
+    "paes_gap": ["#1c1a05", "#45410f", "#76701d", "#a8a033", "#d4ce62", "#f8f6c4"],
     "postgrad": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
     "schooling": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
     "broadband": ["#1a0a2e", "#3f1d6b", "#6a3fa0", "#9a72c9", "#c9a9e6", "#f3e8ff"],
@@ -134,7 +137,7 @@ def median_age(ages: dict[str, float | None]) -> float | None:
 
 
 def comuna_values(codes: list[str], censo: dict, tablas: dict, sii_of: dict, uf: float | None,
-                  od_data: dict | None = None) -> dict[str, list]:
+                  od_data: dict | None = None, paes_data: dict | None = None) -> dict[str, list]:
     pop = {c["code"]: c["population"] for c in censo["comunas"]}
     ages = {c["code"]: c["ages"] for c in censo["comunas"]}
     t = tablas
@@ -195,6 +198,20 @@ def comuna_values(codes: list[str], censo: dict, tablas: dict, sii_of: dict, uf:
     out["jobs_inflow"] = col(lambda g: odv(g, lambda r: inflow.get(g, 0) / r["workers"]))
     out["public_transport"] = col(lambda g: odv(g, lambda r: _div(r["mode"].get("public") or 0, moved(r))))
     out["car_commute"] = col(lambda g: odv(g, lambda r: _div(r["mode"].get("car") or 0, moved(r))))
+
+    pc = (paes_data or {}).get("comunas", {})
+
+    def paes_mean(rec, keys):
+        parts = [rec[k] for k in keys if k in rec]
+        n = sum(p["n"] for p in parts)
+        return (sum(p["n"] * p["mean"] for p in parts) / n) if n >= MIN_PAES else None
+
+    def paes_gap(g):
+        rec = pc.get(g) or {}
+        hi, lo = paes_mean(rec, ("pagado",)), paes_mean(rec, ("municipal", "slep"))
+        return hi - lo if hi is not None and lo is not None else None
+    out["paes"] = col(lambda g: paes_mean(pc.get(g) or {}, ("all",)))
+    out["paes_gap"] = col(paes_gap)
 
     def tradition(g):
         r = t["religion"][g]
@@ -260,6 +277,16 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
         "linear", "good", "ine_censo_od",
         f"Personas de 25 años o más con magíster, especialización o doctorado (CINE 56 y 64) ÷ personas de 25 años o más que "
         f"respondieron, {CENSO} (microdatos)." + SPREAD)
+    add("paes", "knowledge", "Puntaje PAES", "📝", "puntaje promedio Lectora y M1", "int", "linear", "good", "demre_paes",
+        "Promedio de (Competencia Lectora + Competencia Matemática 1) / 2 de los estudiantes de la promoción del año que "
+        "rindieron la PAES regular de la Admisión 2026 (DEMRE), según la comuna de su colegio. Las comunas con menos de "
+        f"{MIN_PAES} rindentes no se muestran." + SPREAD,
+        "Es la comuna del colegio, no donde viven los estudiantes. Las comunas con pocos rindentes tienen cifras inestables.")
+    add("paes_gap", "knowledge", "Brecha PAES", "⚖️", "puntos de diferencia entre colegios particulares pagados y públicos", "int",
+        "linear", "bad", "demre_paes",
+        "Puntaje PAES promedio (Lectora y M1) de los colegios particulares pagados menos el de los colegios municipales y "
+        f"de servicios locales de educación de la comuna, Admisión 2026 (DEMRE). Se muestra solo donde ambos grupos tienen al menos {MIN_PAES} rindentes." + SPREAD,
+        "Es la comuna del colegio, no donde viven los estudiantes. Mide la distancia entre tipos de colegio, no su calidad.")
     add("schooling", "knowledge", "Años de escolaridad", "📚", "años, población de 18 o más", "years", "linear", "good", "ine_censo_tablas",
         f"Años de escolaridad promedio de la población de 18 años o más, {CENSO}." + SPREAD)
     add("broadband", "knowledge", "Internet fija", "📡", "hogares con internet fija", "pct", "linear", "good", "ine_censo_tablas",
@@ -292,7 +319,7 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
     add("daylight_jun", "curious", "Luz el 21 de junio", "🌙", "horas de sol en el día más corto", "float", "linear", "neutral",
         "worldclim", "Horas de sol el 21 de junio (solsticio de invierno), con el mismo cálculo astronómico que el lente del "
         "21 de diciembre.")
-    add("sea_km", "curious", "Distancia al mar", "🏖️", "km hasta el océano Pacífico", "int", "linear", "neutral", "world",
+    add("sea_km", "curious", "Distancia al mar", "🏖️", "km hasta el océano Pacífico", "int", "linear", "neutral", "natural_earth",
         "Distancia aproximada desde el centro del hexágono hasta el hexágono de mar más cercano, contada en pasos de "
         "hexágono (cada paso mide lo que separa dos centros vecinos). Los lagos no cuentan como mar.")
     add("ski_km", "curious", "Distancia a la nieve", "🎿", "km en línea recta al centro de ski más cercano", "int", "linear", "neutral",
@@ -348,7 +375,7 @@ def build() -> None:
             land = sum(1 for k in s if k >= 0) or 1
             density[i] = int(round(people / (hex_km2 * land / len(s))))
 
-    tv = comuna_values(codes, censo, tablas, sii_by_code(sii, censo), uf, load_interim("ine_censo_od"))
+    tv = comuna_values(codes, censo, tablas, sii_by_code(sii, censo), uf, load_interim("ine_censo_od"), load_interim("demre_paes"))
     clim = load_interim("worldclim")
     cr2 = load_interim("cr2met")
     quakes = load_interim("usgs_sismos")["quakes"]
@@ -453,7 +480,7 @@ def build() -> None:
                 values.append(tv["faith_tradition"][best[0]] if best else None)
             cats = [{"id": cid, "name": name, "color": color} for cid, name, color, _ in TRADITIONS]
             m.update(categories=cats, ramp=[c["color"] for c in cats], domain=[0, len(cats) - 1])
-        elif m["format"] == "usd":
+        elif m["format"] in ("usd", "int"):
             values = [None if x is None else int(round(x)) for x in spread(tv[lid], 0)]
         else:
             values = spread(tv[lid], DIGITS[m["format"]])

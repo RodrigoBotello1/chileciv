@@ -910,6 +910,8 @@ export const ALIASES = {
   'l-density': 'pop',
   'l-degree': 'l-degrees',
   'l-bachelors': 'l-degrees',
+  'l-paes': 'l-degrees',
+  'l-paes-gap': 'l-degrees',
   'l-homeowner': 'l-homeownership',
   'l-foreign_born': 'l-foreign-born',
   'r-coal': 'r-coal_mine',

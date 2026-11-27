@@ -310,7 +310,7 @@ class Locator:
         ci = self.county[cell]
         geoid = self.geoids[ci] if ci >= 0 else None
         return {"x": round(x, 1), "y": round(y, 1), "cell": cell, "county": geoid,
-                "cbsa": self.world["states"][self.owner[cell]], "state": self.abbrs[self.owner[cell]]}
+                "cbsa": geoid, "state": self.abbrs[self.owner[cell]]}  # cbsa = the comuna (cities.json id)
 
 
 def build_airports(loc: Locator, aerodromes: list[dict]) -> tuple[list[dict], list[str]]:

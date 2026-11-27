@@ -112,9 +112,7 @@ def build() -> None:
         out = {}
         for t in TYPES:
             sel = [r for r in rows if r["type"] == t["id"]]
-            additive = t["unit"] == "MW"
-            out[t["id"]] = {"count": len(sel), "value": round(sum(r["value"] for r in sel), 1) if additive else None,
-                            "unit": t["unit"]}
+            out[t["id"]] = {"count": len(sel), "value": round(sum(r["value"] or 0 for r in sel), 1), "unit": t["unit"]}
         return out
 
     by_state: dict[str, dict] = {}

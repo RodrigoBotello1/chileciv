@@ -11,6 +11,7 @@ import { isCapital } from "../../world.js";
 import { sparkline, meter, bar } from "./charts.js";
 import { popSeries, rankCount, resourceValue, LAND } from "./model.js";
 import { citizensHtml, mountCitizens } from "./citizens.js";
+import { paesHtml } from "./paes.js";
 import { cityDistricts, districtsHtml } from "./districts.js";
 import { T } from "../../terms.js";
 
@@ -169,6 +170,7 @@ function citizens(m) {
       ${row("l-home", "🏠", "Valor mediano de la vivienda", c.home_value, n.home_value, dollars, null)}
       ${row(null, "⚖️", "Carga del arriendo (arriendo ÷ ingreso)", c.rent_burden, n.rent_burden, (x) => pct(x), "low")}
     </div>
+    <div data-paes></div>
     <div class="cv-legend-tiles">${tileLegend(m)}<p>${tilesNote}</p></div>
     <h4 class="cv-h4">Comunas miembro <span class="muted">(${(c.counties || []).length})</span></h4>
     <div class="cv-counties" data-counties><p class="muted cv-note">Cargando comunas…</p></div>
@@ -510,6 +512,11 @@ export function render(el, m, h) {
     czHost.innerHTML = citizensHtml(m, data);
     mountCitizens(czHost, m, data);
   }, () => czHost.remove());
+  // PAES results (paes.json, lazy): a build without the file, or a comuna without test takers, leaves the slot empty.
+  const pHost = el.querySelector("[data-paes]");
+  Promise.resolve(h.loadData?.("paes")).then((data) => {
+    if (pHost.isConnected) pHost.innerHTML = paesHtml(m, data);
+  }, () => {});
   const dHost = el.querySelector("[data-districts]");
   // A build without districts.json has no Districts section at all: the section and its tab go, rather than a tab
   // that only says there is no data.
