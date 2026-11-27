@@ -16,7 +16,7 @@ from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, write_web
 from .cities import sii_by_code
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos", "wikidata_rm", "cr2met"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "sii_empresas", "uf", "worldclim", "usgs_sismos", "wikidata_rm", "cr2met", "ine_censo_od"]
 PRODUCES = ["lenses.json"]
 
 GROUPS = [
@@ -42,6 +42,10 @@ RAMP = {
     "indigenous": ["#1a0f05", "#4a2c10", "#7d4c1e", "#b0773a", "#d9a866", "#f5dcae"],
     "household": ["#10202a", "#1f4257", "#346683", "#5a8fae", "#93bcd4", "#d6ebf5"],
     "movers": ["#2b0b1e", "#5e1742", "#93275f", "#c84f7c", "#ea8fa8", "#fbd9e1"],
+    "commute_out": ["#2b0b1e", "#5e1742", "#93275f", "#c84f7c", "#ea8fa8", "#fbd9e1"],
+    "jobs_inflow": ["#1b1035", "#4b2377", "#9a3b8a", "#e0645e", "#f9b24a", "#fff3a8"],
+    "public_transport": ["#08203e", "#0f4c81", "#2a7fc1", "#5fa8e0", "#a6d1f2", "#eaf5ff"],
+    "car_commute": ["#1a0505", "#4a0f0f", "#80201a", "#b8452b", "#e07b54", "#f9c9a8"],
     "sales_pc": ["#3a1c0b", "#7a4413", "#b8781f", "#e3b23c", "#f6e27f", "#fffbe0"],
     "homeownership": ["#1c1a05", "#45410f", "#76701d", "#a8a033", "#d4ce62", "#f8f6c4"],
     "crowding": ["#faebdd", "#f69c73", "#e83f3f", "#a11a5b", "#4c1d4b", "#03051a"],
@@ -128,7 +132,8 @@ def median_age(ages: dict[str, float | None]) -> float | None:
     return None
 
 
-def comuna_values(codes: list[str], censo: dict, tablas: dict, sii_of: dict, uf: float | None) -> dict[str, list]:
+def comuna_values(codes: list[str], censo: dict, tablas: dict, sii_of: dict, uf: float | None,
+                  od_data: dict | None = None) -> dict[str, list]:
     pop = {c["code"]: c["population"] for c in censo["comunas"]}
     ages = {c["code"]: c["ages"] for c in censo["comunas"]}
     t = tablas
@@ -168,6 +173,22 @@ def comuna_values(codes: list[str], censo: dict, tablas: dict, sii_of: dict, uf:
         return _div(declared - (r["ninguna"] or 0), declared)
     out["faith"] = col(faith)
 
+    od = od_data["comunas"]
+    inflow: dict[str, int] = {}
+    for o, d, n in od_data["flows"]:
+        inflow[d] = inflow.get(d, 0) + n
+
+    def odv(g, fn):
+        rec = od.get(g)
+        return fn(rec) if rec and rec.get("workers") else None
+
+    def moved(rec):
+        return sum(n for k, n in rec["mode"].items() if k != "no_answer") or None
+    out["commute_out"] = col(lambda g: odv(g, lambda r: (r["place"].get("other") or 0) / r["workers"]))
+    out["jobs_inflow"] = col(lambda g: odv(g, lambda r: inflow.get(g, 0) / r["workers"]))
+    out["public_transport"] = col(lambda g: odv(g, lambda r: _div(r["mode"].get("public") or 0, moved(r))))
+    out["car_commute"] = col(lambda g: odv(g, lambda r: _div(r["mode"].get("car") or 0, moved(r))))
+
     def tradition(g):
         r = t["religion"][g]
         counts = [sum(r.get(k) or 0 for k in keys) for _, _, _, keys in TRADITIONS]
@@ -203,6 +224,20 @@ def meta(year: int, sii_year: int) -> dict[str, dict]:
         f"Promedio de personas por hogar, {CENSO}." + SPREAD)
     add("movers", "people", "Llegaron hace poco", "🧳", "vivían en otra comuna hace 5 años", "pct", "linear", "neutral", "ine_censo_tablas",
         f"Personas que hace 5 años vivían en otra comuna o fuera del país ÷ población de 5 años o más, {CENSO}." + SPREAD)
+    add("commute_out", "life", "Trabaja en otra comuna", "🚌", "ocupados que trabajan en otra comuna", "pct", "linear", "neutral",
+        "ine_censo_od", f"Personas ocupadas cuyo trabajo está en otra comuna ÷ personas ocupadas que viven en la comuna, {CENSO} "
+        "(pregunta 44, microdatos)." + SPREAD)
+    add("jobs_inflow", "life", "Llegan a trabajar", "🏢", "trabajadores que llegan de otras comunas por cada ocupado que vive ahí",
+        "float", "log", "neutral", "ine_censo_od",
+        f"Personas que viven en otra comuna y trabajan en esta ÷ personas ocupadas que viven en esta, {CENSO} (microdatos). "
+        "Sobre 1, la comuna recibe más trabajadores de los que tiene viviendo." + SPREAD)
+    add("public_transport", "life", "Va en transporte público", "🚇", "ocupados que van al trabajo en transporte público",
+        "pct", "linear", "neutral", "ine_censo_od",
+        f"Ocupados cuyo medio principal para ir al trabajo es el transporte público (bus, micro, metro, tren, taxi, colectivo) "
+        f"÷ ocupados que se trasladan, {CENSO} (pregunta 45)." + SPREAD)
+    add("car_commute", "life", "Va en auto", "🚗", "ocupados que van al trabajo en auto", "pct", "linear", "neutral", "ine_censo_od",
+        f"Ocupados cuyo medio principal para ir al trabajo es el auto particular ÷ ocupados que se trasladan, {CENSO} "
+        "(pregunta 45)." + SPREAD)
     add("sales_pc", "prosperity", "Ventas por habitante", "💰", "pesos por habitante al año", "usd", "log", "neutral", "sii_empresas",
         f"Ventas anuales {sii_year} de las empresas con casa matriz en la comuna (SII, en pesos) ÷ habitantes." + SPREAD,
         "Las ventas se cuentan en la comuna de la casa matriz: mide dónde están las oficinas, no el ingreso de los vecinos.")
@@ -301,7 +336,7 @@ def build() -> None:
             land = sum(1 for k in s if k >= 0) or 1
             density[i] = int(round(people / (hex_km2 * land / len(s))))
 
-    tv = comuna_values(codes, censo, tablas, sii_by_code(sii, censo), uf)
+    tv = comuna_values(codes, censo, tablas, sii_by_code(sii, censo), uf, load_interim("ine_censo_od"))
     clim = load_interim("worldclim")
     cr2 = load_interim("cr2met")
     quakes = load_interim("usgs_sismos")["quakes"]
