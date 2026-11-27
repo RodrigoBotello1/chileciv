@@ -135,6 +135,14 @@ export function initPedia(data) {
           <td>${esc(t.description || "")}${t.source ? `<br><span class="muted">Fuente: ${esc(srcName(t.source))}</span>` : ""}</td>
           <td class="num">${count.get(t.id) || 0}</td></tr>`).join("")}</table>`).join("")}`;
     } },
+    { id: "Commute", title: "Viajes al trabajo", html: () => `
+      ${h2("l-commute", "🚌", "Viajes al trabajo")}
+      ${data.commute ? `<p>Con una comuna elegida, las flechas curvas parten de ella hacia las comunas donde trabaja su gente. El porcentaje de cada flecha
+      es la parte de los ocupados de la comuna que trabaja en ese destino. Las flechas verdes (capa <i>Quién llega</i>) muestran de qué comunas
+      llegan más trabajadores, con su número. El panel de la comuna resume cuántos trabajan en otra comuna, cómo se desplazan y los destinos principales.</p>
+      <p>${esc(data.commute.rule || "")}</p>
+      <p class="muted">Fuente: ${esc(data.commute.vintage || "Censo 2024 (INE)")}.</p>`
+      : `<p class="muted">Esta versión de los datos no trae commute.json.</p>`}` },
     { id: "Sources", title: "Fuentes", html: () => `
       ${h2("pedia", "📖", "Fuentes")}
       ${data.sources?.length ? "" : `<p class="muted">Esta versión de los datos no trae sources.json.</p>`}
