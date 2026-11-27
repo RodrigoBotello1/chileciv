@@ -1,7 +1,7 @@
 import { css } from "../color.js";
 import { esc, popShort } from "../format.js";
 import { isCapital } from "../world.js";
-import { yieldGrid, amenities, industries, gdpRow, gdpLabel, popLine, growthSpan, showPanel } from "./infoPanel.js";
+import { yieldGrid, amenities, industries, gdpRow, pibRow, gdpLabel, popLine, growthSpan, showPanel } from "./infoPanel.js";
 import { T } from "../terms.js";
 
 /**
@@ -34,7 +34,7 @@ export function openStatePanel(idx, ctx) {
     : `<p class="muted">No hay comunas en los datos de esta ${T.state}.</p>`;
 
   const hasEcon = st.population != null || st.yields;
-  const living = hasEcon ? (amenities(st, n, nation) + gdpRow(st, nation)).trim() : "";
+  const living = hasEcon ? (amenities(st, n, nation) + pibRow(st) + gdpRow(st, nation)).trim() : "";
   showPanel({
     kind: "state",
     stripe: css(w.stateColor[idx] || [190, 190, 190]),

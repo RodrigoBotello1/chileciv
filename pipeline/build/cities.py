@@ -21,7 +21,8 @@ from ..core.mapcfg import CFG
 
 from .yields import INDUSTRIES, YIELDS, economy, merge
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "ine_censo_od", "sii_empresas", "uf"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "ine_censo_od", "sii_empresas", "uf",
+            "bcch_pib_regional"]
 PRODUCES = ["cities.json", "nation.json"]
 
 CAPITAL = "13101"  # Santiago, seat of the national government
@@ -263,6 +264,11 @@ def build() -> None:
 
     region = economy(sum(pop.values()), merge(list(sii_of.values())), uf, sii["year"])
     region["employed"] = sum((od.get(c) or {}).get("workers") or 0 for c in pop)
+    from .states import pib_of
+    pibs = load_interim("bcch_pib_regional")
+    tot = pibs["series"]["Producto Interno Bruto"][str(pibs["year"])] * pibs["unit"]
+    region["pib"] = (pib_of(pibs, "Región Metropolitana de Santiago") if CFG["regions"] == {"13"}
+                     else {"value": tot, "share": 1.0, "year": pibs["year"]})
     p17 = sum(pop17.values())
     region["growth"] = growth_of(p17, region["population"])
     region["growth_years"] = GROWTH_YEARS

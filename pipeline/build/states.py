@@ -23,7 +23,8 @@ from ..core.mapcfg import CFG
 from .cities import GROWTH_YEARS, growth_of, sii_by_code
 from .yields import YIELDS, economy, merge
 
-REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "ine_censo_od", "sii_empresas", "uf"]
+REQUIRES = ["_world", "cl_boundaries", "ine_censo2024", "ine_censo_tablas", "ine_censo_od", "sii_empresas", "uf",
+            "bcch_pib_regional"]
 PRODUCES = ["states.json"]
 
 MIN_LABEL_KM, MAX_LABEL_KM = 14.0, 110.0  # suggested font height range, map units (hex radius = 25)
@@ -150,6 +151,29 @@ def energy_by_state() -> dict[str, dict] | None:
     return out
 
 
+def _rkey(name: str) -> str:
+    """Join key for region names across the INE and the Banco Central ("Región del Libertador General Bernardo OHiggins"):
+    no accents, no apostrophes, without the words región/de/del/la/los/las/y."""
+    import re
+    import unicodedata
+    s = unicodedata.normalize("NFD", name.lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    words = [w for w in re.split(r"[^a-z0-9]+", s.replace("'", "")) if w and w not in {"region", "de", "del", "la", "los", "las", "y", "el"}]
+    return "".join(words)
+
+
+def pib_of(pib: dict, region_name: str) -> dict | None:
+    """{value (pesos), share of national GDP, year} for a region name, or None."""
+    year, unit = str(pib["year"]), pib["unit"]  # JSON keys are strings
+    total = pib["series"].get("Producto Interno Bruto", {}).get(year)
+    want = _rkey(region_name)
+    for k, ser in pib["series"].items():
+        kk = _rkey(k)
+        if kk and (kk == want or kk.startswith(want) or want.startswith(kk)) and ser.get(year):
+            return {"value": ser[year] * unit, "share": round(ser[year] / total, 4) if total else None, "year": int(year)}
+    return None
+
+
 def build() -> None:
     world = load_interim("_world")
     bounds = load_interim("cl_boundaries")
@@ -161,6 +185,7 @@ def build() -> None:
     names = {s["fips"]: s for s in bounds["states"]}
     sii_of = sii_by_code(sii, censo)
     od = load_interim("ine_censo_od")["comunas"]
+    pib = load_interim("bcch_pib_regional")
     pop17 = {code: rec["residentes"] for code, rec in load_interim("ine_censo_tablas")["tablas"]["censo2017"].items()}
 
     energy = energy_by_state()
@@ -187,6 +212,7 @@ def build() -> None:
                 "label": label_anchor(grid, owner, i, meta["name"]),
                 "land": land_shares(world, i),
                 "energy": dict(energy.get(meta["abbr"]) or energy[""]) if energy is not None else None,
+                "pib": pib_of(pib, meta["name"]) if CFG["state_level"] == "region" else None,
             }
         )
     for y in YIELDS:

@@ -94,6 +94,13 @@ export function industries(o, nation, limit = 0) {
     .join("");
 }
 
+/** Official regional GDP (Banco Central) and its share of Chile's, when the row has it. */
+export const pibRow = (o) =>
+  o?.pib?.value != null
+    ? `<div class="stat-row"><span class="sl">${icon("y-gold", "🏦", { size: 14 })}PIB (${esc(o.pib.year)}, Banco Central)</span><span><b>${money(o.pib.value)}</b>${
+        o.pib.share != null && o.pib.share < 1 ? `<span class="cmp">${(o.pib.share * 100).toFixed(1)}% del PIB de Chile</span>` : ""}</span></div>`
+    : "";
+
 export const gdpRow = (o, nation = null) =>
   o.gdp != null
     ? `<div class="stat-row"><span class="sl">${icon("y-gold", "💰", { size: 14 })}${esc(gdpLabel(nation))}${o.gdp_year ? ` (${esc(o.gdp_year)})` : ""}</span><span><b>${money(o.gdp)}</b>${
